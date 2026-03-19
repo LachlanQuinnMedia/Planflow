@@ -3,6 +3,12 @@ import Dashboard from './Dashboard'
 import Jobs from './Jobs'
 import NewJob from './NewJob'
 import JobDetail from './JobDetail'
+import Workload from './Workload'
+import Bookings from './Bookings'
+import Templates from './Templates'
+import Documents from './Documents'
+import TimeBudget from './TimeBudget'
+import Planners from './Planners'
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', section: 'main' },
   { id: 'jobs', label: 'Jobs', section: 'main', badge: '18' },
@@ -33,6 +39,12 @@ export default function App() {
       case 'jobs': return <Jobs onNavigate={setActivePage} />
       case 'newjob': return <NewJob onNavigate={setActivePage} />
       case 'jobdetail': return <JobDetail onNavigate={setActivePage} />
+      case 'workload': return <Workload />
+      case 'calendly': return <Bookings onNavigate={setActivePage} />
+      case 'templates': return <Templates />
+      case 'docs': return <Documents />
+      case 'time': return <TimeBudget />
+case 'planners': return <Planners />
       default: return (
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <p className="text-sm text-gray-400">This page is coming soon.</p>
