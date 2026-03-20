@@ -21,6 +21,14 @@ const job = {
   decisionDue: '10 Apr 2025',
   referrals: 'DTMR, TRC Engineering',
   status: 'Active',
+  dates: {
+    confirmation: '25 Jan 2025',
+    irResponse: '19 Mar 2025',
+    referral: '26 Mar 2025',
+    publicNoticeStart: null,
+    publicNoticeEnd: null,
+    decision: '10 Apr 2025',
+  }
 }
 
 const typeBadge = {
@@ -59,13 +67,48 @@ const history = [
   { title: 'Job created · docs auto-generated', sub: '5 Jan 2025 · System', type: 'system' },
 ]
 
+const templatesByType = {
+  MCU: ['MCU Planning Report', 'MCU IR Response (Code assessable)', 'MCU IR Response (Impact assessable)', 'MCU Client Engagement Letter', 'Tax Invoice', 'Fee Estimate Letter'],
+  ROL: ['ROL Planning Report', 'ROL IR Response', 'ROL Engagement Letter', 'Tax Invoice', 'Fee Estimate Letter'],
+  RAA: ['RAA Response Report', 'Referral Agency Submission', 'Tax Invoice'],
+  OW: ['OW Planning Report', 'OW Compliance Report', 'Tax Invoice'],
+  SPS: ['SPS Request Report', 'SPS Supporting Statement', 'Tax Invoice'],
+}
+
 export default function JobDetail({ onNavigate }) {
   const [activeTab, setActiveTab] = useState('overview')
+  const [showGenerate, setShowGenerate] = useState(false)
+  const [selectedTemplates, setSelectedTemplates] = useState([])
+  const [generated, setGenerated] = useState([])
   const budgetPct = Math.round((job.usedHrs / job.budgetHrs) * 100)
   const budgetCost = job.usedHrs * job.rate
   const totalBudget = job.budgetHrs * job.rate
 
   const tabs = ['overview', 'documents', 'time & budget', 'ir & notes', 'history']
+
+  const toggleTemplate = (t) => {
+    setSelectedTemplates(prev =>
+      prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]
+    )
+  }
+
+  const handleGenerate = () => {
+    if (selectedTemplates.length === 0) { alert('Please select at least one template.'); return }
+    setGenerated(selectedTemplates)
+    setShowGenerate(false)
+    setSelectedTemplates([])
+    setActiveTab('documents')
+    alert(`${selectedTemplates.length} document(s) generated and added to the Documents tab!`)
+  }
+
+  const keyDates = [
+    { label: 'Confirmation notice', value: job.dates.confirmation, past: true, urgent: false },
+    { label: 'IR response due', value: job.dates.irResponse, past: false, urgent: true },
+    { label: 'Referral agency response', value: job.dates.referral, past: false, urgent: true },
+    { label: 'Public notice start', value: job.dates.publicNoticeStart, past: false, urgent: false },
+    { label: 'Public notice end', value: job.dates.publicNoticeEnd, past: false, urgent: false },
+    { label: 'Statutory decision date', value: job.dates.decision, past: false, urgent: false },
+  ]
 
   return (
     <div>
@@ -80,10 +123,39 @@ export default function JobDetail({ onNavigate }) {
         </div>
         <span className={`text-xs px-2 py-1 rounded-full font-medium ${typeBadge[job.type]}`}>{job.type}</span>
         <span className="text-xs px-2 py-1 rounded-full font-medium bg-emerald-100 text-emerald-700">{job.status}</span>
-        <button className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
+        <button onClick={() => setShowGenerate(true)} className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
           ⬡ Generate docs
         </button>
       </div>
+
+      {/* Generate docs modal */}
+      {showGenerate && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl border border-gray-200 p-5 w-96 max-h-96 overflow-y-auto">
+            <div className="text-sm font-semibold mb-1">Generate documents</div>
+            <div className="text-xs text-gray-400 mb-4">For {job.code} — {job.name}. All client details will be pre-filled.</div>
+            <div className="text-xs font-medium text-gray-500 mb-2">Select templates to generate:</div>
+            {(templatesByType[job.type] || []).map(t => (
+              <div
+                key={t}
+                onClick={() => toggleTemplate(t)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-1 cursor-pointer text-xs transition-colors ${selectedTemplates.includes(t) ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-50 hover:bg-gray-100'}`}
+              >
+                <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${selectedTemplates.includes(t) ? 'bg-emerald-600 border-emerald-600' : 'border-gray-300'}`}>
+                  {selectedTemplates.includes(t) && <span className="text-white text-xs">✓</span>}
+                </div>
+                {t}
+              </div>
+            ))}
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => setShowGenerate(false)} className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+              <button onClick={handleGenerate} className="flex-1 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
+                Generate {selectedTemplates.length > 0 ? `(${selectedTemplates.length})` : ''}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-gray-200 mb-4">
@@ -139,7 +211,9 @@ export default function JobDetail({ onNavigate }) {
               ))}
             </div>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
+
+          {/* Budget */}
+          <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
             <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Budget snapshot</div>
             <div className="flex items-center gap-4 mb-2">
               <div className="flex-1">
@@ -161,6 +235,22 @@ export default function JobDetail({ onNavigate }) {
               </div>
             )}
           </div>
+
+          {/* Key dates */}
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Key dates</div>
+            <div className="grid grid-cols-2 gap-x-6">
+              {keyDates.map(d => (
+                <div key={d.label} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                  <div className="text-xs text-gray-400">{d.label}</div>
+                  <div className={`text-xs font-medium ${d.urgent && d.value ? 'text-amber-600' : d.past && d.value ? 'text-gray-400' : d.value ? 'text-gray-700' : 'text-gray-300'}`}>
+                    {d.urgent && d.value ? '⚑ ' : ''}{d.value || 'Not set'}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button className="mt-3 px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Edit dates</button>
+          </div>
         </div>
       )}
 
@@ -170,10 +260,23 @@ export default function JobDetail({ onNavigate }) {
           <div className="flex items-center justify-between mb-4">
             <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Documents</div>
             <div className="flex gap-2">
-              <button className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">⬡ Auto-generate</button>
+              <button onClick={() => setShowGenerate(true)} className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">⬡ Generate docs</button>
               <button className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">↑ Upload</button>
             </div>
           </div>
+          {generated.length > 0 && (
+            <div className="mb-3">
+              <div className="text-xs font-medium text-emerald-600 mb-2">Recently generated</div>
+              {generated.map((g, i) => (
+                <div key={i} className="flex items-center gap-3 py-2 border-b border-emerald-100 bg-emerald-50 rounded-lg px-3 mb-1">
+                  <div className="w-7 h-7 rounded-md bg-emerald-100 flex items-center justify-center text-xs font-semibold text-emerald-700 flex-shrink-0">W</div>
+                  <div className="flex-1 text-xs font-medium">{g}</div>
+                  <span className="text-xs text-emerald-600 font-medium">New · Rev A</span>
+                  <button className="px-2 py-1 text-xs border border-emerald-200 rounded-lg hover:bg-emerald-100">Download</button>
+                </div>
+              ))}
+            </div>
+          )}
           {docs.map((doc, i) => (
             <div key={i} className="flex items-center gap-3 py-2.5 border-b border-gray-100 last:border-0">
               <div className={`w-7 h-7 rounded-md flex items-center justify-center text-xs font-semibold flex-shrink-0 ${doc.color}`}>
@@ -187,7 +290,7 @@ export default function JobDetail({ onNavigate }) {
                 <span className={`text-xs font-medium ${doc.urgent ? 'text-red-500' : 'text-emerald-600'}`}>{doc.version}</span>
               )}
               {!doc.version && (
-                <button className="px-2 py-1 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">⬡ Auto-draft</button>
+                <button onClick={() => setShowGenerate(true)} className="px-2 py-1 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">⬡ Generate</button>
               )}
               <button className="px-2 py-1 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">
                 {doc.icon === '$' ? 'View' : 'Edit'}
@@ -229,9 +332,6 @@ export default function JobDetail({ onNavigate }) {
                 <div className="text-xs text-gray-400 mt-0.5">{s.sub}</div>
               </div>
             ))}
-            <div className="bg-amber-50 text-amber-700 text-xs px-3 py-2 rounded-lg">
-              Recommend advising client of potential fee variation before proceeding with DTMR response.
-            </div>
           </div>
         </div>
       )}

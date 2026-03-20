@@ -1,17 +1,74 @@
-const stats = [
-  { label: 'Active jobs', value: '18', sub: '4 due this week' },
-  { label: 'Hours MTD', value: '412', sub: 'of 640 budgeted' },
-  { label: 'Revenue MTD', value: '$68k', sub: '+9% vs last month' },
-  { label: 'Planners active', value: '11', sub: '2 near capacity' },
-  { label: 'Bookings this week', value: '7', sub: '3 client · 4 internal' },
+import { useState } from 'react'
+
+const allJobs = [
+  {
+    code: '2025-031', name: 'Ridgeline Mixed-Use MCU', address: '44 Ridge St, Toowoomba',
+    client: 'Jonas Hartmann', type: 'MCU', planner: 'Sarah Barnes', status: 'Active', budget: 82,
+    dates: {
+      confirmation: '25 Jan 2025', irResponse: '19 Mar 2025', referral: '26 Mar 2025',
+      publicNoticeStart: null, publicNoticeEnd: null, decision: '10 Apr 2025'
+    }
+  },
+  {
+    code: '2025-028', name: 'Stonewood Estate ROL', address: 'Lot 12 Stonewood Rd, Warwick',
+    client: 'Greenfield Dev.', type: 'ROL', planner: 'Priya Mehta', status: 'Active', budget: 55,
+    dates: {
+      confirmation: '15 Jan 2025', irResponse: '28 Mar 2025', referral: null,
+      publicNoticeStart: '1 Apr 2025', publicNoticeEnd: '22 Apr 2025', decision: '15 May 2025'
+    }
+  },
+  {
+    code: '2025-033', name: 'Apex Logistics RAA', address: '22 Commerce Dr, Toowoomba',
+    client: 'Apex P/L', type: 'RAA', planner: 'Sarah Barnes', status: 'Review', budget: 112,
+    dates: {
+      confirmation: '1 Feb 2025', irResponse: '21 Mar 2025', referral: '28 Mar 2025',
+      publicNoticeStart: null, publicNoticeEnd: null, decision: '1 Apr 2025'
+    }
+  },
+  {
+    code: '2025-034', name: 'Creek Rd OW Stage 2', address: '5 Creek Rd, Gatton',
+    client: 'P. & L. Burke', type: 'OW', planner: 'Luke Rawlings', status: 'Draft', budget: 18,
+    dates: {
+      confirmation: '10 Mar 2025', irResponse: null, referral: null,
+      publicNoticeStart: null, publicNoticeEnd: null, decision: '10 Jun 2025'
+    }
+  },
+  {
+    code: '2025-029', name: 'Hillcrest SPS Request', address: '17 Hillcrest Ave, Ipswich',
+    client: 'T. & M. Hill', type: 'SPS', planner: 'Amy Chen', status: 'Active', budget: 70,
+    dates: {
+      confirmation: '20 Feb 2025', irResponse: '5 Apr 2025', referral: null,
+      publicNoticeStart: null, publicNoticeEnd: null, decision: '20 May 2025'
+    }
+  },
+  {
+    code: '2025-027', name: 'Park St Mixed-Use MCU', address: '5 Park St, Toowoomba',
+    client: 'R. Okafor', type: 'MCU', planner: 'Sarah Barnes', status: 'Active', budget: 62,
+    dates: {
+      confirmation: '10 Feb 2025', irResponse: '1 Apr 2025', referral: '8 Apr 2025',
+      publicNoticeStart: '15 Apr 2025', publicNoticeEnd: '6 May 2025', decision: '1 Jun 2025'
+    }
+  },
 ]
-const recentJobs = [
-  { code: '2025-031', name: 'Ridgeline Mixed-Use MCU', type: 'MCU', planner: 'Sarah B.', budget: 82, over: false },
-  { code: '2025-028', name: 'Stonewood Estate ROL', type: 'ROL', planner: 'Priya M.', budget: 55, over: false },
-  { code: '2025-033', name: 'Apex Logistics RAA', type: 'RAA', planner: 'Sarah B.', budget: 112, over: true },
-  { code: '2025-034', name: 'Creek Rd OW Stage 2', type: 'OW', planner: 'Luke R.', budget: 18, over: false },
-  { code: '2025-029', name: 'Hillcrest SPS Request', type: 'SPS', planner: 'Amy C.', budget: 70, over: false },
-]
+
+const plannerBookings = {
+  'Sarah Barnes': [
+    { title: 'T. Nakamura — Initial consult', time: 'Today 9:00am', type: 'client' },
+    { title: 'Principal sign-off — 2025-031', time: 'Today 3:30pm', type: 'internal' },
+    { title: 'M. Patel — Site review', time: 'Wed 21 Mar 10:00am', type: 'client' },
+  ],
+  'Priya Mehta': [
+    { title: 'Team review — 2025-028', time: 'Today 11:00am', type: 'internal' },
+    { title: 'Client call — Greenfield Dev.', time: 'Thu 22 Mar 2:00pm', type: 'client' },
+  ],
+  'Luke Rawlings': [
+    { title: 'R. Okafor — New enquiry', time: 'Today 2:00pm', type: 'client' },
+  ],
+  'Amy Chen': [
+    { title: 'J. Singh — New enquiry', time: 'Fri 23 Mar 11:00am', type: 'client' },
+  ],
+}
+
 const typeBadge = {
   MCU: 'bg-blue-100 text-blue-700',
   ROL: 'bg-amber-100 text-amber-700',
@@ -19,104 +76,294 @@ const typeBadge = {
   OW: 'bg-green-100 text-green-700',
   SPS: 'bg-purple-100 text-purple-700',
 }
-const planners = [
-  { name: 'Sarah B.', pct: 96 },
-  { name: 'James T.', pct: 78 },
-  { name: 'Priya M.', pct: 62 },
-  { name: 'Amy C.', pct: 55 },
-  { name: 'Luke R.', pct: 45 },
-  { name: 'Ben O.', pct: 30 },
-]
-const bookings = [
-  { title: 'T. Nakamura — Initial consult', sub: 'Today 9:00am · Sarah B. · Client', type: 'client' },
-  { title: 'Team review — 2025-028 ROL', sub: 'Today 11:00am · James T. + Priya M.', type: 'internal' },
-  { title: 'R. Okafor — New enquiry', sub: 'Today 2:00pm · Luke R. · Client', type: 'client' },
-  { title: 'Principal sign-off — 2025-031', sub: 'Today 3:30pm · Sarah B. + James T.', type: 'internal' },
-]
-export default function Dashboard({ onNavigate }) {
+
+const statusBadge = {
+  Active: 'bg-emerald-100 text-emerald-700',
+  Review: 'bg-amber-100 text-amber-700',
+  Draft: 'bg-gray-100 text-gray-500',
+  Complete: 'bg-green-100 text-green-700',
+}
+
+function isUrgent(dateStr) {
+  if (!dateStr) return false
+  const date = new Date(dateStr)
+  const now = new Date()
+  const diff = (date - now) / (1000 * 60 * 60 * 24)
+  return diff >= 0 && diff <= 7
+}
+
+function isPast(dateStr) {
+  if (!dateStr) return false
+  return new Date(dateStr) < new Date()
+}
+
+function DateRow({ label, value }) {
+  if (!value) return null
+  const urgent = isUrgent(value)
+  const past = isPast(value)
+  return (
+    <div className="flex items-center justify-between py-1 border-b border-gray-50 last:border-0">
+      <div className="text-xs text-gray-400">{label}</div>
+      <div className={`text-xs font-medium ${past ? 'text-red-500 line-through' : urgent ? 'text-amber-600 font-semibold' : 'text-gray-600'}`}>
+        {urgent && '⚑ '}{value}
+      </div>
+    </div>
+  )
+}
+
+function PlannerView({ planner, onNavigate }) {
+  const myJobs = allJobs.filter(j => j.planner === planner)
+  const myBookings = plannerBookings[planner] || []
+  const urgentDates = myJobs.flatMap(j =>
+    Object.entries(j.dates)
+      .filter(([, v]) => v && isUrgent(v))
+      .map(([k, v]) => ({ job: j.code, label: k, date: v, name: j.name }))
+  )
+
   return (
     <div>
-      <div className="grid grid-cols-5 gap-3 mb-4">
-        {stats.map(s => (
-          <div key={s.label} className="bg-gray-50 rounded-lg p-3">
-            <div className="text-xs text-gray-500 mb-1">{s.label}</div>
-            <div className="text-xl font-semibold">{s.value}</div>
-            <div className="text-xs text-gray-400 mt-0.5">{s.sub}</div>
-          </div>
-        ))}
+      {/* Greeting */}
+      <div className="mb-4">
+        <div className="text-base font-semibold">Good morning, {planner.split(' ')[0]} 👋</div>
+        <div className="text-xs text-gray-400 mt-0.5">
+          {myJobs.length} active jobs · {myBookings.length} bookings today · {urgentDates.length} dates due this week
+        </div>
       </div>
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="text-sm font-medium">Active jobs — priority</div>
-            <button onClick={() => onNavigate('jobs')} className="text-xs text-emerald-600 hover:underline">All jobs →</button>
-          </div>
-          {recentJobs.map(job => (
-            <div key={job.code} className="flex items-center gap-2 py-2 border-b border-gray-100 last:border-0 cursor-pointer hover:opacity-70">
-              <div className="text-xs font-medium text-emerald-600 w-16 flex-shrink-0">{job.code}</div>
-              <div className="flex-1 min-w-0">
-                <div className="text-xs font-medium truncate">{job.name}</div>
-                <div className="text-xs text-gray-400">{job.planner}</div>
-              </div>
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${typeBadge[job.type]}`}>{job.type}</span>
-              <div className="w-14 h-1.5 bg-gray-100 rounded-full overflow-hidden flex-shrink-0">
-                <div className={`h-full rounded-full ${job.over ? 'bg-red-500' : job.budget > 75 ? 'bg-amber-400' : 'bg-emerald-500'}`} style={{ width: `${Math.min(job.budget, 100)}%` }} />
-              </div>
+
+      {/* Urgent alerts */}
+      {urgentDates.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
+          <div className="text-xs font-semibold text-amber-700 mb-2">⚑ Dates due this week</div>
+          {urgentDates.map((d, i) => (
+            <div key={i} className="flex items-center justify-between text-xs py-1 border-b border-amber-100 last:border-0">
+              <span className="text-amber-800 font-medium">{d.job} — {d.name}</span>
+              <span className="text-amber-600">{d.label.replace(/([A-Z])/g, ' $1').toLowerCase()} · {d.date}</span>
             </div>
           ))}
         </div>
-        <div className="flex flex-col gap-4">
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-sm font-medium">Team capacity</div>
-              <button onClick={() => onNavigate('workload')} className="text-xs text-emerald-600 hover:underline">Full view →</button>
-            </div>
-            {planners.map(p => (
-              <div key={p.name} className="flex items-center gap-2 mb-2 last:mb-0">
-                <div className="text-xs w-16 text-gray-500">{p.name}</div>
-                <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div className={`h-full rounded-full ${p.pct >= 90 ? 'bg-red-500' : p.pct >= 75 ? 'bg-amber-400' : 'bg-emerald-500'}`} style={{ width: `${p.pct}%` }} />
-                </div>
-                <div className="text-xs text-gray-400 w-8 text-right">{p.pct}%</div>
-              </div>
-            ))}
+      )}
+
+      <div className="grid grid-cols-2 gap-4 mb-4">
+        {/* My jobs */}
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">My jobs</div>
+            <button onClick={() => onNavigate('jobs')} className="text-xs text-emerald-600 hover:underline">All jobs →</button>
           </div>
+          {myJobs.length === 0 ? (
+            <div className="text-xs text-gray-400">No jobs assigned.</div>
+          ) : myJobs.map(job => (
+            <div key={job.code} onClick={() => onNavigate('jobdetail')} className="cursor-pointer hover:opacity-80 py-2 border-b border-gray-100 last:border-0">
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className="text-xs font-medium text-emerald-600 w-16 flex-shrink-0">{job.code}</div>
+                <div className="flex-1 text-xs font-medium truncate">{job.name}</div>
+                <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${typeBadge[job.type]}`}>{job.type}</span>
+                <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${statusBadge[job.status]}`}>{job.status}</span>
+              </div>
+              <div className="ml-16 grid grid-cols-2 gap-x-4">
+                {job.dates.irResponse && (
+                  <div className={`text-xs ${isUrgent(job.dates.irResponse) ? 'text-amber-600 font-medium' : 'text-gray-400'}`}>
+                    IR: {job.dates.irResponse}
+                  </div>
+                )}
+                {job.dates.decision && (
+                  <div className="text-xs text-gray-400">Decision: {job.dates.decision}</div>
+                )}
+              </div>
+            </div>
+          ))}
+          <button onClick={() => onNavigate('newjob')} className="mt-3 w-full py-1.5 text-xs border border-dashed border-gray-300 rounded-lg text-gray-400 hover:border-emerald-400 hover:text-emerald-600 transition-colors">
+            + New job
+          </button>
+        </div>
+
+        {/* Today's bookings */}
+        <div className="flex flex-col gap-3">
           <div className="bg-white rounded-xl border border-gray-200 p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="text-sm font-medium">Today's bookings</div>
-              <button onClick={() => onNavigate('calendly')} className="text-xs text-emerald-600 hover:underline">Calendar →</button>
+              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">My bookings</div>
+              <button onClick={() => onNavigate('calendly')} className="text-xs text-emerald-600 hover:underline">All →</button>
             </div>
-            {bookings.map((b, i) => (
-              <div key={i} className="flex items-start gap-2 mb-2 last:mb-0">
+            {myBookings.length === 0 ? (
+              <div className="text-xs text-gray-400">No bookings this week.</div>
+            ) : myBookings.map((b, i) => (
+              <div key={i} className="flex items-start gap-2 py-2 border-b border-gray-100 last:border-0">
                 <div className={`w-2 h-2 rounded-full mt-1 flex-shrink-0 ${b.type === 'client' ? 'bg-blue-500' : 'bg-purple-500'}`} />
                 <div>
                   <div className="text-xs font-medium">{b.title}</div>
-                  <div className="text-xs text-gray-400">{b.sub}</div>
+                  <div className="text-xs text-gray-400">{b.time}</div>
                 </div>
               </div>
             ))}
           </div>
+
+          {/* Quick actions */}
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Quick actions</div>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => onNavigate('newjob')} className="py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">+ New job</button>
+              <button onClick={() => onNavigate('time')} className="py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Log time</button>
+              <button onClick={() => onNavigate('docs')} className="py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Documents</button>
+              <button onClick={() => onNavigate('calendly')} className="py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Book meeting</button>
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Key dates for all my jobs */}
       <div className="bg-white rounded-xl border border-gray-200 p-4">
-        <div className="text-sm font-medium mb-3">Applications by type — active</div>
-        <div className="grid grid-cols-6 gap-3">
-          {[
-            { type: 'MCU', count: 6, label: 'Material Change of Use', color: 'text-blue-600' },
-            { type: 'ROL', count: 5, label: 'Reconfiguration of Lot', color: 'text-amber-600' },
-            { type: 'RAA', count: 3, label: 'Referral Agency', color: 'text-pink-600' },
-            { type: 'OW', count: 2, label: 'Operational Works', color: 'text-green-600' },
-            { type: 'SPS', count: 1, label: 'Superseded Scheme', color: 'text-purple-600' },
-            { type: 'PE', count: 1, label: 'Preliminary Enquiry', color: 'text-orange-600' },
-          ].map(a => (
-            <div key={a.type} className="bg-gray-50 rounded-lg p-3">
-              <div className="text-xs text-gray-400 mb-1">{a.type}</div>
-              <div className={`text-xl font-semibold ${a.color}`}>{a.count}</div>
-              <div className="text-xs text-gray-400 mt-0.5">{a.label}</div>
+        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Key dates — all my jobs</div>
+        <div className="grid grid-cols-[80px_1fr_110px_110px_110px_110px_110px] gap-2 pb-2 mb-1 border-b border-gray-200">
+          {['Job', 'Name', 'Confirmation', 'IR Response', 'Referral', 'Public Notice', 'Decision'].map(h => (
+            <div key={h} className="text-xs text-gray-400">{h}</div>
+          ))}
+        </div>
+        {myJobs.map(job => (
+          <div key={job.code} className="grid grid-cols-[80px_1fr_110px_110px_110px_110px_110px] gap-2 py-2 border-b border-gray-100 last:border-0 items-center">
+            <div className="text-xs font-medium text-emerald-600">{job.code}</div>
+            <div className="text-xs font-medium truncate">{job.name}</div>
+            {[
+              job.dates.confirmation,
+              job.dates.irResponse,
+              job.dates.referral,
+              job.dates.publicNoticeStart ? `${job.dates.publicNoticeStart} – ${job.dates.publicNoticeEnd}` : null,
+              job.dates.decision,
+            ].map((d, i) => (
+              <div key={i} className={`text-xs ${d && isUrgent(d) ? 'text-amber-600 font-semibold' : d && isPast(d) ? 'text-red-400 line-through' : 'text-gray-500'}`}>
+                {d || '—'}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function DirectorView({ onNavigate }) {
+  const allPlanners = [...new Set(allJobs.map(j => j.planner))]
+  const urgentAll = allJobs.flatMap(j =>
+    Object.entries(j.dates)
+      .filter(([, v]) => v && isUrgent(v))
+      .map(([k, v]) => ({ job: j.code, planner: j.planner, label: k, date: v, name: j.name }))
+  )
+
+  return (
+    <div>
+      <div className="mb-4">
+        <div className="text-base font-semibold">Director overview 📋</div>
+        <div className="text-xs text-gray-400 mt-0.5">{allJobs.length} active jobs across {allPlanners.length} planners · {urgentAll.length} dates due this week</div>
+      </div>
+
+      {/* Firm-wide stats */}
+      <div className="grid grid-cols-5 gap-3 mb-4">
+        <div className="bg-gray-50 rounded-lg p-3"><div className="text-xs text-gray-400 mb-1">Total jobs</div><div className="text-xl font-semibold">{allJobs.length}</div></div>
+        <div className="bg-gray-50 rounded-lg p-3"><div className="text-xs text-gray-400 mb-1">Active planners</div><div className="text-xl font-semibold">{allPlanners.length}</div></div>
+        <div className="bg-red-50 rounded-lg p-3"><div className="text-xs text-red-400 mb-1">Over budget</div><div className="text-xl font-semibold text-red-600">{allJobs.filter(j => j.budget > 100).length}</div></div>
+        <div className="bg-amber-50 rounded-lg p-3"><div className="text-xs text-amber-600 mb-1">Due this week</div><div className="text-xl font-semibold text-amber-600">{urgentAll.length}</div></div>
+        <div className="bg-gray-50 rounded-lg p-3"><div className="text-xs text-gray-400 mb-1">In review</div><div className="text-xl font-semibold">{allJobs.filter(j => j.status === 'Review').length}</div></div>
+      </div>
+
+      {/* Urgent dates across firm */}
+      {urgentAll.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
+          <div className="text-xs font-semibold text-amber-700 mb-2">⚑ Firm-wide dates due this week</div>
+          {urgentAll.map((d, i) => (
+            <div key={i} className="flex items-center justify-between text-xs py-1 border-b border-amber-100 last:border-0">
+              <span className="text-amber-800 font-medium">{d.job} — {d.name}</span>
+              <span className="text-amber-600">{d.planner} · {d.label.replace(/([A-Z])/g, ' $1').toLowerCase()} · {d.date}</span>
             </div>
           ))}
         </div>
+      )}
+
+      {/* All jobs by planner */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">All jobs — allocated by planner</div>
+        <div className="grid grid-cols-[80px_1fr_90px_55px_65px_70px_80px] gap-2 pb-2 mb-1 border-b border-gray-200">
+          {['Job', 'Name', 'Planner', 'Type', 'Status', 'Budget', 'Decision'].map(h => (
+            <div key={h} className="text-xs text-gray-400">{h}</div>
+          ))}
+        </div>
+        {allJobs.map(job => (
+          <div key={job.code} onClick={() => onNavigate('jobdetail')} className="grid grid-cols-[80px_1fr_90px_55px_65px_70px_80px] gap-2 py-2 border-b border-gray-100 last:border-0 items-center cursor-pointer hover:bg-gray-50 rounded-lg px-1">
+            <div className="text-xs font-medium text-emerald-600">{job.code}</div>
+            <div className="text-xs font-medium truncate">{job.name}</div>
+            <div className="text-xs text-gray-500 truncate">{job.planner.split(' ')[0]} {job.planner.split(' ')[1][0]}.</div>
+            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${typeBadge[job.type]}`}>{job.type}</span>
+            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${statusBadge[job.status]}`}>{job.status}</span>
+            <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div className={`h-full rounded-full ${job.budget > 100 ? 'bg-red-500' : job.budget > 75 ? 'bg-amber-400' : 'bg-emerald-500'}`} style={{ width: `${Math.min(job.budget, 100)}%` }} />
+            </div>
+            <div className="text-xs text-gray-500">{job.dates.decision || '—'}</div>
+          </div>
+        ))}
       </div>
+
+      {/* Jobs per planner summary */}
+      <div className="grid grid-cols-3 gap-3">
+        {allPlanners.map(planner => {
+          const pJobs = allJobs.filter(j => j.planner === planner)
+          const pUrgent = pJobs.flatMap(j => Object.values(j.dates).filter(v => v && isUrgent(v)))
+          return (
+            <div key={planner} className="bg-white rounded-xl border border-gray-200 p-3">
+              <div className="text-xs font-semibold mb-2">{planner}</div>
+              <div className="text-xs text-gray-400 mb-2">{pJobs.length} jobs · {pUrgent.length} dates due</div>
+              {pJobs.map(j => (
+                <div key={j.code} className="flex items-center gap-1.5 py-1 border-b border-gray-50 last:border-0">
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${typeBadge[j.type]}`}>{j.type}</span>
+                  <div className="text-xs truncate">{j.code}</div>
+                </div>
+              ))}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+export default function Dashboard({ onNavigate }) {
+  const [view, setView] = useState('planner')
+  const [planner, setPlanner] = useState('Sarah Barnes')
+
+  return (
+    <div>
+      {/* View switcher */}
+      <div className="flex items-center gap-3 mb-4 bg-white rounded-xl border border-gray-200 p-3">
+        <div className="text-xs font-medium text-gray-500">View as:</div>
+        <select
+          value={planner}
+          onChange={e => setPlanner(e.target.value)}
+          className="px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400"
+        >
+          <option>Sarah Barnes</option>
+          <option>James Thompson</option>
+          <option>Priya Mehta</option>
+          <option>Luke Rawlings</option>
+          <option>Amy Chen</option>
+          <option>Ben Okafor</option>
+        </select>
+        <div className="flex gap-1 ml-auto">
+          <button
+            onClick={() => setView('planner')}
+            className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${view === 'planner' ? 'bg-emerald-600 text-white' : 'border border-gray-200 hover:bg-gray-50'}`}
+          >
+            My view
+          </button>
+          <button
+            onClick={() => setView('director')}
+            className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${view === 'director' ? 'bg-emerald-600 text-white' : 'border border-gray-200 hover:bg-gray-50'}`}
+          >
+            Director view
+          </button>
+        </div>
+      </div>
+
+      {view === 'planner'
+        ? <PlannerView planner={planner} onNavigate={onNavigate} />
+        : <DirectorView onNavigate={onNavigate} />
+      }
     </div>
   )
 }
