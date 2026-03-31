@@ -102,10 +102,13 @@ export default function JobDetail({ onNavigate }) {
   const [selectedTemplates, setSelectedTemplates] = useState([])
   const [generated, setGenerated] = useState([])
   const [generating, setGenerating] = useState(false)
+  const [jobStatus, setJobStatus] = useState(job.status)
+  const [editingDates, setEditingDates] = useState(false)
+  const [dates, setDates] = useState(job.dates)
+
   const budgetPct = Math.round((job.usedHrs / job.budgetHrs) * 100)
   const budgetCost = job.usedHrs * job.rate
   const totalBudget = job.budgetHrs * job.rate
-
   const tabs = ['overview', 'documents', 'time & budget', 'ir & notes', 'history']
 
   const toggleTemplate = (t) => {
@@ -130,35 +133,46 @@ export default function JobDetail({ onNavigate }) {
     setActiveTab('documents')
   }
 
-  const keyDates = [
-    { label: 'Confirmation notice', value: job.dates.confirmation, past: true, urgent: false },
-    { label: 'IR response due', value: job.dates.irResponse, past: false, urgent: true },
-    { label: 'Referral agency response', value: job.dates.referral, past: false, urgent: true },
-    { label: 'Public notice start', value: job.dates.publicNoticeStart, past: false, urgent: false },
-    { label: 'Public notice end', value: job.dates.publicNoticeEnd, past: false, urgent: false },
-    { label: 'Statutory decision date', value: job.dates.decision, past: false, urgent: false },
-  ]
+  const statusColors = {
+    Draft: 'bg-gray-100 text-gray-600',
+    Active: 'bg-emerald-100 text-emerald-700',
+    Review: 'bg-amber-100 text-amber-700',
+    'On Hold': 'bg-red-100 text-red-700',
+    Complete: 'bg-green-100 text-green-700',
+  }
 
   return (
     <div>
+      {/* Header */}
       <div className="flex items-center gap-3 mb-4">
         <button onClick={() => onNavigate('jobs')} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">← Back</button>
         <div className="flex-1">
           <div className="text-base font-semibold">{job.code} — {job.name}</div>
           <div className="text-xs text-gray-400">{job.address} · {job.lot} · {job.council}</div>
         </div>
-        <span className={`text-xs px-2 py-1 rounded-full font-medium ${typeBadge[job.type]}`}>{job.type}</span>
-        <span className="text-xs px-2 py-1 rounded-full font-medium bg-emerald-100 text-emerald-700">{job.status}</span>
+        <span className="text-xs px-2 py-1 rounded-full font-medium bg-blue-100 text-blue-700">{job.type}</span>
+        <select
+          value={jobStatus}
+          onChange={e => { setJobStatus(e.target.value); alert('Status updated to: ' + e.target.value) }}
+          className={`text-xs px-2 py-1 rounded-lg border border-gray-200 focus:outline-none focus:border-emerald-400 font-medium ${statusColors[jobStatus]}`}
+        >
+          <option>Draft</option>
+          <option>Active</option>
+          <option>Review</option>
+          <option>On Hold</option>
+          <option>Complete</option>
+        </select>
         <button onClick={() => setShowGenerate(true)} disabled={generating} className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50">
           {generating ? 'Generating...' : '⬡ Generate docs'}
         </button>
       </div>
 
+      {/* Generate docs modal */}
       {showGenerate && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl border border-gray-200 p-5 w-96 max-h-96 overflow-y-auto">
             <div className="text-sm font-semibold mb-1">Generate documents</div>
-            <div className="text-xs text-gray-400 mb-4">For {job.code} — {job.name}. All client details pre-filled. Files will download to your computer.</div>
+            <div className="text-xs text-gray-400 mb-4">For {job.code} — {job.name}. All client details pre-filled. Files download to your computer.</div>
             <div className="text-xs font-medium text-gray-500 mb-2">Select templates:</div>
             {(templatesByType[job.type] || []).map(t => (
               <div key={t} onClick={() => toggleTemplate(t)} className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-1 cursor-pointer text-xs transition-colors ${selectedTemplates.includes(t) ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-50 hover:bg-gray-100'}`}>
@@ -178,18 +192,23 @@ export default function JobDetail({ onNavigate }) {
         </div>
       )}
 
+      {/* Tabs */}
       <div className="flex gap-1 border-b border-gray-200 mb-4">
         {tabs.map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 text-xs capitalize border-b-2 transition-colors ${activeTab === tab ? 'border-emerald-500 text-emerald-600 font-medium' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>{tab}</button>
         ))}
       </div>
 
+      {/* OVERVIEW */}
       {activeTab === 'overview' && (
         <div>
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div className="bg-white rounded-xl border border-gray-200 p-4">
               <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Client details</div>
-              {[['Client', job.client], ['Email', job.email], ['Phone', job.phone], ['Address', job.address], ['Lot / RP', job.lot], ['Council', job.council], ['Zone', job.zone]].map(([k, v]) => (
+              {[
+                ['Client', job.client], ['Email', job.email], ['Phone', job.phone],
+                ['Address', job.address], ['Lot / RP', job.lot], ['Council', job.council], ['Zone', job.zone]
+              ].map(([k, v]) => (
                 <div key={k} className="flex py-1.5 border-b border-gray-50 last:border-0">
                   <div className="text-xs text-gray-400 w-24 flex-shrink-0">{k}</div>
                   <div className="text-xs">{v}</div>
@@ -198,7 +217,12 @@ export default function JobDetail({ onNavigate }) {
             </div>
             <div className="bg-white rounded-xl border border-gray-200 p-4">
               <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Application details</div>
-              {[['Type', job.type], ['Proposed use', job.use], ['Assessment', job.assessment], ['Planner', job.planner], ['Rate', `$${job.rate}/hr`], ['Budget', `${job.budgetHrs} hrs ($${totalBudget.toLocaleString()})`], ['Lodgement', job.lodgement], ['Decision due', job.decisionDue], ['Referrals', job.referrals]].map(([k, v]) => (
+              {[
+                ['Type', job.type], ['Proposed use', job.use], ['Assessment', job.assessment],
+                ['Planner', job.planner], ['Rate', `$${job.rate}/hr`],
+                ['Budget', `${job.budgetHrs} hrs ($${totalBudget.toLocaleString()})`],
+                ['Lodgement', job.lodgement], ['Decision due', job.decisionDue], ['Referrals', job.referrals]
+              ].map(([k, v]) => (
                 <div key={k} className="flex py-1.5 border-b border-gray-50 last:border-0">
                   <div className="text-xs text-gray-400 w-24 flex-shrink-0">{k}</div>
                   <div className="text-xs">{v}</div>
@@ -206,27 +230,60 @@ export default function JobDetail({ onNavigate }) {
               ))}
             </div>
           </div>
+
           <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
             <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Budget snapshot</div>
             <div className="flex items-center gap-4 mb-2">
               <div className="flex-1">
-                <div className="flex justify-between text-xs text-gray-400 mb-1"><span>{job.usedHrs} hrs used</span><span>{job.budgetHrs} hrs budget</span></div>
+                <div className="flex justify-between text-xs text-gray-400 mb-1">
+                  <span>{job.usedHrs} hrs used</span><span>{job.budgetHrs} hrs budget</span>
+                </div>
                 <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                   <div className={`h-full rounded-full ${budgetPct > 90 ? 'bg-red-500' : budgetPct > 75 ? 'bg-amber-400' : 'bg-emerald-500'}`} style={{ width: `${Math.min(budgetPct, 100)}%` }} />
                 </div>
               </div>
-              <div className={`text-xs font-medium ${budgetPct > 90 ? 'text-red-600' : budgetPct > 75 ? 'text-amber-600' : 'text-emerald-600'}`}>{budgetPct}% · ${budgetCost.toLocaleString()} of ${totalBudget.toLocaleString()}</div>
+              <div className={`text-xs font-medium ${budgetPct > 90 ? 'text-red-600' : budgetPct > 75 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                {budgetPct}% · ${budgetCost.toLocaleString()} of ${totalBudget.toLocaleString()}
+              </div>
             </div>
+            {budgetPct > 75 && (
+              <div className="bg-amber-50 text-amber-700 text-xs px-3 py-2 rounded-lg mt-2">
+                IR response outstanding — due tomorrow. Est. 4 hrs remaining will push to 89% budget utilisation.
+              </div>
+            )}
           </div>
+
+          {/* Key dates */}
           <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Key dates</div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Key dates</div>
+              <button onClick={() => setEditingDates(!editingDates)} className="text-xs text-emerald-600 hover:underline">
+                {editingDates ? 'Save dates' : 'Edit dates'}
+              </button>
+            </div>
             <div className="grid grid-cols-2 gap-x-6">
-              {keyDates.map(d => (
+              {[
+                { label: 'Confirmation notice', key: 'confirmation' },
+                { label: 'IR response due', key: 'irResponse' },
+                { label: 'Referral agency response', key: 'referral' },
+                { label: 'Public notice start', key: 'publicNoticeStart' },
+                { label: 'Public notice end', key: 'publicNoticeEnd' },
+                { label: 'Statutory decision date', key: 'decision' },
+              ].map(d => (
                 <div key={d.label} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                   <div className="text-xs text-gray-400">{d.label}</div>
-                  <div className={`text-xs font-medium ${d.urgent && d.value ? 'text-amber-600' : d.past && d.value ? 'text-gray-400' : d.value ? 'text-gray-700' : 'text-gray-300'}`}>
-                    {d.urgent && d.value ? '⚑ ' : ''}{d.value || 'Not set'}
-                  </div>
+                  {editingDates ? (
+                    <input
+                      type="date"
+                      value={dates[d.key] || ''}
+                      onChange={e => setDates(prev => ({ ...prev, [d.key]: e.target.value }))}
+                      className="text-xs border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-emerald-400"
+                    />
+                  ) : (
+                    <div className={`text-xs font-medium ${dates[d.key] ? 'text-gray-700' : 'text-gray-300'}`}>
+                      {dates[d.key] || 'Not set'}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -234,6 +291,7 @@ export default function JobDetail({ onNavigate }) {
         </div>
       )}
 
+      {/* DOCUMENTS */}
       {activeTab === 'documents' && (
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-center justify-between mb-4">
@@ -271,6 +329,7 @@ export default function JobDetail({ onNavigate }) {
         </div>
       )}
 
+      {/* TIME & BUDGET */}
       {activeTab === 'time & budget' && (
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-white rounded-xl border border-gray-200 p-4">
@@ -304,6 +363,7 @@ export default function JobDetail({ onNavigate }) {
         </div>
       )}
 
+      {/* IR & NOTES */}
       {activeTab === 'ir & notes' && (
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Information requests</div>
@@ -321,10 +381,14 @@ export default function JobDetail({ onNavigate }) {
             </div>
           ))}
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-4 mb-2">Job notes</div>
-          <textarea defaultValue="19/03 - Council officer (M. Walsh) confirmed no objection to car parking variation subject to traffic report. SB." className="w-full h-24 px-3 py-2 text-xs border border-gray-200 rounded-lg resize-none focus:outline-none focus:border-emerald-400" />
+          <textarea
+            defaultValue="19/03 - Council officer (M. Walsh) confirmed no objection to car parking variation subject to traffic report. Advised client to instruct traffic engineer ASAP. SB."
+            className="w-full h-24 px-3 py-2 text-xs border border-gray-200 rounded-lg resize-none focus:outline-none focus:border-emerald-400"
+          />
         </div>
       )}
 
+      {/* HISTORY */}
       {activeTab === 'history' && (
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Activity history</div>
