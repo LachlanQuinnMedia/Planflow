@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { sendIRDeadlineAlert } from './notifications'
 
 const allJobs = [
   {
@@ -120,9 +121,7 @@ function JobSearchPanel({ onNavigate, isDirector }) {
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
-      <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-        Search all jobs — active & past
-      </div>
+      <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Search all jobs — active & past</div>
       <div className="flex gap-2 mb-3">
         <input
           type="text"
@@ -132,23 +131,14 @@ function JobSearchPanel({ onNavigate, isDirector }) {
           className="flex-1 px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400"
         />
         <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="px-2 py-2 text-xs border border-gray-200 rounded-lg">
-          <option>All</option>
-          <option>MCU</option><option>ROL</option><option>RAA</option>
-          <option>OW</option><option>SPS</option>
+          <option>All</option><option>MCU</option><option>ROL</option><option>RAA</option><option>OW</option><option>SPS</option>
         </select>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-2 py-2 text-xs border border-gray-200 rounded-lg">
-          <option>All</option>
-          <option>Active</option><option>Review</option>
-          <option>Draft</option><option>Complete</option>
+          <option>All</option><option>Active</option><option>Review</option><option>Draft</option><option>Complete</option>
         </select>
         {isDirector && (
           <select value={plannerFilter} onChange={e => setPlannerFilter(e.target.value)} className="px-2 py-2 text-xs border border-gray-200 rounded-lg">
-            <option>All</option>
-            <option>Sarah Barnes</option>
-            <option>James Thompson</option>
-            <option>Priya Mehta</option>
-            <option>Luke Rawlings</option>
-            <option>Amy Chen</option>
+            <option>All</option><option>Sarah Barnes</option><option>James Thompson</option><option>Priya Mehta</option><option>Luke Rawlings</option><option>Amy Chen</option>
           </select>
         )}
       </div>
@@ -158,17 +148,13 @@ function JobSearchPanel({ onNavigate, isDirector }) {
           {filtered.length === 0 ? (
             <div className="text-xs text-gray-400 py-4 text-center">No jobs match your search.</div>
           ) : filtered.map(job => (
-            <div
-              key={job.code}
-              onClick={() => onNavigate('jobdetail')}
-              className="flex items-center gap-3 py-2.5 border-b border-gray-100 last:border-0 cursor-pointer hover:bg-gray-50 rounded-lg px-2"
-            >
+            <div key={job.code} onClick={() => onNavigate('jobdetail')} className="flex items-center gap-3 py-2.5 border-b border-gray-100 last:border-0 cursor-pointer hover:bg-gray-50 rounded-lg px-2">
               <div className="text-xs font-medium text-emerald-600 w-16 flex-shrink-0">{job.code}</div>
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-medium truncate">{job.name}</div>
                 <div className="text-xs text-gray-400">{job.client} · {job.address}</div>
               </div>
-              <div className="text-xs text-gray-400 w-20 text-right hidden sm:block">{job.planner.split(' ')[0]} {job.planner.split(' ')[1][0]}.</div>
+              <div className="text-xs text-gray-400 w-20 text-right">{job.planner.split(' ')[0]} {job.planner.split(' ')[1][0]}.</div>
               <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${typeBadge[job.type]}`}>{job.type}</span>
               <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${statusBadge[job.status]}`}>{job.status}</span>
             </div>
@@ -189,6 +175,22 @@ function PlannerView({ planner, onNavigate }) {
       .filter(([, v]) => v && isUrgent(v))
       .map(([k, v]) => ({ job: j.code, label: k, date: v, name: j.name }))
   )
+
+  const sendTestEmail = async () => {
+    const result = await sendIRDeadlineAlert({
+      plannerEmail: 'lachlanquinnmedia@outlook.com',
+      plannerName: planner.split(' ')[0],
+      jobCode: '2025-031',
+      jobName: 'Ridgeline Mixed-Use MCU',
+      irDeadline: '19 Mar 2025',
+      council: 'Toowoomba Regional',
+    })
+    if (result.success) {
+      alert('Test email sent! Check your inbox.')
+    } else {
+      alert('Email failed — Resend requires a verified domain for production. Works fine once deployed with your domain.')
+    }
+  }
 
   return (
     <div>
@@ -211,7 +213,6 @@ function PlannerView({ planner, onNavigate }) {
         </div>
       )}
 
-      {/* Job search — available to all planners */}
       <JobSearchPanel onNavigate={onNavigate} isDirector={false} />
 
       <div className="grid grid-cols-2 gap-4 mb-4">
@@ -271,7 +272,7 @@ function PlannerView({ planner, onNavigate }) {
               <button onClick={() => onNavigate('newjob')} className="py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">+ New job</button>
               <button onClick={() => onNavigate('time')} className="py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Log time</button>
               <button onClick={() => onNavigate('docs')} className="py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Documents</button>
-              <button onClick={() => onNavigate('calendly')} className="py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Book meeting</button>
+              <button onClick={sendTestEmail} className="py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Test email alert</button>
             </div>
           </div>
         </div>
@@ -292,7 +293,7 @@ function PlannerView({ planner, onNavigate }) {
               job.dates.confirmation,
               job.dates.irResponse,
               job.dates.referral,
-              job.dates.publicNoticeStart ? `${job.dates.publicNoticeStart}` : null,
+              job.dates.publicNoticeStart,
               job.dates.decision,
             ].map((d, i) => (
               <div key={i} className={`text-xs ${d && isUrgent(d) ? 'text-amber-600 font-semibold' : d && isPast(d) ? 'text-red-400' : 'text-gray-500'}`}>
@@ -322,31 +323,14 @@ function DirectorView({ onNavigate }) {
         <div className="text-xs text-gray-400 mt-0.5">{activeJobs.length} active jobs · {allPlanners.length} planners · {urgentAll.length} dates due this week</div>
       </div>
 
-      {/* Director stats — revenue visible only here */}
       <div className="grid grid-cols-5 gap-3 mb-4">
-        <div className="bg-gray-50 rounded-lg p-3">
-          <div className="text-xs text-gray-400 mb-1">Active jobs</div>
-          <div className="text-xl font-semibold">{activeJobs.length}</div>
-        </div>
-        <div className="bg-gray-50 rounded-lg p-3">
-          <div className="text-xs text-gray-400 mb-1">Total jobs (incl. past)</div>
-          <div className="text-xl font-semibold">{allJobs.length}</div>
-        </div>
-        <div className="bg-emerald-50 rounded-lg p-3">
-          <div className="text-xs text-emerald-600 mb-1">Revenue MTD</div>
-          <div className="text-xl font-semibold text-emerald-600">$68,400</div>
-        </div>
-        <div className="bg-emerald-50 rounded-lg p-3">
-          <div className="text-xs text-emerald-600 mb-1">Billable hrs MTD</div>
-          <div className="text-xl font-semibold text-emerald-600">412 hrs</div>
-        </div>
-        <div className="bg-red-50 rounded-lg p-3">
-          <div className="text-xs text-red-400 mb-1">Over budget</div>
-          <div className="text-xl font-semibold text-red-600">{activeJobs.filter(j => j.budget > 100).length}</div>
-        </div>
+        <div className="bg-gray-50 rounded-lg p-3"><div className="text-xs text-gray-400 mb-1">Active jobs</div><div className="text-xl font-semibold">{activeJobs.length}</div></div>
+        <div className="bg-gray-50 rounded-lg p-3"><div className="text-xs text-gray-400 mb-1">Total jobs</div><div className="text-xl font-semibold">{allJobs.length}</div></div>
+        <div className="bg-emerald-50 rounded-lg p-3"><div className="text-xs text-emerald-600 mb-1">Revenue MTD</div><div className="text-xl font-semibold text-emerald-600">$68,400</div></div>
+        <div className="bg-emerald-50 rounded-lg p-3"><div className="text-xs text-emerald-600 mb-1">Billable hrs MTD</div><div className="text-xl font-semibold text-emerald-600">412 hrs</div></div>
+        <div className="bg-red-50 rounded-lg p-3"><div className="text-xs text-red-400 mb-1">Over budget</div><div className="text-xl font-semibold text-red-600">{activeJobs.filter(j => j.budget > 100).length}</div></div>
       </div>
 
-      {/* Job search with planner filter */}
       <JobSearchPanel onNavigate={onNavigate} isDirector={true} />
 
       {urgentAll.length > 0 && (
@@ -361,7 +345,6 @@ function DirectorView({ onNavigate }) {
         </div>
       )}
 
-      {/* Revenue by planner — director only */}
       <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
         <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Revenue by planner — MTD</div>
         <div className="grid grid-cols-[1fr_80px_80px_80px_80px] gap-3 pb-2 mb-1 border-b border-gray-200">
@@ -384,13 +367,6 @@ function DirectorView({ onNavigate }) {
             <div className="text-xs font-semibold text-emerald-600">${(p.hrs * p.rate).toLocaleString()}</div>
           </div>
         ))}
-        <div className="grid grid-cols-[1fr_80px_80px_80px_80px] gap-3 pt-2 mt-1 border-t border-gray-200">
-          <div className="text-xs font-semibold">Total</div>
-          <div className="text-xs"></div>
-          <div className="text-xs font-semibold">214 hrs</div>
-          <div className="text-xs"></div>
-          <div className="text-xs font-semibold text-emerald-600">$35,090</div>
-        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
