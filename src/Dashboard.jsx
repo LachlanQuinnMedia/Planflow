@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { supabase } from './supabase'
 import { sendIRDeadlineAlert } from './notifications'
 
 const allJobs = [
@@ -188,7 +189,7 @@ function PlannerView({ planner, onNavigate }) {
     if (result.success) {
       alert('Test email sent! Check your inbox.')
     } else {
-      alert('Email failed — Resend requires a verified domain for production. Works fine once deployed with your domain.')
+      alert('Email failed — Resend requires a verified domain for production.')
     }
   }
 
@@ -289,13 +290,7 @@ function PlannerView({ planner, onNavigate }) {
           <div key={job.code} className="grid grid-cols-[80px_1fr_110px_110px_110px_110px_110px] gap-2 py-2 border-b border-gray-100 last:border-0 items-center">
             <div className="text-xs font-medium text-emerald-600">{job.code}</div>
             <div className="text-xs font-medium truncate">{job.name}</div>
-            {[
-              job.dates.confirmation,
-              job.dates.irResponse,
-              job.dates.referral,
-              job.dates.publicNoticeStart,
-              job.dates.decision,
-            ].map((d, i) => (
+            {[job.dates.confirmation, job.dates.irResponse, job.dates.referral, job.dates.publicNoticeStart, job.dates.decision].map((d, i) => (
               <div key={i} className={`text-xs ${d && isUrgent(d) ? 'text-amber-600 font-semibold' : d && isPast(d) ? 'text-red-400' : 'text-gray-500'}`}>
                 {d || '—'}
               </div>
@@ -413,43 +408,68 @@ function DirectorView({ onNavigate }) {
   )
 }
 
-export default function Dashboard({ onNavigate }) {
+export default function Dashboard({ onNavigate, currentUser }) {
+  const isDirector = currentUser?.role === 'director'
   const [view, setView] = useState('planner')
-  const [planner, setPlanner] = useState('Sarah Barnes')
+  const [viewingAs, setViewingAs] = useState(currentUser?.username || '')
+  const [staffList, setStaffList] = useState([])
+
+  // Load all approved staff in same company for director dropdown
+  useEffect(() => {
+    if (!isDirector || !currentUser?.company_id) return
+    const fetchStaff = async () => {
+      const { data } = await supabase
+        .from('app_users')
+        .select('username, role')
+        .eq('company_id', currentUser.company_id)
+        .eq('is_approved', true)
+        .order('username', { ascending: true })
+      if (data) setStaffList(data)
+    }
+    fetchStaff()
+  }, [isDirector, currentUser])
 
   return (
     <div>
       <div className="flex items-center gap-3 mb-4 bg-white rounded-xl border border-gray-200 p-3">
-        <div className="text-xs font-medium text-gray-500">View as:</div>
-        <select
-          value={planner}
-          onChange={e => setPlanner(e.target.value)}
-          className="px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400"
-        >
-          <option>Sarah Barnes</option>
-          <option>James Thompson</option>
-          <option>Priya Mehta</option>
-          <option>Luke Rawlings</option>
-          <option>Amy Chen</option>
-          <option>Ben Okafor</option>
-        </select>
-        <div className="flex gap-1 ml-auto">
-          <button
-            onClick={() => setView('planner')}
-            className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${view === 'planner' ? 'bg-emerald-600 text-white' : 'border border-gray-200 hover:bg-gray-50'}`}
-          >
-            My view
-          </button>
-          <button
-            onClick={() => setView('director')}
-            className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${view === 'director' ? 'bg-emerald-600 text-white' : 'border border-gray-200 hover:bg-gray-50'}`}
-          >
-            Director view
-          </button>
-        </div>
+        {isDirector ? (
+          <>
+            <div className="text-xs font-medium text-gray-500">View as:</div>
+            <select
+              value={viewingAs}
+              onChange={e => setViewingAs(e.target.value)}
+              className="px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400"
+            >
+              {staffList.map(s => (
+                <option key={s.username} value={s.username}>
+                  {s.username} {s.role === 'director' ? '(Director)' : ''}
+                </option>
+              ))}
+            </select>
+            <div className="flex gap-1 ml-auto">
+              <button
+                onClick={() => setView('planner')}
+                className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${view === 'planner' ? 'bg-emerald-600 text-white' : 'border border-gray-200 hover:bg-gray-50'}`}
+              >
+                My view
+              </button>
+              <button
+                onClick={() => setView('director')}
+                className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${view === 'director' ? 'bg-emerald-600 text-white' : 'border border-gray-200 hover:bg-gray-50'}`}
+              >
+                Director view
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="text-xs font-medium text-gray-500">
+            Viewing as: <span className="font-semibold text-gray-700">{currentUser?.username}</span>
+          </div>
+        )}
       </div>
+
       {view === 'planner'
-        ? <PlannerView planner={planner} onNavigate={onNavigate} />
+        ? <PlannerView planner={viewingAs} onNavigate={onNavigate} />
         : <DirectorView onNavigate={onNavigate} />
       }
     </div>

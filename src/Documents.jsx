@@ -1,4 +1,11 @@
 import { useState } from 'react'
+import {
+  generateLodgementCoverLetter,
+  generateWithdrawApplication,
+  generateNoticeToRevive,
+  generateNoticeToStop,
+  generateQuoteRequest,
+} from './docGenerator'
 
 const allDocs = [
   { id: 1, name: 'Planning Report — Ridgeline MCU', job: '2025-031', type: 'W', typeLabel: 'Report', meta: '14 Mar · Sarah B.', version: 'Rev C', size: '42 pages', status: 'current', color: 'bg-blue-100 text-blue-700' },
@@ -21,12 +28,164 @@ const versions = {
   ]
 }
 
+const HPC_TEMPLATES = [
+  { id: 'cover', label: 'Lodgement cover letter', fn: generateLodgementCoverLetter },
+  { id: 'withdraw', label: 'Withdraw application', fn: generateWithdrawApplication },
+  { id: 'revive', label: 'Notice to revive', fn: generateNoticeToRevive },
+  { id: 'stop', label: 'Notice to stop clock', fn: generateNoticeToStop },
+  { id: 'quote', label: 'Quote request', fn: generateQuoteRequest },
+]
+
+const FIELD_GROUPS = [
+  {
+    title: 'Project & site',
+    fields: [
+      { key: 'address', label: 'Site address', placeholder: '12 Smith Street, Brisbane QLD 4000' },
+      { key: 'lot_reference', label: 'Lot / plan reference', placeholder: 'Lot 14 on RP123456' },
+      { key: 'proposed_use', label: 'Proposed use', placeholder: 'Material Change of Use — Dwelling House' },
+      { key: 'site_area', label: 'Site area', placeholder: '1,200m²' },
+      { key: 'classification', label: 'Area classification', placeholder: 'Low Density Residential' },
+    ],
+  },
+  {
+    title: 'References',
+    fields: [
+      { key: 'code', label: 'HPC reference', placeholder: '2025-031' },
+      { key: 'council_ref', label: 'Council reference', placeholder: 'DA-2024-00123' },
+      { key: 'sara_ref', label: 'SARA reference', placeholder: 'SRA-2024-001' },
+    ],
+  },
+  {
+    title: 'Council',
+    fields: [
+      { key: 'council', label: 'Council name', placeholder: 'Brisbane City Council' },
+      { key: 'council_address', label: 'Council address', placeholder: '1 Nicholas Street, Ipswich QLD 4305' },
+      { key: 'council_email', label: 'Council email', placeholder: 'development@council.qld.gov.au' },
+      { key: 'attn', label: 'Attention (assessment manager)', placeholder: 'Jane Doe' },
+    ],
+  },
+  {
+    title: 'Client',
+    fields: [
+      { key: 'client_first_name', label: 'Client first name', placeholder: 'John' },
+      { key: 'client_last_name', label: 'Client last name', placeholder: 'Smith' },
+    ],
+  },
+  {
+    title: 'Planner signing off',
+    fields: [
+      { key: 'planner', label: 'Planner name', placeholder: 'Tom Hughes' },
+      { key: 'position', label: 'Position', placeholder: 'Senior Urban Planner' },
+      { key: 'planner_email', label: 'Planner email', placeholder: 'tom@hpcplanning.com.au' },
+    ],
+  },
+]
+
+function AutofillModal({ onClose }) {
+  const [fields, setFields] = useState({})
+  const [selectedTemplates, setSelectedTemplates] = useState(new Set())
+  const [generating, setGenerating] = useState(false)
+  const [done, setDone] = useState(false)
+
+  const set = (key, value) => setFields(f => ({ ...f, [key]: value }))
+
+  const toggleTemplate = (id) => {
+    setSelectedTemplates(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const handleGenerate = async () => {
+    if (selectedTemplates.size === 0) return
+    setGenerating(true)
+    for (const tmpl of HPC_TEMPLATES) {
+      if (selectedTemplates.has(tmpl.id)) {
+        await tmpl.fn(fields)
+      }
+    }
+    setGenerating(false)
+    setDone(true)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center pt-10 px-4 overflow-y-auto">
+      <div className="bg-white rounded-xl border border-gray-200 w-full max-w-2xl mb-10">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div>
+            <div className="text-sm font-semibold">Autofill & generate</div>
+            <div className="text-xs text-gray-400 mt-0.5">Fill in once — download all selected letters as .docx</div>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
+        </div>
+
+        <div className="px-5 py-4 space-y-5">
+          <div>
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Select documents to generate</div>
+            <div className="grid grid-cols-2 gap-2">
+              {HPC_TEMPLATES.map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => toggleTemplate(t.id)}
+                  className={`text-left px-3 py-2 rounded-lg border text-xs transition-colors ${selectedTemplates.has(t.id) ? 'border-emerald-500 bg-emerald-50 text-emerald-700 font-medium' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}
+                >
+                  {selectedTemplates.has(t.id) ? '✓ ' : ''}{t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {FIELD_GROUPS.map(group => (
+            <div key={group.title}>
+              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{group.title}</div>
+              <div className="grid grid-cols-2 gap-3">
+                {group.fields.map(f => (
+                  <div key={f.key} className={f.key === 'address' || f.key === 'proposed_use' ? 'col-span-2' : ''}>
+                    <label className="block text-xs text-gray-500 mb-1">{f.label}</label>
+                    <input
+                      type="text"
+                      value={fields[f.key] || ''}
+                      onChange={e => set(f.key, e.target.value)}
+                      placeholder={f.placeholder}
+                      className="w-full px-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-emerald-400"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="px-5 py-4 border-t border-gray-100 flex items-center justify-between">
+          {done ? (
+            <span className="text-xs text-emerald-600 font-medium">✓ {selectedTemplates.size} document{selectedTemplates.size !== 1 ? 's' : ''} downloaded</span>
+          ) : (
+            <span className="text-xs text-gray-400">{selectedTemplates.size} document{selectedTemplates.size !== 1 ? 's' : ''} selected</span>
+          )}
+          <div className="flex gap-2">
+            <button onClick={onClose} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+            <button
+              onClick={handleGenerate}
+              disabled={generating || selectedTemplates.size === 0}
+              className="px-4 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {generating ? 'Generating…' : done ? 'Generate again' : `Generate ${selectedTemplates.size > 0 ? selectedTemplates.size : ''} doc${selectedTemplates.size !== 1 ? 's' : ''}`}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Documents() {
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('All')
   const [jobFilter, setJobFilter] = useState('All')
   const [selectedDoc, setSelectedDoc] = useState(null)
   const [showVersions, setShowVersions] = useState(false)
+  const [showAutofill, setShowAutofill] = useState(false)
 
   const filtered = allDocs.filter(d => {
     const matchSearch = d.name.toLowerCase().includes(search.toLowerCase()) || d.job.includes(search)
@@ -37,6 +196,16 @@ export default function Documents() {
 
   return (
     <div>
+      {showAutofill && <AutofillModal onClose={() => setShowAutofill(false)} />}
+
+      {/* Top bar */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="text-xs text-gray-400">{allDocs.length} documents</div>
+        <button onClick={() => setShowAutofill(true)} className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
+          ⬡ Autofill & generate
+        </button>
+      </div>
+
       {/* Filters */}
       <div className="flex gap-2 mb-4">
         <input
@@ -92,12 +261,8 @@ export default function Documents() {
                   {doc.version}
                 </span>
               )}
-              {doc.status === 'pending' && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Pending</span>
-              )}
-              {doc.status === 'urgent' && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600">Due soon</span>
-              )}
+              {doc.status === 'pending' && <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Pending</span>}
+              {doc.status === 'urgent' && <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600">Due soon</span>}
             </div>
           ))}
         </div>
@@ -116,7 +281,6 @@ export default function Documents() {
                 </div>
                 <button onClick={() => setSelectedDoc(null)} className="text-xs text-gray-400 hover:text-gray-600">✕</button>
               </div>
-
               {[
                 ['Type', selectedDoc.typeLabel],
                 ['Job', selectedDoc.job],
@@ -129,10 +293,9 @@ export default function Documents() {
                   <div className="text-xs font-medium">{v}</div>
                 </div>
               ))}
-
               <div className="flex gap-2 mt-4">
                 {selectedDoc.status === 'pending' ? (
-                  <button className="flex-1 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
+                  <button onClick={() => setShowAutofill(true)} className="flex-1 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
                     ⬡ Auto-generate
                   </button>
                 ) : (
@@ -140,18 +303,12 @@ export default function Documents() {
                     Edit live
                   </button>
                 )}
-                <button className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">
-                  Download
-                </button>
+                <button className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Download</button>
               </div>
             </div>
 
-            {/* Version history */}
             <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <div
-                className="flex items-center justify-between cursor-pointer"
-                onClick={() => setShowVersions(!showVersions)}
-              >
+              <div className="flex items-center justify-between cursor-pointer" onClick={() => setShowVersions(!showVersions)}>
                 <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Version history</div>
                 <div className="text-xs text-gray-400">{showVersions ? '▲ Hide' : '▼ Show'}</div>
               </div>
@@ -161,16 +318,12 @@ export default function Documents() {
                     { version: selectedDoc.version || 'Rev A', date: selectedDoc.meta, author: 'Planner', pages: selectedDoc.size, current: true }
                   ]).map((v, i) => (
                     <div key={i} className="flex items-center gap-3 py-2 border-b border-gray-100 last:border-0">
-                      <div className={`w-7 h-7 rounded-md flex items-center justify-center text-xs font-semibold flex-shrink-0 ${v.current ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
-                        W
-                      </div>
+                      <div className={`w-7 h-7 rounded-md flex items-center justify-center text-xs font-semibold flex-shrink-0 ${v.current ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>W</div>
                       <div className="flex-1">
                         <div className="text-xs font-medium">{v.version} {v.current && <span className="text-emerald-600">(Current)</span>}</div>
                         <div className="text-xs text-gray-400">{v.date} · {v.author} · {v.pages}</div>
                       </div>
-                      {!v.current && (
-                        <button className="px-2 py-1 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Restore</button>
-                      )}
+                      {!v.current && <button className="px-2 py-1 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Restore</button>}
                       <button className="px-2 py-1 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Download</button>
                     </div>
                   ))}

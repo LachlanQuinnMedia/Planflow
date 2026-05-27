@@ -18,21 +18,70 @@ const statusBadge = {
   'On Hold': 'bg-red-100 text-red-700',
 }
 
-export default function Jobs({ onNavigate }) {
+function DeleteConfirmModal({ job, onConfirm, onCancel }) {
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
+      <div className="bg-white rounded-xl border border-gray-200 p-6 w-full max-w-sm">
+        <div className="text-sm font-semibold mb-1">Delete job</div>
+        <div className="text-xs text-gray-500 mb-1">Are you sure you want to delete this job?</div>
+        <div className="text-xs font-medium text-gray-800 mb-4">
+          {job.code} — {job.name}
+        </div>
+        <div className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2 mb-4">
+          This will permanently delete the job and all associated time logs. This cannot be undone.
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={onCancel}
+            className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium"
+          >
+            No, keep it
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 py-2 text-xs bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium"
+          >
+            Yes, delete
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function Jobs({ onNavigate, onJobCountChange }) {
   const [jobs, setJobs] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('All')
   const [plannerFilter, setPlannerFilter] = useState('All')
   const [statusFilter, setStatusFilter] = useState('All')
+  const [jobToDelete, setJobToDelete] = useState(null)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => { fetchJobs() }, [])
 
   const fetchJobs = async () => {
     setLoading(true)
-    const { data, error } = await supabase.from('jobs').select('*').order('created_at', { ascending: false })
-    if (!error) setJobs(data || [])
+    const { data, error } = await supabase
+      .from('jobs')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (!error && data) {
+      setJobs(data)
+      onJobCountChange?.(data.length)
+    }
     setLoading(false)
+  }
+
+  const handleDelete = async () => {
+    if (!jobToDelete) return
+    setDeleting(true)
+    await supabase.from('time_logs').delete().eq('job_id', jobToDelete.id)
+    await supabase.from('jobs').delete().eq('id', jobToDelete.id)
+    setJobToDelete(null)
+    setDeleting(false)
+    fetchJobs()
   }
 
   const filtered = jobs.filter(j => {
@@ -50,6 +99,14 @@ export default function Jobs({ onNavigate }) {
 
   return (
     <div>
+      {jobToDelete && (
+        <DeleteConfirmModal
+          job={jobToDelete}
+          onConfirm={handleDelete}
+          onCancel={() => setJobToDelete(null)}
+        />
+      )}
+
       <div className="flex gap-2 mb-4">
         <input type="text" placeholder="Search jobs, clients, addresses..." value={search} onChange={e => setSearch(e.target.value)} className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-emerald-400" />
         <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white">
@@ -62,15 +119,18 @@ export default function Jobs({ onNavigate }) {
           <option>All</option><option>Active</option><option>Review</option><option>Draft</option><option>Complete</option><option>On Hold</option>
         </select>
       </div>
+
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="grid grid-cols-[70px_1fr_90px_55px_65px_70px] gap-3 px-4 py-2 border-b border-gray-100 bg-gray-50">
+        <div className="grid grid-cols-[70px_1fr_90px_55px_65px_70px_50px] gap-3 px-4 py-2 border-b border-gray-100 bg-gray-50">
           <div className="text-xs text-gray-400">Job #</div>
           <div className="text-xs text-gray-400">Name / address</div>
           <div className="text-xs text-gray-400">Client</div>
           <div className="text-xs text-gray-400">Type</div>
           <div className="text-xs text-gray-400">Planner</div>
           <div className="text-xs text-gray-400">Status</div>
+          <div className="text-xs text-gray-400">Delete</div>
         </div>
+
         {loading ? (
           <div className="px-4 py-8 text-center text-sm text-gray-400">Loading jobs...</div>
         ) : filtered.length === 0 ? (
@@ -79,16 +139,38 @@ export default function Jobs({ onNavigate }) {
           </div>
         ) : (
           filtered.map(job => (
-            <div key={job.id} onClick={() => onNavigate('jobdetail')} className="grid grid-cols-[70px_1fr_90px_55px_65px_70px] gap-3 px-4 py-3 border-b border-gray-100 last:border-0 cursor-pointer hover:bg-gray-50 items-center">
-              <div className="text-xs font-medium text-emerald-600">{job.code}</div>
-              <div>
+            <div
+              key={job.id}
+              className="grid grid-cols-[70px_1fr_90px_55px_65px_70px_50px] gap-3 px-4 py-3 border-b border-gray-100 last:border-0 items-center hover:bg-gray-50"
+            >
+              <div className="text-xs font-medium text-emerald-600 cursor-pointer" onClick={() => onNavigate('jobdetail', job)}>
+                {job.code}
+              </div>
+              <div className="cursor-pointer" onClick={() => onNavigate('jobdetail', job)}>
                 <div className="text-xs font-medium">{job.name}</div>
                 <div className="text-xs text-gray-400">{job.address}</div>
               </div>
-              <div className="text-xs text-gray-500 truncate">{job.client_first_name} {job.client_last_name}</div>
-              <div><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${typeBadge[job.app_type] || 'bg-gray-100 text-gray-500'}`}>{job.app_type}</span></div>
-              <div className="text-xs text-gray-500">{job.planner?.split(' ')[0]} {job.planner?.split(' ')[1]?.[0]}.</div>
-              <div><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge[job.status] || 'bg-gray-100 text-gray-500'}`}>{job.status}</span></div>
+              <div className="text-xs text-gray-500 truncate cursor-pointer" onClick={() => onNavigate('jobdetail', job)}>
+                {job.client_first_name} {job.client_last_name}
+              </div>
+              <div className="cursor-pointer" onClick={() => onNavigate('jobdetail', job)}>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${typeBadge[job.app_type] || 'bg-gray-100 text-gray-500'}`}>{job.app_type}</span>
+              </div>
+              <div className="text-xs text-gray-500 cursor-pointer" onClick={() => onNavigate('jobdetail', job)}>
+                {job.planner?.split(' ')[0]} {job.planner?.split(' ')[1]?.[0]}.
+              </div>
+              <div className="cursor-pointer" onClick={() => onNavigate('jobdetail', job)}>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge[job.status] || 'bg-gray-100 text-gray-500'}`}>{job.status}</span>
+              </div>
+              <div className="flex items-center justify-center">
+                <button
+                  onClick={e => { e.stopPropagation(); setJobToDelete(job) }}
+                  className="w-7 h-7 flex items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors text-base"
+                  title="Delete job"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
           ))
         )}
