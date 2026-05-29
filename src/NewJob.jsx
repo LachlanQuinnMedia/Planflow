@@ -16,6 +16,22 @@ const HPC_TEMPLATES = [
   { id: 'quote', label: 'Quote request', fn: generateQuoteRequest },
 ]
 
+const COUNCILS = [
+  'Balina Shire Council', 'Banana Shire Council', 'Brisbane City Council',
+  'Bundaberg Regional Council', 'Cairns Regional Council', 'Cassowary Coast Regional Council',
+  'Charters Towers Regional Council', 'City of Gold Coast', 'City of Moreton Bay',
+  'Cloncurry Shire Council', 'Fraser Coast Regional Council', 'Gladstone Regional Council',
+  'Gympie Regional Council', 'Ipswich City Council', 'Issac Regional Council',
+  'Laidley Shire Council', 'Livingstone Shire Council', 'Lockyer Valley Regional Council',
+  'Logan City Council', 'Mackay Regional Council', 'Maranoa Regional Council',
+  'Noosa Shire Council', 'Port of Brisbane', 'QDC Codes', 'Redland City Council',
+  'Rockhampton Regional Council', 'Scenic Rim Regional Council', 'Somerset Regional Council',
+  'South Burnett Regional Council', 'South Pine Sports Complex Development Code',
+  'Southern Downs Regional Council', 'Sunshine Coast Regional Council',
+  'Tablelands Regional Council', 'The Mill at Moreton Bay', 'Toowoomba Regional Council',
+  'Townsville City Council', 'Western Downs Regional Council', 'Whitsunday Regional Council', 'Other',
+]
+
 function DocGenerateModal({ job, onClose, onNavigate }) {
   const [selected, setSelected] = useState(new Set())
   const [generating, setGenerating] = useState(false)
@@ -31,9 +47,7 @@ function DocGenerateModal({ job, onClose, onNavigate }) {
     if (selected.size === 0) return
     setGenerating(true)
     for (const tmpl of HPC_TEMPLATES) {
-      if (selected.has(tmpl.id)) {
-        await tmpl.fn(job)
-      }
+      if (selected.has(tmpl.id)) await tmpl.fn(job)
     }
     setGenerating(false)
     setDone(true)
@@ -45,31 +59,17 @@ function DocGenerateModal({ job, onClose, onNavigate }) {
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div>
             <div className="text-sm font-semibold">Job created ✓</div>
-            <div className="text-xs text-gray-400 mt-0.5">
-              {job.code} — {job.name} · Would you like to generate documents now?
-            </div>
+            <div className="text-xs text-gray-400 mt-0.5">{job.code} — {job.name} · Would you like to generate documents now?</div>
           </div>
         </div>
-
         <div className="px-5 py-4">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-            Select documents to generate
-          </div>
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Select documents to generate</div>
           <div className="space-y-2">
             {HPC_TEMPLATES.map(t => (
-              <button
-                key={t.id}
-                onClick={() => toggle(t.id)}
-                className={`w-full text-left px-3 py-2.5 rounded-lg border text-xs transition-colors ${
-                  selected.has(t.id)
-                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700 font-medium'
-                    : 'border-gray-200 hover:bg-gray-50 text-gray-600'
-                }`}
-              >
+              <button key={t.id} onClick={() => toggle(t.id)}
+                className={`w-full text-left px-3 py-2.5 rounded-lg border text-xs transition-colors ${selected.has(t.id) ? 'border-emerald-500 bg-emerald-50 text-emerald-700 font-medium' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}>
                 <div className="flex items-center gap-2">
-                  <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${
-                    selected.has(t.id) ? 'bg-emerald-600 border-emerald-600' : 'border-gray-300'
-                  }`}>
+                  <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${selected.has(t.id) ? 'bg-emerald-600 border-emerald-600' : 'border-gray-300'}`}>
                     {selected.has(t.id) && <span className="text-white text-xs leading-none">✓</span>}
                   </div>
                   {t.label}
@@ -77,26 +77,17 @@ function DocGenerateModal({ job, onClose, onNavigate }) {
               </button>
             ))}
           </div>
-
           {done && (
             <div className="mt-3 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-xs text-emerald-700">
               ✓ {selected.size} document{selected.size !== 1 ? 's' : ''} downloaded — check your downloads folder.
             </div>
           )}
         </div>
-
         <div className="px-5 py-4 border-t border-gray-100 flex gap-2">
-          <button
-            onClick={() => { onClose(); onNavigate('jobs') }}
-            className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50"
-          >
-            Skip — go to jobs
-          </button>
-          <button
-            onClick={done ? () => { onClose(); onNavigate('jobs') } : handleGenerate}
+          <button onClick={() => { onClose(); onNavigate('jobs') }} className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Skip — go to jobs</button>
+          <button onClick={done ? () => { onClose(); onNavigate('jobs') } : handleGenerate}
             disabled={generating || (!done && selected.size === 0)}
-            className="flex-1 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 font-medium"
-          >
+            className="flex-1 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 font-medium">
             {generating ? 'Generating...' : done ? 'Done — go to jobs' : `Generate ${selected.size > 0 ? `(${selected.size})` : ''}`}
           </button>
         </div>
@@ -110,40 +101,43 @@ export default function NewJob({ onNavigate, currentUser }) {
     firstName: '', lastName: '', email: '', phone: '',
     appType: 'MCU — Material Change of Use',
     assessment: 'Code Assessable',
-    address: '', lot: '', council: 'Toowoomba Regional',
+    address: '', lot: '', council: 'City of Gold Coast',
     zone: '', proposedUse: '', referrals: '',
-    planner: '',
-    budget: '',
-    lodgement: '', decisionDue: '',
+    budget: '', lodgement: '', decisionDue: '',
   })
+  const [selectedPlanners, setSelectedPlanners] = useState([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const [staffList, setStaffList] = useState([])
   const [createdJob, setCreatedJob] = useState(null)
   const [showDocModal, setShowDocModal] = useState(false)
 
-  // Load approved staff from same company
   useEffect(() => {
     const fetchStaff = async () => {
       if (!currentUser?.company_id) return
-      const { data } = await supabase
-        .from('app_users')
-        .select('username, role')
-        .eq('company_id', currentUser.company_id)
-        .eq('is_approved', true)
-        .order('username', { ascending: true })
-      if (data) {
-        setStaffList(data)
-        // Default planner to current user
-        if (data.length > 0) {
-          setForm(f => ({ ...f, planner: currentUser.username || data[0].username }))
-        }
+      const { data: profiles } = await supabase.from('planner_profiles').select('full_name, user_id').eq('company_id', currentUser.company_id)
+      const { data: users } = await supabase.from('app_users').select('id, username, role').eq('company_id', currentUser.company_id).eq('is_approved', true).order('username', { ascending: true })
+      if (users) {
+        const merged = users.map(u => {
+          const profile = profiles?.find(p => p.user_id === u.id)
+          return { ...u, displayName: profile?.full_name || u.username }
+        })
+        setStaffList(merged)
+        // Default: current user selected
+        const me = merged.find(s => s.id === currentUser.id)
+        if (me) setSelectedPlanners([me.displayName])
       }
     }
     fetchStaff()
   }, [currentUser])
 
   const update = (field, value) => setForm(f => ({ ...f, [field]: value }))
+
+  const togglePlanner = (name) => {
+    setSelectedPlanners(prev =>
+      prev.includes(name) ? prev.filter(p => p !== name) : [...prev, name]
+    )
+  }
 
   const generateJobCode = () => {
     const year = new Date().getFullYear()
@@ -152,14 +146,13 @@ export default function NewJob({ onNavigate, currentUser }) {
   }
 
   const handleSubmit = async () => {
-    if (!form.firstName || !form.address) {
-      setError('Please fill in client name and address.')
-      return
-    }
+    if (!form.firstName || !form.address) { setError('Please fill in client name and address.'); return }
+    if (selectedPlanners.length === 0) { setError('Please select at least one planner.'); return }
     setError(null)
     setSaving(true)
     const code = generateJobCode()
     const jobName = `${form.firstName} ${form.lastName} — ${form.appType.split('—')[0].trim()}`
+    const leadPlanner = selectedPlanners[0]
 
     const { error: dbError } = await supabase.from('jobs').insert({
       code,
@@ -176,8 +169,9 @@ export default function NewJob({ onNavigate, currentUser }) {
       assessment_level: form.assessment,
       proposed_use: form.proposedUse,
       referral_agencies: form.referrals,
-      planner: form.planner,
-      planner_rate: 150, // default — can be updated in job detail
+      planner: leadPlanner,
+      planners: selectedPlanners,
+      planner_rate: 150,
       budget_hours: parseFloat(form.budget) || 0,
       status: 'Draft',
       lodgement_date: form.lodgement || null,
@@ -185,50 +179,30 @@ export default function NewJob({ onNavigate, currentUser }) {
     })
 
     setSaving(false)
+    if (dbError) { setError('Error saving job: ' + dbError.message); return }
 
-    if (dbError) {
-      setError('Error saving job: ' + dbError.message)
-      return
-    }
-
-    // Store the created job data for doc generation
     setCreatedJob({
-      code,
-      name: jobName,
-      address: form.address,
-      lot_reference: form.lot,
-      client_first_name: form.firstName,
-      client_last_name: form.lastName,
-      client_email: form.email,
-      client_phone: form.phone,
-      council: form.council,
-      zone: form.zone,
+      code, name: jobName, address: form.address, lot_reference: form.lot,
+      client_first_name: form.firstName, client_last_name: form.lastName,
+      client_email: form.email, client_phone: form.phone,
+      council: form.council, zone: form.zone,
       app_type: form.appType.split('—')[0].trim(),
-      assessment_level: form.assessment,
-      proposed_use: form.proposedUse,
-      referral_agencies: form.referrals,
-      planner: form.planner,
+      assessment_level: form.assessment, proposed_use: form.proposedUse,
+      referral_agencies: form.referrals, planner: leadPlanner,
       budget_hours: parseFloat(form.budget) || 0,
     })
-
     setShowDocModal(true)
   }
 
   return (
     <div className="max-w-3xl">
       {showDocModal && createdJob && (
-        <DocGenerateModal
-          job={createdJob}
-          onClose={() => setShowDocModal(false)}
-          onNavigate={onNavigate}
-        />
+        <DocGenerateModal job={createdJob} onClose={() => setShowDocModal(false)} onNavigate={onNavigate} />
       )}
 
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <h2 className="text-sm font-semibold mb-5">Create new job</h2>
-        {error && (
-          <div className="bg-red-50 text-red-600 text-xs px-3 py-2 rounded-lg mb-4">{error}</div>
-        )}
+        {error && <div className="bg-red-50 text-red-600 text-xs px-3 py-2 rounded-lg mb-4">{error}</div>}
 
         <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Client details</div>
         <div className="grid grid-cols-2 gap-3 mb-3">
@@ -260,10 +234,7 @@ export default function NewJob({ onNavigate, currentUser }) {
           </div>
           <div><label className="text-xs text-gray-500 mb-1 block">Assessment level</label>
             <select value={form.assessment} onChange={e => update('assessment', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
-              <option>Code Assessable</option>
-              <option>Impact Assessable</option>
-              <option>Accepted Development</option>
-              <option>Exempt</option>
+              <option>Code Assessable</option><option>Impact Assessable</option><option>Accepted Development</option><option>Exempt</option>
             </select>
           </div>
         </div>
@@ -276,10 +247,7 @@ export default function NewJob({ onNavigate, currentUser }) {
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div><label className="text-xs text-gray-500 mb-1 block">Council / LGA</label>
             <select value={form.council} onChange={e => update('council', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
-              <option>Toowoomba Regional</option><option>Brisbane City</option><option>Gold Coast City</option>
-              <option>Sunshine Coast</option><option>Ipswich City</option><option>Lockyer Valley</option>
-              <option>Southern Downs</option><option>Scenic Rim</option><option>Somerset</option>
-              <option>Gympie</option><option>Other</option>
+              {COUNCILS.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
           <div><label className="text-xs text-gray-500 mb-1 block">Planning zone</label>
@@ -294,25 +262,41 @@ export default function NewJob({ onNavigate, currentUser }) {
 
         <div className="border-t border-gray-100 mb-5" />
         <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Assign & budget</div>
-        <div className="grid grid-cols-2 gap-3 mb-3">
-          <div>
-            <label className="text-xs text-gray-500 mb-1 block">Lead planner</label>
-            <select value={form.planner} onChange={e => update('planner', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
-              {staffList.length === 0 ? (
-                <option value="">Loading staff...</option>
-              ) : (
-                staffList.map(s => (
-                  <option key={s.username} value={s.username}>
-                    {s.username}{s.role === 'director' ? ' (Director)' : ''}
-                  </option>
-                ))
-              )}
-            </select>
+
+        {/* Multi-planner selector */}
+        <div className="mb-3">
+          <label className="text-xs text-gray-500 mb-2 block">
+            Assigned planners <span className="text-gray-400 font-normal">(select all who will work on this job — first selected is lead)</span>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {staffList.map(s => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => togglePlanner(s.displayName)}
+                className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+                  selectedPlanners.includes(s.displayName)
+                    ? 'bg-emerald-600 text-white border-emerald-600 font-medium'
+                    : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                {selectedPlanners.includes(s.displayName) && selectedPlanners[0] === s.displayName && '★ '}
+                {s.displayName}
+                {s.role === 'director' ? ' (Director)' : ''}
+              </button>
+            ))}
           </div>
+          {selectedPlanners.length > 0 && (
+            <div className="text-xs text-gray-400 mt-1.5">
+              Lead: <span className="font-medium text-gray-600">{selectedPlanners[0]}</span>
+              {selectedPlanners.length > 1 && ` · Also assigned: ${selectedPlanners.slice(1).join(', ')}`}
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 mb-5">
           <div><label className="text-xs text-gray-500 mb-1 block">Budget (hours)</label>
             <input type="number" value={form.budget} onChange={e => update('budget', e.target.value)} placeholder="60" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
-        </div>
-        <div className="grid grid-cols-2 gap-3 mb-5">
           <div><label className="text-xs text-gray-500 mb-1 block">Lodgement date</label>
             <input type="date" value={form.lodgement} onChange={e => update('lodgement', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
           <div><label className="text-xs text-gray-500 mb-1 block">Decision due date</label>

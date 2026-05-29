@@ -14,6 +14,7 @@ import Templates from './Templates'
 import Documents from './Documents'
 import TimeBudget from './TimeBudget'
 import Planners from './Planners'
+import qplanLogo from './assets/plan_logo.PNG'
 
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', section: 'main' },
@@ -40,7 +41,7 @@ function formatTimer(seconds) {
   return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
 }
 
-function GlobalTimer({ jobs }) {
+function GlobalTimer({ jobs, onNavigate }) {
   const [isRunning, setIsRunning] = useState(false)
   const [displaySeconds, setDisplaySeconds] = useState(0)
   const [selectedJobId, setSelectedJobId] = useState('')
@@ -177,8 +178,6 @@ function GlobalTimer({ jobs }) {
 }
 
 function NotificationPanel({ notifications, onClose, onApprove, onReject }) {
-  // Extract username from notification message
-  // Message format: "New employee account created: Username. Awaiting your approval."
   const extractUsername = (message) => {
     const match = message.match(/created:\s*(.+?)\.\s*Awaiting/)
     return match ? match[1].trim() : null
@@ -208,16 +207,12 @@ function NotificationPanel({ notifications, onClose, onApprove, onReject }) {
               </div>
               {isNewUser && username && (
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => onApprove(n, username)}
-                    className="flex-1 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium"
-                  >
+                  <button onClick={() => onApprove(n, username)}
+                    className="flex-1 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium">
                     ✓ Approve
                   </button>
-                  <button
-                    onClick={() => onReject(n, username)}
-                    className="flex-1 py-1.5 text-xs bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium"
-                  >
+                  <button onClick={() => onReject(n, username)}
+                    className="flex-1 py-1.5 text-xs bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium">
                     ✕ Reject
                   </button>
                 </div>
@@ -241,6 +236,7 @@ export default function App() {
   const [showNotifications, setShowNotifications] = useState(false)
   const [history, setHistory] = useState(['dashboard'])
   const [historyIndex, setHistoryIndex] = useState(0)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => {
     const session = loadSession()
@@ -272,33 +268,16 @@ export default function App() {
   }
 
   const handleApprove = async (notification, username) => {
-    await supabase
-      .from('app_users')
-      .update({ is_approved: true })
-      .eq('username', username)
-      .eq('company_id', currentUser.company_id)
-
-    await supabase
-      .from('notifications')
-      .update({ is_read: true })
-      .eq('id', notification.id)
-
+    await supabase.from('app_users').update({ is_approved: true })
+      .eq('username', username).eq('company_id', currentUser.company_id)
+    await supabase.from('notifications').update({ is_read: true }).eq('id', notification.id)
     fetchNotifications()
   }
 
   const handleReject = async (notification, username) => {
-    await supabase
-      .from('app_users')
-      .delete()
-      .eq('username', username)
-      .eq('company_id', currentUser.company_id)
-      .eq('is_approved', false)
-
-    await supabase
-      .from('notifications')
-      .update({ is_read: true })
-      .eq('id', notification.id)
-
+    await supabase.from('app_users').delete()
+      .eq('username', username).eq('company_id', currentUser.company_id).eq('is_approved', false)
+    await supabase.from('notifications').update({ is_read: true }).eq('id', notification.id)
     fetchNotifications()
   }
 
@@ -326,6 +305,7 @@ export default function App() {
   const handleNavigate = (page, job = null) => {
     if (job) setSelectedJob(job)
     setActivePage(page)
+    setSidebarOpen(false)
     setHistory(prev => {
       const newHistory = prev.slice(0, historyIndex + 1)
       return [...newHistory, page]
@@ -365,13 +345,13 @@ export default function App() {
       case 'dashboard': return <Dashboard onNavigate={handleNavigate} currentUser={currentUser} />
       case 'jobs': return <Jobs onNavigate={handleNavigate} onJobCountChange={setJobCount} />
       case 'newjob': return <NewJob onNavigate={handleNavigate} currentUser={currentUser} />
-      case 'jobdetail': return <JobDetail job={selectedJob} onNavigate={handleNavigate} />
+      case 'jobdetail': return <JobDetail job={selectedJob} onNavigate={handleNavigate} currentUser={currentUser} />
       case 'workload': return isDirector ? <Workload /> : <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-sm text-gray-400">Access restricted to directors.</div>
       case 'calendly': return <Bookings onNavigate={handleNavigate} />
       case 'templates': return <Templates />
-      case 'docs': return <Documents />
+      case 'docs': return <Documents currentUser={currentUser} />
       case 'time': return <TimeBudget />
-      case 'planners': return <Planners />
+      case 'planners': return <Planners currentUser={currentUser} />
       default: return <div className="bg-white rounded-xl border border-gray-200 p-6"><p className="text-sm text-gray-400">This page is coming soon.</p></div>
     }
   }
@@ -379,13 +359,28 @@ export default function App() {
   const initials = currentUser.username.slice(0, 2).toUpperCase()
 
   return (
-    <div className="flex h-screen bg-gray-100 font-sans">
-      <div className="w-52 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
+    <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
 
-        {/* Logo + back/forward */}
+      {/* Mobile overlay — tap outside sidebar to close */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/30 z-30 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <div className={`
+        fixed md:relative z-40 h-full w-52 bg-white border-r border-gray-200 flex flex-col flex-shrink-0
+        transition-transform duration-200 ease-in-out
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        md:translate-x-0
+      `}>
+
+        {/* Logo header */}
         <div className="flex items-center px-3 py-2 border-b border-gray-200 gap-2">
-          <div className="w-7 h-7 bg-emerald-600 rounded-md flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">PF</div>
-          <span className="text-sm font-semibold">PlanFlow</span>
+          <img src={qplanLogo} alt="QPlan" className="w-7 h-7 object-contain flex-shrink-0" />
+          <span className="text-sm font-semibold text-gray-800">QPlan</span>
           <div className="flex items-center gap-0.5 ml-auto">
             <button onClick={goBack} disabled={!canGoBack}
               className={`w-8 h-8 flex items-center justify-center rounded-md transition-colors ${canGoBack ? 'text-gray-500 hover:bg-gray-100 hover:text-gray-900' : 'text-gray-200 cursor-not-allowed'}`}
@@ -396,7 +391,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* Nav */}
+        {/* Nav items */}
         <div className="flex-1 overflow-y-auto py-2">
           {['main', 'tools', 'settings'].map(section => (
             <div key={section} className="px-2 mb-2">
@@ -414,12 +409,9 @@ export default function App() {
           ))}
         </div>
 
-        <GlobalTimer jobs={jobs} />
+        <GlobalTimer jobs={jobs} onNavigate={handleNavigate} />
 
-        {/* Bottom section */}
         <div className="p-3 border-t border-gray-200 space-y-2">
-
-          {/* Notifications — directors only */}
           {isDirector && (
             <div className="relative">
               <button
@@ -442,7 +434,6 @@ export default function App() {
             </div>
           )}
 
-          {/* User profile */}
           <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg">
             <div className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-medium text-emerald-700 flex-shrink-0">
               {initials}
@@ -453,27 +444,42 @@ export default function App() {
             </div>
           </div>
 
-          {/* Log out button */}
-          <button
-            onClick={handleLogout}
-            className="w-full py-1.5 text-xs bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors"
-          >
+          <button onClick={handleLogout}
+            className="w-full py-1.5 text-xs bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors">
             Log out
           </button>
         </div>
       </div>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="h-12 bg-white border-b border-gray-200 flex items-center px-5 gap-3">
-          <div className="flex-1 text-sm font-medium">{pageTitles[activePage]}</div>
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+
+        {/* Top bar */}
+        <div className="h-12 bg-white border-b border-gray-200 flex items-center px-4 gap-3 flex-shrink-0">
+          {/* Hamburger — mobile only */}
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="md:hidden p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 flex-shrink-0"
+            aria-label="Open menu"
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <rect x="2" y="4" width="14" height="1.5" rx="1" fill="currentColor"/>
+              <rect x="2" y="8.25" width="14" height="1.5" rx="1" fill="currentColor"/>
+              <rect x="2" y="12.5" width="14" height="1.5" rx="1" fill="currentColor"/>
+            </svg>
+          </button>
+
+          <div className="flex-1 text-sm font-medium truncate">{pageTitles[activePage]}</div>
+
           {isDirector && currentUser.companyName && (
-            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-lg">{currentUser.companyName}</span>
+            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-lg hidden sm:block">{currentUser.companyName}</span>
           )}
-          <button onClick={() => handleNavigate('calendly')} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Book</button>
-          <button onClick={() => handleNavigate('newjob')} className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">+ New Job</button>
+          <button onClick={() => handleNavigate('calendly')} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 hidden sm:block">Book</button>
+          <button onClick={() => handleNavigate('newjob')} className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex-shrink-0">+ New Job</button>
         </div>
-        <div className="flex-1 overflow-y-auto p-5">
+
+        {/* Page content */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-5">
           {renderPage()}
         </div>
       </div>

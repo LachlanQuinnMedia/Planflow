@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { loginUser, saveSession, loadSession } from './auth'
+import { loginUser, saveSession } from './auth'
+import qplanLogo from './assets/plan_logo.PNG'
 
 export default function Login({ onLogin, onRegister, onForgotPassword }) {
   const [username, setUsername] = useState(localStorage.getItem('pf_remember_username') || '')
@@ -18,15 +19,12 @@ export default function Login({ onLogin, onRegister, onForgotPassword }) {
     }
     setLoading(true)
     setError('')
-
     const { user, error: loginError } = await loginUser({ username, password, companyCode })
-
     if (loginError) {
       setError(loginError)
       setLoading(false)
       return
     }
-
     saveSession(user, stayLoggedIn, rememberMe)
     if (!rememberMe) {
       localStorage.removeItem('pf_remember_username')
@@ -38,10 +36,11 @@ export default function Login({ onLogin, onRegister, onForgotPassword }) {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
+
         {/* Logo */}
         <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white font-bold text-sm">PF</div>
-          <span className="text-xl font-semibold">PlanFlow</span>
+          <img src={qplanLogo} alt="QPlan" className="w-12 h-12 object-contain" />
+          <span className="text-2xl font-semibold text-gray-800">QPlan</span>
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-200 p-8">
@@ -62,6 +61,8 @@ export default function Login({ onLogin, onRegister, onForgotPassword }) {
                 value={username}
                 onChange={e => setUsername(e.target.value)}
                 placeholder="Your username"
+                autoCapitalize="none"
+                autoCorrect="off"
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400"
               />
             </div>
@@ -84,6 +85,7 @@ export default function Login({ onLogin, onRegister, onForgotPassword }) {
                 value={companyCode}
                 onChange={e => setCompanyCode(e.target.value)}
                 placeholder="e.g. 0000"
+                autoCapitalize="none"
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400"
               />
             </div>
@@ -91,29 +93,15 @@ export default function Login({ onLogin, onRegister, onForgotPassword }) {
             <div className="flex items-center justify-between pt-1">
               <div className="flex flex-col gap-2">
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={e => setRememberMe(e.target.checked)}
-                    className="w-3.5 h-3.5 accent-emerald-600"
-                  />
+                  <input type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)} className="w-3.5 h-3.5 accent-emerald-600" />
                   <span className="text-xs text-gray-500">Remember me</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={stayLoggedIn}
-                    onChange={e => setStayLoggedIn(e.target.checked)}
-                    className="w-3.5 h-3.5 accent-emerald-600"
-                  />
+                  <input type="checkbox" checked={stayLoggedIn} onChange={e => setStayLoggedIn(e.target.checked)} className="w-3.5 h-3.5 accent-emerald-600" />
                   <span className="text-xs text-gray-500">Stay logged in</span>
                 </label>
               </div>
-              <button
-                type="button"
-                onClick={onForgotPassword}
-                className="text-xs text-emerald-600 hover:underline"
-              >
+              <button type="button" onClick={onForgotPassword} className="text-xs text-emerald-600 hover:underline">
                 Forgot password?
               </button>
             </div>
@@ -136,7 +124,7 @@ export default function Login({ onLogin, onRegister, onForgotPassword }) {
         </div>
 
         <div className="text-center mt-4 text-xs text-gray-300">
-          PlanFlow · Secure planning management
+          QPlan · Less process. More progress.
         </div>
       </div>
     </div>

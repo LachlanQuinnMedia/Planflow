@@ -97,6 +97,8 @@ export default function Jobs({ onNavigate, onJobCountChange }) {
     return matchSearch && matchType && matchPlanner && matchStatus
   })
 
+  const uniquePlanners = [...new Set(jobs.map(j => j.planner).filter(Boolean))].sort()
+
   return (
     <div>
       {jobToDelete && (
@@ -107,17 +109,39 @@ export default function Jobs({ onNavigate, onJobCountChange }) {
         />
       )}
 
-      <div className="flex gap-2 mb-4">
-        <input type="text" placeholder="Search jobs, clients, addresses..." value={search} onChange={e => setSearch(e.target.value)} className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-emerald-400" />
-        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white">
-          <option>All</option><option>MCU</option><option>ROL</option><option>RAA</option><option>OW</option><option>SPS</option><option>PE</option>
-        </select>
-        <select value={plannerFilter} onChange={e => setPlannerFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white">
-          <option>All</option><option>Sarah Barnes</option><option>James Thompson</option><option>Priya Mehta</option><option>Luke Rawlings</option><option>Amy Chen</option>
-        </select>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white">
-          <option>All</option><option>Active</option><option>Review</option><option>Draft</option><option>Complete</option><option>On Hold</option>
-        </select>
+      <div className="flex gap-2 mb-4 items-end">
+        <div className="flex-1">
+          <input
+            type="text"
+            placeholder="Search jobs, clients, addresses..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-emerald-400"
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-gray-400 font-medium px-1">Type</label>
+          <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white">
+            <option value="All">All</option>
+            <option>MCU</option><option>ROL</option><option>RAA</option>
+            <option>OW</option><option>SPS</option><option>PE</option>
+          </select>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-gray-400 font-medium px-1">Planner</label>
+          <select value={plannerFilter} onChange={e => setPlannerFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white">
+            <option value="All">All</option>
+            {uniquePlanners.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-gray-400 font-medium px-1">Status</label>
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white">
+            <option value="All">All</option>
+            <option>Active</option><option>Review</option><option>Draft</option>
+            <option>Complete</option><option>On Hold</option>
+          </select>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">

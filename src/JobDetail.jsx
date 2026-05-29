@@ -1,6 +1,22 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabase'
 import { generatePlanningReport, generateIRResponse, generateEngagementLetter, generateInvoice } from './docGenerator'
+
+const COUNCILS = [
+  'Balina Shire Council', 'Banana Shire Council', 'Brisbane City Council',
+  'Bundaberg Regional Council', 'Cairns Regional Council', 'Cassowary Coast Regional Council',
+  'Charters Towers Regional Council', 'City of Gold Coast', 'City of Moreton Bay',
+  'Cloncurry Shire Council', 'Fraser Coast Regional Council', 'Gladstone Regional Council',
+  'Gympie Regional Council', 'Ipswich City Council', 'Issac Regional Council',
+  'Laidley Shire Council', 'Livingstone Shire Council', 'Lockyer Valley Regional Council',
+  'Logan City Council', 'Mackay Regional Council', 'Maranoa Regional Council',
+  'Noosa Shire Council', 'Port of Brisbane', 'QDC Codes', 'Redland City Council',
+  'Rockhampton Regional Council', 'Scenic Rim Regional Council', 'Somerset Regional Council',
+  'South Burnett Regional Council', 'South Pine Sports Complex Development Code',
+  'Southern Downs Regional Council', 'Sunshine Coast Regional Council',
+  'Tablelands Regional Council', 'The Mill at Moreton Bay', 'Toowoomba Regional Council',
+  'Townsville City Council', 'Western Downs Regional Council', 'Whitsunday Regional Council', 'Other',
+]
 
 const DA_STAGES = [
   { id: 'application', label: 'Application stage', description: 'Application lodged — confirmation notice issued', statutory_days: 5, hpc_stage: 'Stage 2', color: 'bg-blue-100 text-blue-700' },
@@ -17,6 +33,15 @@ const initialStageData = {
   notification:{ status: 'pending', startDate: '', endDate: '', stoppedDays: 0, stopReason: '', isStopped: false },
   decision:    { status: 'pending', startDate: '', endDate: '', stoppedDays: 0, stopReason: '', isStopped: false },
 }
+
+const TABS = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'da stages', label: 'DA Stages' },
+  { id: 'documents', label: 'Documents' },
+  { id: 'time & budget', label: 'Time & Budget' },
+  { id: 'ir & notes', label: 'IR & Notes' },
+  { id: 'history', label: 'History' },
+]
 
 function daysUntil(dateStr) {
   if (!dateStr) return null
@@ -57,8 +82,252 @@ function formatDuration(seconds) {
 
 function calcAmount(seconds, rate) {
   if (!seconds || !rate) return 0
-  const hours = seconds / 3600
-  return parseFloat((hours * rate).toFixed(2))
+  return parseFloat(((seconds / 3600) * rate).toFixed(2))
+}
+
+function parseHHMMSS(str) {
+  const parts = str.split(':').map(Number)
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]
+  if (parts.length === 2) return parts[0] * 3600 + parts[1] * 60
+  return 0
+}
+
+// Send DA stage notifications to all planners and directors on the job
+async function sendStageNotifications(job, stageId, stageLabel, daysLeft, companyId) {
+  try {
+    const notifType = daysLeft < 0 ? 'overdue' : daysLeft <= 3 ? 'due_soon_3' : 'due_soon_7'
+    const message = daysLeft < 0
+      ? `⚠️ OVERDUE: ${job.code} — ${stageLabel} is ${Math.abs(daysLeft)} day${Math.abs(daysLeft) !== 1 ? 's' : ''} overdue.`
+      : `⏰ ${job.code} — ${stageLabel} is due in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}.`
+
+    // Check if this notification was already sent recently
+    const { data: existing } = await supabase
+      .from('stage_notifications')
+      .select('id')
+      .eq('job_id', job.id)
+      .eq('stage_id', stageId)
+      .eq('notification_type', notifType)
+      .single()
+
+    if (existing) return // Already notified
+
+    // Insert notification record
+    await supabase.from('stage_notifications').insert({
+      job_id: job.id,
+      stage_id: stageId,
+      notification_type: notifType,
+    })
+
+    // Create in-app notification for the company
+    await supabase.from('notifications').insert({
+      company_id: companyId,
+      type: 'da_stage_deadline',
+      message,
+      is_read: false,
+    })
+  } catch (e) {
+    // Fail silently
+  }
+}
+
+function EditJobModal({ job, currentUser, onClose, onSaved }) {
+  const [form, setForm] = useState({
+    firstName: job.client_first_name || '',
+    lastName: job.client_last_name || '',
+    email: job.client_email || '',
+    phone: job.client_phone || '',
+    address: job.address || '',
+    lot: job.lot_reference || '',
+    council: job.council || 'City of Gold Coast',
+    zone: job.zone || '',
+    appType: job.app_type || 'MCU',
+    assessment: job.assessment_level || 'Code Assessable',
+    proposedUse: job.proposed_use || '',
+    referrals: job.referral_agencies || '',
+    plannerRate: job.planner_rate || 150,
+    budget: job.budget_hours || '',
+    lodgement: job.lodgement_date ? job.lodgement_date.split('T')[0] : '',
+    decisionDue: job.decision_due_date ? job.decision_due_date.split('T')[0] : '',
+  })
+  const [selectedPlanners, setSelectedPlanners] = useState(job.planners || (job.planner ? [job.planner] : []))
+  const [staffList, setStaffList] = useState([])
+  const [saving, setSaving] = useState(false)
+
+  const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
+
+  const togglePlanner = (name) => {
+    setSelectedPlanners(prev =>
+      prev.includes(name) ? prev.filter(p => p !== name) : [...prev, name]
+    )
+  }
+
+  useEffect(() => {
+    const fetchStaff = async () => {
+      if (!currentUser?.company_id) return
+      const { data: profiles } = await supabase.from('planner_profiles').select('full_name, user_id').eq('company_id', currentUser.company_id)
+      const { data: users } = await supabase.from('app_users').select('id, username, role').eq('company_id', currentUser.company_id).eq('is_approved', true).order('username', { ascending: true })
+      if (users) {
+        setStaffList(users.map(u => {
+          const profile = profiles?.find(p => p.user_id === u.id)
+          return { ...u, displayName: profile?.full_name || u.username }
+        }))
+      }
+    }
+    fetchStaff()
+  }, [currentUser])
+
+  const handleSave = async () => {
+    if (selectedPlanners.length === 0) { alert('Please select at least one planner.'); return }
+    setSaving(true)
+    const leadPlanner = selectedPlanners[0]
+    await supabase.from('jobs').update({
+      client_first_name: form.firstName,
+      client_last_name: form.lastName,
+      client_email: form.email,
+      client_phone: form.phone,
+      address: form.address,
+      lot_reference: form.lot,
+      council: form.council,
+      zone: form.zone,
+      app_type: form.appType,
+      assessment_level: form.assessment,
+      proposed_use: form.proposedUse,
+      referral_agencies: form.referrals,
+      planner: leadPlanner,
+      planners: selectedPlanners,
+      planner_rate: parseFloat(form.plannerRate) || 150,
+      budget_hours: parseFloat(form.budget) || 0,
+      lodgement_date: form.lodgement || null,
+      decision_due_date: form.decisionDue || null,
+      name: `${form.firstName} ${form.lastName} — ${form.appType}`,
+    }).eq('id', job.id)
+    setSaving(false)
+    onSaved('Job details updated')
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center pt-6 px-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl border border-gray-200 w-full max-w-2xl mb-8">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div>
+            <div className="text-sm font-semibold">Edit job details</div>
+            <div className="text-xs text-gray-400 mt-0.5">{job.code} — changes are saved to the database and recorded in history.</div>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
+        </div>
+
+        <div className="px-6 py-5 space-y-5 max-h-[75vh] overflow-y-auto">
+          <div>
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Client details</div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="text-xs text-gray-500 mb-1 block">First name</label>
+                <input value={form.firstName} onChange={e => set('firstName', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+              <div><label className="text-xs text-gray-500 mb-1 block">Last name / company</label>
+                <input value={form.lastName} onChange={e => set('lastName', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+              <div><label className="text-xs text-gray-500 mb-1 block">Email</label>
+                <input value={form.email} onChange={e => set('email', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+              <div><label className="text-xs text-gray-500 mb-1 block">Phone</label>
+                <input value={form.phone} onChange={e => set('phone', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+            </div>
+          </div>
+
+          <div>
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Application details</div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="text-xs text-gray-500 mb-1 block">Application type</label>
+                <select value={form.appType} onChange={e => set('appType', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
+                  <option>MCU</option><option>ROL</option><option>RAA</option><option>OW</option><option>SPS</option><option>PE</option><option>PDA</option>
+                </select>
+              </div>
+              <div><label className="text-xs text-gray-500 mb-1 block">Assessment level</label>
+                <select value={form.assessment} onChange={e => set('assessment', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
+                  <option>Code Assessable</option><option>Impact Assessable</option><option>Accepted Development</option><option>Exempt</option>
+                </select>
+              </div>
+              <div className="col-span-2"><label className="text-xs text-gray-500 mb-1 block">Site address</label>
+                <input value={form.address} onChange={e => set('address', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+              <div><label className="text-xs text-gray-500 mb-1 block">Lot / RP reference</label>
+                <input value={form.lot} onChange={e => set('lot', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+              <div><label className="text-xs text-gray-500 mb-1 block">Council / LGA</label>
+                <select value={form.council} onChange={e => set('council', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
+                  {COUNCILS.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div><label className="text-xs text-gray-500 mb-1 block">Planning zone</label>
+                <input value={form.zone} onChange={e => set('zone', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+              <div><label className="text-xs text-gray-500 mb-1 block">Proposed use</label>
+                <input value={form.proposedUse} onChange={e => set('proposedUse', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+              <div className="col-span-2"><label className="text-xs text-gray-500 mb-1 block">Referral agencies</label>
+                <input value={form.referrals} onChange={e => set('referrals', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+            </div>
+          </div>
+
+          <div>
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Assign & budget</div>
+            <div className="mb-3">
+              <label className="text-xs text-gray-500 mb-2 block">
+                Assigned planners <span className="text-gray-400 font-normal">(first selected is lead)</span>
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {staffList.map(s => (
+                  <button key={s.id} type="button" onClick={() => togglePlanner(s.displayName)}
+                    className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${selectedPlanners.includes(s.displayName) ? 'bg-emerald-600 text-white border-emerald-600 font-medium' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                    {selectedPlanners.includes(s.displayName) && selectedPlanners[0] === s.displayName && '★ '}
+                    {s.displayName}{s.role === 'director' ? ' (Director)' : ''}
+                  </button>
+                ))}
+              </div>
+              {selectedPlanners.length > 0 && (
+                <div className="text-xs text-gray-400 mt-1.5">
+                  Lead: <span className="font-medium text-gray-600">{selectedPlanners[0]}</span>
+                  {selectedPlanners.length > 1 && ` · Also: ${selectedPlanners.slice(1).join(', ')}`}
+                </div>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="text-xs text-gray-500 mb-1 block">Planner rate ($/hr)</label>
+                <input type="number" value={form.plannerRate} onChange={e => set('plannerRate', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+              <div><label className="text-xs text-gray-500 mb-1 block">Budget (hours)</label>
+                <input type="number" value={form.budget} onChange={e => set('budget', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+              <div><label className="text-xs text-gray-500 mb-1 block">Lodgement date</label>
+                <input type="date" value={form.lodgement} onChange={e => set('lodgement', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+              <div><label className="text-xs text-gray-500 mb-1 block">Decision due date</label>
+                <input type="date" value={form.decisionDue} onChange={e => set('decisionDue', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-gray-100 flex gap-2 justify-end">
+          <button onClick={onClose} className="px-4 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+          <button onClick={handleSave} disabled={saving} className="px-4 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 font-medium">
+            {saving ? 'Saving...' : 'Save changes'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function DeleteTimeLogModal({ log, onConfirm, onCancel }) {
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
+      <div className="bg-white rounded-xl border border-gray-200 p-6 w-full max-w-sm">
+        <div className="text-sm font-semibold mb-1">Delete time entry</div>
+        <div className="text-xs text-gray-500 mb-1">Are you sure you want to delete this time entry?</div>
+        <div className="text-xs font-medium text-gray-800 mb-4">
+          "{log.task}" — {formatDuration(log.duration_seconds || 0)}
+        </div>
+        <div className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2 mb-4">
+          This will permanently delete this time log entry. This cannot be undone.
+        </div>
+        <div className="flex gap-2">
+          <button onClick={onCancel} className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium">No, keep it</button>
+          <button onClick={onConfirm} className="flex-1 py-2 text-xs bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium">Yes, delete</button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function StopClockModal({ stage, stageData, onSave, onClose }) {
@@ -86,7 +355,7 @@ function StopClockModal({ stage, stageData, onSave, onClose }) {
   )
 }
 
-function DAStageTracker({ job, onHistoryAdd }) {
+function DAStageTracker({ job, currentUser, onHistoryAdd }) {
   const [stages, setStages] = useState(initialStageData)
   const [stopClockStage, setStopClockStage] = useState(null)
   const [expandedStage, setExpandedStage] = useState(null)
@@ -96,10 +365,26 @@ function DAStageTracker({ job, onHistoryAdd }) {
   useEffect(() => {
     const load = async () => {
       const { data } = await supabase.from('jobs').select('da_stages').eq('id', job.id).single()
-      if (data?.da_stages) setStages(data.da_stages)
+      if (data?.da_stages) {
+        setStages(data.da_stages)
+        // Check for approaching deadlines on load
+        checkDeadlines(data.da_stages)
+      }
     }
     load()
   }, [job.id])
+
+  const checkDeadlines = async (stageData) => {
+    if (!currentUser?.company_id) return
+    for (const stage of DA_STAGES) {
+      const data = stageData[stage.id]
+      if (data.status !== 'active' || !data.endDate || data.isStopped) continue
+      const days = Math.ceil((new Date(data.endDate) - new Date()) / (1000 * 60 * 60 * 24))
+      if (days <= 7) {
+        await sendStageNotifications(job, stage.id, stage.label, days, currentUser.company_id)
+      }
+    }
+  }
 
   const updateStage = (id, updates) => {
     setStages(prev => ({ ...prev, [id]: { ...prev[id], ...updates } }))
@@ -111,6 +396,7 @@ function DAStageTracker({ job, onHistoryAdd }) {
   const saveStages = async () => {
     setSaving(true)
     await supabase.from('jobs').update({ da_stages: stages }).eq('id', job.id)
+    await checkDeadlines(stages)
     setSaving(false)
     setSaved(true)
     onHistoryAdd('DA stages updated')
@@ -137,7 +423,8 @@ function DAStageTracker({ job, onHistoryAdd }) {
             const data = stages[stage.id]
             return (
               <div key={stage.id} className="flex items-center flex-1">
-                <button onClick={() => setExpandedStage(expandedStage === stage.id ? null : stage.id)} className={`flex-1 h-2 rounded-full transition-all ${data.status === 'complete' ? 'bg-emerald-500' : data.status === 'active' ? 'bg-amber-400 ring-2 ring-amber-300 ring-offset-1' : 'bg-gray-200'}`} />
+                <button onClick={() => setExpandedStage(expandedStage === stage.id ? null : stage.id)}
+                  className={`flex-1 h-2 rounded-full transition-all ${data.status === 'complete' ? 'bg-emerald-500' : data.status === 'active' ? 'bg-amber-400 ring-2 ring-amber-300 ring-offset-1' : 'bg-gray-200'}`} />
                 {i < DA_STAGES.length - 1 && <div className="w-1" />}
               </div>
             )
@@ -209,7 +496,12 @@ function DAStageTracker({ job, onHistoryAdd }) {
                         <span className="text-xs text-gray-400">Statutory period</span>
                         <span className="text-xs font-medium">{stage.statutory_days} business days</span>
                       </div>
-                      {data.stoppedDays > 0 && <div className="flex justify-between"><span className="text-xs text-gray-400">Clock stopped</span><span className="text-xs font-medium text-orange-600">{data.stoppedDays} days</span></div>}
+                      {data.stoppedDays > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-xs text-gray-400">Clock stopped</span>
+                          <span className="text-xs font-medium text-orange-600">{data.stoppedDays} days</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div>
@@ -255,35 +547,152 @@ function DAStageTracker({ job, onHistoryAdd }) {
   )
 }
 
-function TimeBudgetTab({ job }) {
+function AddTimeLogModal({ job, currentUser, onClose, onSaved }) {
+  const [task, setTask] = useState('')
+  const [duration, setDuration] = useState('')
+  const [rate, setRate] = useState(job.planner_rate || 150)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleSave = async () => {
+    if (!task.trim()) { setError('Please enter a task description.'); return }
+    if (!duration.trim()) { setError('Please enter a duration (e.g. 01:30:00).'); return }
+    const seconds = parseHHMMSS(duration)
+    if (seconds <= 0) { setError('Please enter a valid duration.'); return }
+    setSaving(true)
+    await supabase.from('time_logs').insert({
+      job_id: job.id, job_code: job.code,
+      planner: currentUser?.username || 'Unknown',
+      task, hours: parseFloat((seconds / 3600).toFixed(4)),
+      duration_seconds: seconds, rate: parseFloat(rate) || 0,
+      log_date: new Date().toISOString().split('T')[0],
+    })
+    setSaving(false)
+    onSaved(`Time log added manually: ${task}`)
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
+      <div className="bg-white rounded-xl border border-gray-200 p-5 w-full max-w-md">
+        <div className="text-sm font-semibold mb-1">Add time log manually</div>
+        <div className="text-xs text-gray-400 mb-4">Use this to add a time entry that wasn't captured by the timer.</div>
+        {error && <div className="bg-red-50 text-red-600 text-xs px-3 py-2 rounded-lg mb-3">{error}</div>}
+        <div className="space-y-3">
+          <div><label className="block text-xs text-gray-500 mb-1">Task description</label>
+            <input type="text" value={task} onChange={e => setTask(e.target.value)} placeholder="e.g. Planning report drafting" className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+          <div><label className="block text-xs text-gray-500 mb-1">Duration (HH:MM:SS)</label>
+            <input type="text" value={duration} onChange={e => setDuration(e.target.value)} placeholder="01:30:00" className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+          <div><label className="block text-xs text-gray-500 mb-1">Rate ($/hr)</label>
+            <input type="number" value={rate} onChange={e => setRate(e.target.value)} placeholder="185" className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+        </div>
+        <div className="flex gap-2 mt-4">
+          <button onClick={onClose} className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+          <button onClick={handleSave} disabled={saving} className="flex-1 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 font-medium">
+            {saving ? 'Saving...' : 'Add entry'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function EditTimeLogModal({ log, onClose, onSaved }) {
+  const [task, setTask] = useState(log.task || '')
+  const [duration, setDuration] = useState(formatDuration(log.duration_seconds || Math.round((log.hours || 0) * 3600)))
+  const [rate, setRate] = useState(log.rate || 0)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleSave = async () => {
+    if (!task.trim()) { setError('Please enter a task description.'); return }
+    const seconds = parseHHMMSS(duration)
+    if (seconds <= 0) { setError('Please enter a valid duration.'); return }
+    setSaving(true)
+    await supabase.from('time_logs').update({
+      task, duration_seconds: seconds,
+      hours: parseFloat((seconds / 3600).toFixed(4)),
+      rate: parseFloat(rate) || 0,
+    }).eq('id', log.id)
+    setSaving(false)
+    onSaved(`Time log edited: ${task}`)
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
+      <div className="bg-white rounded-xl border border-gray-200 p-5 w-full max-w-md">
+        <div className="text-sm font-semibold mb-1">Edit time log</div>
+        <div className="text-xs text-gray-400 mb-4">Changes will be recorded in the job history.</div>
+        {error && <div className="bg-red-50 text-red-600 text-xs px-3 py-2 rounded-lg mb-3">{error}</div>}
+        <div className="space-y-3">
+          <div><label className="block text-xs text-gray-500 mb-1">Task description</label>
+            <input type="text" value={task} onChange={e => setTask(e.target.value)} className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+          <div><label className="block text-xs text-gray-500 mb-1">Duration (HH:MM:SS)</label>
+            <input type="text" value={duration} onChange={e => setDuration(e.target.value)} className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+          <div><label className="block text-xs text-gray-500 mb-1">Rate ($/hr)</label>
+            <input type="number" value={rate} onChange={e => setRate(e.target.value)} className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+        </div>
+        <div className="flex gap-2 mt-4">
+          <button onClick={onClose} className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+          <button onClick={handleSave} disabled={saving} className="flex-1 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 font-medium">
+            {saving ? 'Saving...' : 'Save changes'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function TimeBudgetTab({ job, currentUser, onHistoryAdd }) {
   const [timeLogs, setTimeLogs] = useState([])
   const [loading, setLoading] = useState(true)
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [editingLog, setEditingLog] = useState(null)
+  const [deletingLog, setDeletingLog] = useState(null)
 
-  useEffect(() => {
-    const fetchLogs = async () => {
-      setLoading(true)
-      const { data } = await supabase
-        .from('time_logs')
-        .select('*')
-        .eq('job_id', job.id)
-        .order('created_at', { ascending: false })
-      if (data) setTimeLogs(data)
-      setLoading(false)
-    }
+  useEffect(() => { fetchLogs() }, [job.id])
+
+  const fetchLogs = async () => {
+    setLoading(true)
+    const { data } = await supabase.from('time_logs').select('*').eq('job_id', job.id).order('created_at', { ascending: false })
+    if (data) setTimeLogs(data)
+    setLoading(false)
+  }
+
+  const handleDelete = async () => {
+    if (!deletingLog) return
+    await supabase.from('time_logs').delete().eq('id', deletingLog.id)
+    await onHistoryAdd(`Time log deleted: ${deletingLog.task}`)
+    setDeletingLog(null)
     fetchLogs()
-  }, [job.id])
+  }
+
+  const handleSaved = async (historyText) => {
+    await onHistoryAdd(historyText)
+    fetchLogs()
+  }
 
   const totalSeconds = timeLogs.reduce((sum, l) => sum + (l.duration_seconds || Math.round((l.hours || 0) * 3600)), 0)
   const totalAmount = timeLogs.reduce((sum, l) => sum + calcAmount(l.duration_seconds || Math.round((l.hours || 0) * 3600), l.rate), 0)
   const budgetHrs = job.budget_hours || 0
   const rate = job.planner_rate || 0
-  const totalHours = totalSeconds / 3600
-  const budgetPct = budgetHrs > 0 ? Math.round((totalHours / budgetHrs) * 100) : 0
+  const budgetPct = budgetHrs > 0 ? Math.round(((totalSeconds / 3600) / budgetHrs) * 100) : 0
 
   return (
     <div className="space-y-4">
+      {showAddModal && <AddTimeLogModal job={job} currentUser={currentUser} onClose={() => setShowAddModal(false)} onSaved={handleSaved} />}
+      {editingLog && <EditTimeLogModal log={editingLog} onClose={() => setEditingLog(null)} onSaved={handleSaved} />}
+      {deletingLog && (
+        <DeleteTimeLogModal
+          log={deletingLog}
+          onConfirm={handleDelete}
+          onCancel={() => setDeletingLog(null)}
+        />
+      )}
+
       <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-xs text-emerald-700">
-        Use the <span className="font-semibold">Time Tracker</span> in the sidebar to log time against this job. Select the job, enter what you're working on, and hit Start.
+        Use the <span className="font-semibold">Time Tracker</span> in the sidebar to log time against this job.
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 p-4">
@@ -302,39 +711,144 @@ function TimeBudgetTab({ job }) {
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 p-4">
-        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Time log</div>
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Time log</div>
+          <button onClick={() => setShowAddModal(true)} className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium">+ Add entry</button>
+        </div>
         {loading ? (
           <div className="text-xs text-gray-400 text-center py-4">Loading...</div>
         ) : timeLogs.length === 0 ? (
-          <div className="text-xs text-gray-400 text-center py-4">No time logged yet — use the sidebar timer to start tracking.</div>
+          <div className="text-xs text-gray-400 text-center py-4">No time logged yet.</div>
         ) : (
           <>
-            <div className="grid grid-cols-[1fr_80px_60px_80px] gap-2 px-2 py-1 text-xs text-gray-400 font-medium border-b border-gray-100 mb-1">
-              <span>Task</span><span className="text-right">Duration</span><span className="text-right">Rate</span><span className="text-right">Amount</span>
+            <div className="grid grid-cols-[1fr_80px_60px_80px_64px] gap-2 px-2 py-1 text-xs text-gray-400 font-medium border-b border-gray-100 mb-1">
+              <span>Task</span><span className="text-right">Duration</span><span className="text-right">Rate</span><span className="text-right">Amount</span><span></span>
             </div>
             {timeLogs.map((log, i) => {
               const secs = log.duration_seconds || Math.round((log.hours || 0) * 3600)
-              const amount = calcAmount(secs, log.rate)
               return (
-                <div key={i} className="grid grid-cols-[1fr_80px_60px_80px] gap-2 px-2 py-2 border-b border-gray-50 last:border-0">
+                <div key={i} className="grid grid-cols-[1fr_80px_60px_80px_64px] gap-2 px-2 py-2 border-b border-gray-50 last:border-0 items-start">
                   <div>
                     <div className="text-xs font-medium">{log.task}</div>
                     <div className="text-xs text-gray-400">{formatDateTimeAEST(log.created_at)} · {log.planner}</div>
                   </div>
                   <div className="text-xs text-right font-mono font-medium">{formatDuration(secs)}</div>
                   <div className="text-xs text-right text-gray-400">${log.rate}/hr</div>
-                  <div className="text-xs text-right font-medium">${amount.toLocaleString()}</div>
+                  <div className="text-xs text-right font-medium">${calcAmount(secs, log.rate).toLocaleString()}</div>
+                  <div className="flex gap-1 justify-end">
+                    <button onClick={() => setEditingLog(log)} className="px-1.5 py-1 text-xs text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors" title="Edit">✎</button>
+                    <button onClick={() => setDeletingLog(log)} className="px-1.5 py-1 text-xs text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors" title="Delete">✕</button>
+                  </div>
                 </div>
               )
             })}
-            <div className="grid grid-cols-[1fr_80px_60px_80px] gap-2 px-2 py-2 border-t border-gray-200 mt-1">
+            <div className="grid grid-cols-[1fr_80px_60px_80px_64px] gap-2 px-2 py-2 border-t border-gray-200 mt-1">
               <div className="text-xs font-semibold">Total</div>
               <div className="text-xs text-right font-mono font-semibold">{formatDuration(totalSeconds)}</div>
-              <div />
-              <div className="text-xs text-right font-semibold text-emerald-600">${totalAmount.toLocaleString()}</div>
+              <div /><div className="text-xs text-right font-semibold text-emerald-600">${totalAmount.toLocaleString()}</div><div />
             </div>
           </>
         )}
+      </div>
+    </div>
+  )
+}
+
+function DocumentsTab({ job, currentUser, onHistoryAdd }) {
+  const [docs, setDocs] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
+  const fileRef = useRef(null)
+
+  useEffect(() => { fetchDocs() }, [job.id])
+
+  const fetchDocs = async () => {
+    setLoading(true)
+    const { data } = await supabase.from('documents').select('*').eq('job_id', job.id).order('created_at', { ascending: false })
+    if (data) setDocs(data)
+    setLoading(false)
+  }
+
+  const handleUpload = async (files) => {
+    if (!files || files.length === 0) return
+    setUploading(true)
+    for (const file of Array.from(files)) {
+      const path = `${job.id}/${Date.now()}_${file.name}`
+      const { error: uploadError } = await supabase.storage.from('documents').upload(path, file, { upsert: false })
+      if (uploadError) { console.error(uploadError); continue }
+      const { data: urlData } = supabase.storage.from('documents').getPublicUrl(path)
+      await supabase.from('documents').insert({
+        company_id: currentUser?.company_id, job_id: job.id, job_code: job.code,
+        name: file.name, file_path: path, file_url: urlData.publicUrl,
+        file_type: file.name.split('.').pop().toLowerCase(),
+        file_size: file.size, uploaded_by: currentUser?.username || 'Unknown',
+      })
+      await onHistoryAdd(`Document uploaded: ${file.name}`)
+    }
+    setUploading(false)
+    fetchDocs()
+  }
+
+  const handleDelete = async (doc) => {
+    if (!window.confirm(`Delete "${doc.name}"? This cannot be undone.`)) return
+    await supabase.storage.from('documents').remove([doc.file_path])
+    await supabase.from('documents').delete().eq('id', doc.id)
+    fetchDocs()
+  }
+
+  const getFileIcon = (type) => {
+    if (type === 'pdf') return { label: 'PDF', color: 'bg-red-100 text-red-700' }
+    if (['doc', 'docx'].includes(type)) return { label: 'DOC', color: 'bg-blue-100 text-blue-700' }
+    if (['xls', 'xlsx'].includes(type)) return { label: 'XLS', color: 'bg-green-100 text-green-700' }
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(type)) return { label: 'IMG', color: 'bg-purple-100 text-purple-700' }
+    return { label: type?.toUpperCase() || 'FILE', color: 'bg-gray-100 text-gray-600' }
+  }
+
+  const formatSize = (bytes) => {
+    if (!bytes) return '—'
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  }
+
+  return (
+    <div className="space-y-4">
+      <div onDragOver={e => { e.preventDefault(); setDragOver(true) }} onDragLeave={() => setDragOver(false)}
+        onDrop={e => { e.preventDefault(); setDragOver(false); handleUpload(e.dataTransfer.files) }}
+        onClick={() => fileRef.current?.click()}
+        className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${dragOver ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200 hover:border-emerald-300 hover:bg-gray-50'}`}>
+        <input ref={fileRef} type="file" multiple className="hidden" onChange={e => handleUpload(e.target.files)} />
+        {uploading ? <div className="text-xs text-emerald-600 font-medium">Uploading...</div> : (
+          <><div className="text-2xl mb-2">☁️</div>
+            <div className="text-xs font-medium text-gray-600">Drop files here or click to upload</div>
+            <div className="text-xs text-gray-400 mt-1">PDF, Word, Excel, images — any file type</div></>
+        )}
+      </div>
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50">
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Documents</div>
+          <div className="text-xs text-gray-400">{docs.length} file{docs.length !== 1 ? 's' : ''}</div>
+        </div>
+        {loading ? <div className="px-4 py-6 text-xs text-gray-400 text-center">Loading...</div>
+          : docs.length === 0 ? <div className="px-4 py-8 text-xs text-gray-400 text-center">No documents yet — drag and drop files above.</div>
+          : docs.map(doc => {
+            const icon = getFileIcon(doc.file_type)
+            return (
+              <div key={doc.id} className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 last:border-0 hover:bg-gray-50">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-semibold flex-shrink-0 ${icon.color}`}>{icon.label}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-medium truncate">{doc.name}</div>
+                  <div className="text-xs text-gray-400">{formatSize(doc.file_size)} · {doc.uploaded_by} · {new Date(doc.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+                </div>
+                <div className="flex gap-2 flex-shrink-0">
+                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="px-2 py-1 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Open</a>
+                  <a href={doc.file_url} download={doc.name} className="px-2 py-1 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">↓</a>
+                  <button onClick={() => handleDelete(doc)} className="px-2 py-1 text-xs text-red-400 border border-red-100 rounded-lg hover:bg-red-50">✕</button>
+                </div>
+              </div>
+            )
+          })}
       </div>
     </div>
   )
@@ -364,11 +878,11 @@ const typeBadgeColors = {
   SPS: 'bg-purple-100 text-purple-700',
 }
 
-export default function JobDetail({ job, onNavigate }) {
+export default function JobDetail({ job, onNavigate, currentUser }) {
   const [activeTab, setActiveTab] = useState('overview')
   const [showGenerate, setShowGenerate] = useState(false)
+  const [showEditJob, setShowEditJob] = useState(false)
   const [selectedTemplates, setSelectedTemplates] = useState([])
-  const [generated, setGenerated] = useState([])
   const [generating, setGenerating] = useState(false)
   const [jobStatus, setJobStatus] = useState(job?.status || 'Draft')
   const [editingDates, setEditingDates] = useState(false)
@@ -376,6 +890,7 @@ export default function JobDetail({ job, onNavigate }) {
   const [notesSaving, setNotesSaving] = useState(false)
   const [notesSaved, setNotesSaved] = useState(false)
   const [history, setHistory] = useState([])
+  const [jobData, setJobData] = useState(job)
   const [dates, setDates] = useState({
     confirmation: job?.date_confirmation || '',
     irResponse: job?.date_ir_response || '',
@@ -410,6 +925,12 @@ export default function JobDetail({ job, onNavigate }) {
     await supabase.from('jobs').update({ job_history: updated }).eq('id', job.id)
   }
 
+  const handleJobSaved = async (historyText) => {
+    await addHistory(historyText)
+    const { data } = await supabase.from('jobs').select('*').eq('id', job.id).single()
+    if (data) setJobData(data)
+  }
+
   const saveNotes = async () => {
     setNotesSaving(true)
     await supabase.from('jobs').update({ notes }).eq('id', job.id)
@@ -419,19 +940,18 @@ export default function JobDetail({ job, onNavigate }) {
     setTimeout(() => setNotesSaved(false), 2000)
   }
 
-  const budgetHrs = job.budget_hours || 0
-  const rate = job.planner_rate || 0
+  const budgetHrs = jobData.budget_hours || 0
+  const rate = jobData.planner_rate || 0
   const totalBudget = budgetHrs * rate
-  const tabs = ['overview', 'da stages', 'documents', 'time & budget', 'ir & notes', 'history']
 
   const jobForDocs = {
-    code: job.code, name: job.name, address: job.address,
-    lot_reference: job.lot_reference, council: job.council, zone: job.zone,
-    client_first_name: job.client_first_name, client_last_name: job.client_last_name,
-    client_email: job.client_email, client_phone: job.client_phone,
-    app_type: job.app_type, assessment_level: job.assessment_level,
-    proposed_use: job.proposed_use, referral_agencies: job.referral_agencies,
-    planner: job.planner, planner_rate: job.planner_rate, budget_hours: job.budget_hours,
+    code: jobData.code, name: jobData.name, address: jobData.address,
+    lot_reference: jobData.lot_reference, council: jobData.council, zone: jobData.zone,
+    client_first_name: jobData.client_first_name, client_last_name: jobData.client_last_name,
+    client_email: jobData.client_email, client_phone: jobData.client_phone,
+    app_type: jobData.app_type, assessment_level: jobData.assessment_level,
+    proposed_use: jobData.proposed_use, referral_agencies: jobData.referral_agencies,
+    planner: jobData.planner, planner_rate: jobData.planner_rate, budget_hours: jobData.budget_hours,
   }
 
   const toggleTemplate = (t) => setSelectedTemplates(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])
@@ -446,25 +966,31 @@ export default function JobDetail({ job, onNavigate }) {
       if (template.includes('Engagement Letter')) await generateEngagementLetter(jobForDocs)
       if (template.includes('Invoice')) await generateInvoice(jobForDocs)
     }
-    setGenerated(selectedTemplates)
     for (const t of selectedTemplates) await addHistory(`Document generated: ${t}`)
     setSelectedTemplates([])
     setGenerating(false)
-    setActiveTab('documents')
   }
+
+  // Display planners list
+  const plannersList = jobData.planners?.length > 0 ? jobData.planners : (jobData.planner ? [jobData.planner] : [])
 
   return (
     <div>
+      {showEditJob && (
+        <EditJobModal job={jobData} currentUser={currentUser} onClose={() => setShowEditJob(false)} onSaved={handleJobSaved} />
+      )}
+
       <div className="flex items-center gap-3 mb-4">
         <button onClick={() => onNavigate('jobs')} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">← Back</button>
         <div className="flex-1">
-          <div className="text-base font-semibold">{job.code} — {job.name}</div>
-          <div className="text-xs text-gray-400">{job.address} · {job.lot_reference} · {job.council}</div>
+          <div className="text-base font-semibold">{jobData.code} — {jobData.name}</div>
+          <div className="text-xs text-gray-400">{jobData.address} · {jobData.lot_reference} · {jobData.council}</div>
         </div>
-        <span className={`text-xs px-2 py-1 rounded-full font-medium ${typeBadgeColors[job.app_type] || 'bg-gray-100 text-gray-600'}`}>{job.app_type}</span>
+        <span className={`text-xs px-2 py-1 rounded-full font-medium ${typeBadgeColors[jobData.app_type] || 'bg-gray-100 text-gray-600'}`}>{jobData.app_type}</span>
         <select value={jobStatus} onChange={e => setJobStatus(e.target.value)} className={`text-xs px-2 py-1 rounded-lg border border-gray-200 focus:outline-none focus:border-emerald-400 font-medium ${statusColors[jobStatus]}`}>
           <option>Draft</option><option>Active</option><option>Review</option><option>On Hold</option><option>Complete</option>
         </select>
+        <button onClick={() => setShowEditJob(true)} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">✎ Edit</button>
         <button onClick={() => setShowGenerate(true)} disabled={generating} className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50">
           {generating ? 'Generating...' : '⬡ Generate docs'}
         </button>
@@ -474,9 +1000,9 @@ export default function JobDetail({ job, onNavigate }) {
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl border border-gray-200 p-5 w-96 max-h-96 overflow-y-auto">
             <div className="text-sm font-semibold mb-1">Generate documents</div>
-            <div className="text-xs text-gray-400 mb-4">For {job.code} — {job.name}. All client details pre-filled.</div>
+            <div className="text-xs text-gray-400 mb-4">For {jobData.code} — {jobData.name}. All client details pre-filled.</div>
             <div className="text-xs font-medium text-gray-500 mb-2">Select templates:</div>
-            {(templatesByType[job.app_type] || []).map(t => (
+            {(templatesByType[jobData.app_type] || []).map(t => (
               <div key={t} onClick={() => toggleTemplate(t)} className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-1 cursor-pointer text-xs transition-colors ${selectedTemplates.includes(t) ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-50 hover:bg-gray-100'}`}>
                 <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${selectedTemplates.includes(t) ? 'bg-emerald-600 border-emerald-600' : 'border-gray-300'}`}>
                   {selectedTemplates.includes(t) && <span className="text-white text-xs">✓</span>}
@@ -492,9 +1018,13 @@ export default function JobDetail({ job, onNavigate }) {
         </div>
       )}
 
+      {/* Tabs with proper capitalisation */}
       <div className="flex gap-1 border-b border-gray-200 mb-4">
-        {tabs.map(tab => (
-          <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 text-xs capitalize border-b-2 transition-colors ${activeTab === tab ? 'border-emerald-500 text-emerald-600 font-medium' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>{tab}</button>
+        {TABS.map(tab => (
+          <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-2 text-xs border-b-2 transition-colors ${activeTab === tab.id ? 'border-emerald-500 text-emerald-600 font-medium' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+            {tab.label}
+          </button>
         ))}
       </div>
 
@@ -504,10 +1034,10 @@ export default function JobDetail({ job, onNavigate }) {
             <div className="bg-white rounded-xl border border-gray-200 p-4">
               <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Client details</div>
               {[
-                ['Client', `${job.client_first_name || ''} ${job.client_last_name || ''}`],
-                ['Email', job.client_email], ['Phone', job.client_phone],
-                ['Address', job.address], ['Lot / RP', job.lot_reference],
-                ['Council', job.council], ['Zone', job.zone],
+                ['Client', `${jobData.client_first_name || ''} ${jobData.client_last_name || ''}`],
+                ['Email', jobData.client_email], ['Phone', jobData.client_phone],
+                ['Address', jobData.address], ['Lot / RP', jobData.lot_reference],
+                ['Council', jobData.council], ['Zone', jobData.zone],
               ].map(([k, v]) => (
                 <div key={k} className="flex py-1.5 border-b border-gray-50 last:border-0">
                   <div className="text-xs text-gray-400 w-24 flex-shrink-0">{k}</div>
@@ -518,13 +1048,15 @@ export default function JobDetail({ job, onNavigate }) {
             <div className="bg-white rounded-xl border border-gray-200 p-4">
               <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Application details</div>
               {[
-                ['Type', job.app_type], ['Proposed use', job.proposed_use],
-                ['Assessment', job.assessment_level], ['Planner', job.planner],
-                ['Rate', job.planner_rate ? `$${job.planner_rate}/hr` : '—'],
+                ['Type', jobData.app_type],
+                ['Proposed use', jobData.proposed_use],
+                ['Assessment', jobData.assessment_level],
+                ['Planners', plannersList.join(', ') || '—'],
+                ['Rate', jobData.planner_rate ? `$${jobData.planner_rate}/hr` : '—'],
                 ['Budget', budgetHrs ? `${budgetHrs} hrs ($${totalBudget.toLocaleString()})` : '—'],
-                ['Lodgement', formatDateShort(job.lodgement_date)],
-                ['Decision due', formatDateShort(job.decision_due_date)],
-                ['Referrals', job.referral_agencies],
+                ['Lodgement', formatDateShort(jobData.lodgement_date)],
+                ['Decision due', formatDateShort(jobData.decision_due_date)],
+                ['Referrals', jobData.referral_agencies],
               ].map(([k, v]) => (
                 <div key={k} className="flex py-1.5 border-b border-gray-50 last:border-0">
                   <div className="text-xs text-gray-400 w-24 flex-shrink-0">{k}</div>
@@ -561,32 +1093,9 @@ export default function JobDetail({ job, onNavigate }) {
         </div>
       )}
 
-      {activeTab === 'da stages' && <DAStageTracker job={job} onHistoryAdd={addHistory} />}
-
-      {activeTab === 'documents' && (
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Documents</div>
-            <button onClick={() => setShowGenerate(true)} className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">⬡ Generate docs</button>
-          </div>
-          {generated.length > 0 ? (
-            <div>
-              <div className="text-xs font-medium text-emerald-600 mb-2">Recently generated — check your downloads folder</div>
-              {generated.map((g, i) => (
-                <div key={i} className="flex items-center gap-3 py-2 border-b border-emerald-100 bg-emerald-50 rounded-lg px-3 mb-1">
-                  <div className="w-7 h-7 rounded-md bg-emerald-100 flex items-center justify-center text-xs font-semibold text-emerald-700 flex-shrink-0">W</div>
-                  <div className="flex-1 text-xs font-medium">{g}</div>
-                  <span className="text-xs text-emerald-600 font-medium">Downloaded ✓</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-xs text-gray-400 text-center py-6">No documents yet — generate your first doc above.</div>
-          )}
-        </div>
-      )}
-
-      {activeTab === 'time & budget' && <TimeBudgetTab job={job} />}
+      {activeTab === 'da stages' && <DAStageTracker job={jobData} currentUser={currentUser} onHistoryAdd={addHistory} />}
+      {activeTab === 'documents' && <DocumentsTab job={jobData} currentUser={currentUser} onHistoryAdd={addHistory} />}
+      {activeTab === 'time & budget' && <TimeBudgetTab job={jobData} currentUser={currentUser} onHistoryAdd={addHistory} />}
 
       {activeTab === 'ir & notes' && (
         <div className="bg-white rounded-xl border border-gray-200 p-4">
@@ -596,13 +1105,10 @@ export default function JobDetail({ job, onNavigate }) {
               {notesSaving ? 'Saving...' : notesSaved ? '✓ Saved' : 'Save notes'}
             </button>
           </div>
-          <textarea
-            value={notes}
-            onChange={e => { setNotes(e.target.value); setNotesSaved(false) }}
+          <textarea value={notes} onChange={e => { setNotes(e.target.value); setNotesSaved(false) }}
             placeholder="Add notes about this job..."
-            className="w-full h-48 px-3 py-2 text-xs border border-gray-200 rounded-lg resize-none focus:outline-none focus:border-emerald-400"
-          />
-          <div className="text-xs text-gray-400 mt-2">Notes are saved to the database — they persist between sessions.</div>
+            className="w-full h-48 px-3 py-2 text-xs border border-gray-200 rounded-lg resize-none focus:outline-none focus:border-emerald-400" />
+          <div className="text-xs text-gray-400 mt-2">Notes are saved to the database and persist between sessions.</div>
         </div>
       )}
 
@@ -614,10 +1120,11 @@ export default function JobDetail({ job, onNavigate }) {
               <div key={i} className="flex gap-3">
                 <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
                   h.text.includes('generated') ? 'bg-purple-500' :
-                  h.text.includes('Time logged') ? 'bg-blue-500' :
+                  h.text.includes('uploaded') ? 'bg-blue-500' :
                   h.text.includes('Notes') ? 'bg-amber-500' :
                   h.text.includes('DA stages') ? 'bg-pink-500' :
-                  'bg-gray-300'
+                  h.text.includes('Time log') ? 'bg-teal-500' :
+                  h.text.includes('details updated') ? 'bg-emerald-500' : 'bg-gray-300'
                 }`} />
                 <div>
                   <div className="text-xs font-medium">{h.text}</div>
