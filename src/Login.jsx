@@ -93,15 +93,29 @@ export default function Login({ onLogin, onRegister, onForgotPassword }) {
             <div className="flex items-center justify-between pt-1">
               <div className="flex flex-col gap-2">
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)} className="w-3.5 h-3.5 accent-emerald-600" />
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={e => setRememberMe(e.target.checked)}
+                    className="w-3.5 h-3.5 accent-emerald-600"
+                  />
                   <span className="text-xs text-gray-500">Remember me</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={stayLoggedIn} onChange={e => setStayLoggedIn(e.target.checked)} className="w-3.5 h-3.5 accent-emerald-600" />
+                  <input
+                    type="checkbox"
+                    checked={stayLoggedIn}
+                    onChange={e => setStayLoggedIn(e.target.checked)}
+                    className="w-3.5 h-3.5 accent-emerald-600"
+                  />
                   <span className="text-xs text-gray-500">Stay logged in</span>
                 </label>
               </div>
-              <button type="button" onClick={onForgotPassword} className="text-xs text-emerald-600 hover:underline">
+              <button
+                type="button"
+                onClick={onForgotPassword}
+                className="text-xs text-emerald-600 hover:underline"
+              >
                 Forgot password?
               </button>
             </div>
