@@ -14,7 +14,7 @@ import Templates from './Templates'
 import Documents from './Documents'
 import TimeBudget from './TimeBudget'
 import Planners from './Planners'
-import Xero from './Xero'
+import Xero from './XeroPage'
 import qplanLogo from './assets/plan_logo.PNG'
 
 const navItems = [
