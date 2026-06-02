@@ -14,6 +14,7 @@ import Templates from './Templates'
 import Documents from './Documents'
 import TimeBudget from './TimeBudget'
 import Planners from './Planners'
+import Xero from './Xero'
 import qplanLogo from './assets/plan_logo.PNG'
 
 const navItems = [
@@ -24,6 +25,7 @@ const navItems = [
   { id: 'time', label: 'Time & Budget', section: 'tools' },
   { id: 'calendly', label: 'Bookings', section: 'tools' },
   { id: 'workload', label: 'Workloads', section: 'tools', directorOnly: true },
+  { id: 'xero', label: 'Xero', section: 'tools', directorOnly: true },
   { id: 'templates', label: 'Templates', section: 'settings' },
   { id: 'planners', label: 'Planners', section: 'settings' },
 ]
@@ -31,7 +33,8 @@ const navItems = [
 const pageTitles = {
   dashboard: 'Dashboard', jobs: 'All Jobs', newjob: 'New Job',
   docs: 'Documents', time: 'Time & Budget', calendly: 'Bookings',
-  workload: 'Team Workloads', templates: 'Templates', planners: 'Planners', jobdetail: 'Job Detail',
+  workload: 'Team Workloads', xero: 'Xero', templates: 'Templates',
+  planners: 'Planners', jobdetail: 'Job Detail',
 }
 
 function formatTimer(seconds) {
@@ -243,6 +246,28 @@ export default function App() {
     if (session) setCurrentUser(session)
   }, [])
 
+  // Handle Xero OAuth callback
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const code = params.get('code')
+    const state = params.get('state')
+    if (code && state) {
+      try {
+        const { company_id } = JSON.parse(atob(state))
+        import('./xero').then(({ handleXeroCallback }) => {
+          handleXeroCallback(code, company_id).then(result => {
+            if (result.success) {
+              window.history.replaceState({}, '', '/')
+              setActivePage('xero')
+            }
+          })
+        })
+      } catch (e) {
+        console.error('Xero callback error:', e)
+      }
+    }
+  }, [])
+
   useEffect(() => {
     if (!currentUser) return
     const fetchJobs = async () => {
@@ -347,6 +372,7 @@ export default function App() {
       case 'newjob': return <NewJob onNavigate={handleNavigate} currentUser={currentUser} />
       case 'jobdetail': return <JobDetail job={selectedJob} onNavigate={handleNavigate} currentUser={currentUser} />
       case 'workload': return isDirector ? <Workload /> : <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-sm text-gray-400">Access restricted to directors.</div>
+      case 'xero': return isDirector ? <Xero currentUser={currentUser} /> : <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-sm text-gray-400">Access restricted to directors.</div>
       case 'calendly': return <Bookings onNavigate={handleNavigate} />
       case 'templates': return <Templates />
       case 'docs': return <Documents currentUser={currentUser} />
@@ -361,23 +387,16 @@ export default function App() {
   return (
     <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
 
-      {/* Mobile overlay — tap outside sidebar to close */}
       {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/30 z-30 md:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
+        <div className="fixed inset-0 bg-black/30 z-30 md:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Sidebar */}
       <div className={`
         fixed md:relative z-40 h-full w-52 bg-white border-r border-gray-200 flex flex-col flex-shrink-0
         transition-transform duration-200 ease-in-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         md:translate-x-0
       `}>
-
-        {/* Logo header */}
         <div className="flex items-center px-3 py-2 border-b border-gray-200 gap-2">
           <img src={qplanLogo} alt="QPlan" className="w-7 h-7 object-contain flex-shrink-0" />
           <span className="text-sm font-semibold text-gray-800">QPlan</span>
@@ -391,7 +410,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Nav items */}
         <div className="flex-1 overflow-y-auto py-2">
           {['main', 'tools', 'settings'].map(section => (
             <div key={section} className="px-2 mb-2">
@@ -451,12 +469,8 @@ export default function App() {
         </div>
       </div>
 
-      {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-
-        {/* Top bar */}
         <div className="h-12 bg-white border-b border-gray-200 flex items-center px-4 gap-3 flex-shrink-0">
-          {/* Hamburger — mobile only */}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="md:hidden p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 flex-shrink-0"
@@ -478,7 +492,6 @@ export default function App() {
           <button onClick={() => handleNavigate('newjob')} className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex-shrink-0">+ New Job</button>
         </div>
 
-        {/* Page content */}
         <div className="flex-1 overflow-y-auto p-4 md:p-5">
           {renderPage()}
         </div>
