@@ -182,7 +182,7 @@ function GlobalTimer({ jobs, onNavigate }) {
   )
 }
 
-function NotificationPanel({ notifications, onClose, onApprove, onReject }) {
+function NotificationPanel({ notifications, seenIds, onClose, onApprove, onReject }) {
   const extractUsername = (message) => {
     const match = message.match(/created:\s*(.+?)\.\s*Awaiting/)
     return match ? match[1].trim() : null
@@ -195,13 +195,20 @@ function NotificationPanel({ notifications, onClose, onApprove, onReject }) {
         <button onClick={onClose} className="text-xs text-gray-400 hover:text-gray-600 px-2 py-0.5 rounded hover:bg-gray-100">✕ Close</button>
       </div>
       {notifications.length === 0 ? (
-        <div className="px-3 py-6 text-xs text-gray-400 text-center">No new notifications</div>
+        <div className="px-3 py-6 text-xs text-gray-400 text-center">No notifications</div>
       ) : (
         notifications.map(n => {
           const username = extractUsername(n.message)
           const isNewUser = n.type === 'new_user'
+          const isUnseen = !seenIds.has(n.id)
           return (
-            <div key={n.id} className="px-3 py-3 border-b border-gray-100 last:border-0">
+            <div key={n.id} className={`px-3 py-3 border-b border-gray-100 last:border-0 ${isUnseen ? 'bg-blue-50' : ''}`}>
+              {isUnseen && (
+                <div className="flex items-center gap-1 mb-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
+                  <span className="text-xs text-blue-600 font-medium">New</span>
+                </div>
+              )}
               <div className="text-xs font-medium text-gray-700 mb-1">{n.message}</div>
               <div className="text-xs text-gray-400 mb-2">
                 {new Date(n.created_at).toLocaleString('en-AU', {
@@ -238,6 +245,7 @@ export default function App() {
   const [jobCount, setJobCount] = useState(0)
   const [jobs, setJobs] = useState([])
   const [notifications, setNotifications] = useState([])
+  const [seenNotificationIds, setSeenNotificationIds] = useState(new Set())
   const [showNotifications, setShowNotifications] = useState(false)
   const [history, setHistory] = useState(['dashboard'])
   const [historyIndex, setHistoryIndex] = useState(0)
@@ -289,9 +297,29 @@ export default function App() {
       .from('notifications')
       .select('*')
       .eq('company_id', currentUser.company_id)
-      .eq('is_read', false)
       .order('created_at', { ascending: false })
+      .limit(50)
     if (data) setNotifications(data)
+  }
+
+  const unreadCount = notifications.filter(n => !n.is_read && !seenNotificationIds.has(n.id)).length
+
+  const handleOpenNotifications = () => {
+    const opening = !showNotifications
+    setShowNotifications(opening)
+    if (opening) {
+      // Mark all current unread notifications as seen locally (badge clears)
+      const unreadIds = new Set(notifications.filter(n => !n.is_read).map(n => n.id))
+      setSeenNotificationIds(unreadIds)
+      // Mark as read in database in background
+      if (unreadIds.size > 0) {
+        supabase.from('notifications')
+          .update({ is_read: true })
+          .eq('company_id', currentUser.company_id)
+          .eq('is_read', false)
+          .then(() => {})
+      }
+    }
   }
 
   const handleApprove = async (notification, username) => {
@@ -327,6 +355,7 @@ export default function App() {
     setHistoryIndex(0)
     setJobs([])
     setNotifications([])
+    setSeenNotificationIds(new Set())
   }
 
   const handleNavigate = (page, job = null) => {
@@ -357,7 +386,6 @@ export default function App() {
   const canGoBack = historyIndex > 0
   const canGoForward = historyIndex < history.length - 1
   const isDirector = currentUser?.role === 'director'
-  const unreadCount = notifications.length
 
   if (!currentUser) {
     if (authPage === 'register') return <Register onBack={() => setAuthPage('login')} onSuccess={() => setAuthPage('login')} />
@@ -436,17 +464,7 @@ export default function App() {
           {isDirector && (
             <div className="relative">
               <button
-                onClick={() => {
-                  const opening = !showNotifications
-                  setShowNotifications(opening)
-                  if (opening && notifications.length > 0) {
-                    supabase.from('notifications')
-                      .update({ is_read: true })
-                      .eq('company_id', currentUser.company_id)
-                      .eq('is_read', false)
-                      .then(() => setNotifications([]))
-                  }
-                }}
+                onClick={handleOpenNotifications}
                 className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-gray-100 text-xs text-gray-500 transition-colors"
               >
                 <span>🔔 Notifications</span>
@@ -457,6 +475,7 @@ export default function App() {
               {showNotifications && (
                 <NotificationPanel
                   notifications={notifications}
+                  seenIds={seenNotificationIds}
                   onClose={() => setShowNotifications(false)}
                   onApprove={handleApprove}
                   onReject={handleReject}
@@ -501,7 +520,7 @@ export default function App() {
           {isDirector && currentUser.companyName && (
             <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-lg hidden sm:block">{currentUser.companyName}</span>
           )}
-          <button onClick={() => handleNavigate('calendly')} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 hidden sm:block">Book</button>
+          <button onClick={() => handleNavigate('calendar')} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 hidden sm:block">+ Book</button>
           <button onClick={() => handleNavigate('newjob')} className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex-shrink-0">+ New Job</button>
         </div>
 
