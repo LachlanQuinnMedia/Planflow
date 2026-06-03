@@ -39,7 +39,168 @@ function formatDateFull(dateStr) {
 
 const SLOT_HEIGHT = 64
 
-function MeetingReviewModal({ booking, onClose, onDelete }) {
+// ── EDIT MEETING MODAL ───────────────────────────────────────────
+function EditMeetingModal({ booking, onClose, onSave, staffList, jobs }) {
+  const [title, setTitle] = useState(booking.title || '')
+  const [date, setDate] = useState(booking.date || '')
+  const [startTime, setStartTime] = useState(booking.start_time?.slice(0, 5) || '09:00')
+  const [duration, setDuration] = useState(booking.duration_minutes || 60)
+  const [selectedAttendees, setSelectedAttendees] = useState(booking.attendees || [])
+  const [jobId, setJobId] = useState(booking.job_id || '')
+  const [clientName, setClientName] = useState(booking.client_name || '')
+  const [saving, setSaving] = useState(false)
+
+  const notes = booking.notes || ''
+  const noteLines = notes.split('\n').filter(Boolean)
+  const [clientEmail, setClientEmail] = useState(noteLines.find(l => l.startsWith('Email:'))?.replace('Email:', '').trim() || '')
+  const [clientPhone, setClientPhone] = useState(noteLines.find(l => l.startsWith('Phone:'))?.replace('Phone:', '').trim() || '')
+  const [clientAddress, setClientAddress] = useState(noteLines.find(l => l.startsWith('Address:'))?.replace('Address:', '').trim() || '')
+  const [agenda, setAgenda] = useState(noteLines.find(l => l.startsWith('Agenda:'))?.replace('Agenda:', '').trim() || '')
+  const [internalNotes, setInternalNotes] = useState(booking.type === 'internal' ? booking.notes || '' : '')
+
+  const toggleAttendee = (username) => {
+    setSelectedAttendees(prev =>
+      prev.includes(username) ? prev.filter(u => u !== username) : [...prev, username]
+    )
+  }
+
+  const handleSave = async () => {
+    if (!title.trim()) { alert('Please enter a title.'); return }
+    setSaving(true)
+    const selectedJob = jobs.find(j => j.id === jobId)
+    const { error } = await supabase.from('bookings').update({
+      title: title.trim(),
+      date,
+      start_time: startTime,
+      duration_minutes: duration,
+      attendees: selectedAttendees,
+      job_id: jobId || null,
+      job_code: selectedJob?.code || null,
+      client_name: clientName || null,
+      notes: booking.type === 'client'
+        ? `Email: ${clientEmail}\nPhone: ${clientPhone}\nAddress: ${clientAddress}\nAgenda: ${agenda}`
+        : internalNotes,
+    }).eq('id', booking.id)
+    if (error) { alert('Failed to update.'); setSaving(false); return }
+    setSaving(false)
+    onSave()
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
+      <div className="bg-white rounded-2xl border border-gray-200 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div className="text-sm font-semibold">Edit Meeting</div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
+        </div>
+
+        <div className="px-6 py-4 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Title</label>
+            <input value={title} onChange={e => setTitle(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Date</label>
+              <input type="date" value={date} onChange={e => setDate(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Start time</label>
+              <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Duration</label>
+              <select value={duration} onChange={e => setDuration(Number(e.target.value))}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
+                <option value={15}>15 min</option>
+                <option value={30}>30 min</option>
+                <option value={45}>45 min</option>
+                <option value={60}>1 hour</option>
+                <option value={90}>1.5 hrs</option>
+                <option value={120}>2 hours</option>
+                <option value={150}>2.5 hrs</option>
+                <option value={180}>3 hours</option>
+                <option value={210}>3.5 hrs</option>
+                <option value={240}>4 hours</option>
+                <option value={270}>4.5 hrs</option>
+                <option value={300}>5 hours</option>
+              </select>
+            </div>
+          </div>
+
+          {booking.type === 'client' && (
+            <div className="space-y-3 border border-gray-100 rounded-xl p-3">
+              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Client details</div>
+              <input value={clientName} onChange={e => setClientName(e.target.value)}
+                placeholder="Client name"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
+              <input value={clientEmail} onChange={e => setClientEmail(e.target.value)}
+                placeholder="Email address"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
+              <input value={clientPhone} onChange={e => setClientPhone(e.target.value)}
+                placeholder="Phone number"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
+              <input value={clientAddress} onChange={e => setClientAddress(e.target.value)}
+                placeholder="Address / site address"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
+              <textarea value={agenda} onChange={e => setAgenda(e.target.value)}
+                placeholder="Agenda / meeting notes" rows={3}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400 resize-none" />
+            </div>
+          )}
+
+          {booking.type === 'internal' && (
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
+              <textarea value={internalNotes} onChange={e => setInternalNotes(e.target.value)}
+                rows={3} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400 resize-none" />
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Link to job (optional)</label>
+            <select value={jobId} onChange={e => setJobId(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
+              <option value="">No job linked</option>
+              {jobs.map(j => <option key={j.id} value={j.id}>{j.code} — {j.name}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-2">Attendees</label>
+            <div className="border border-gray-200 rounded-xl overflow-hidden max-h-40 overflow-y-auto">
+              {staffList.map(s => (
+                <label key={s.username} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0">
+                  <input type="checkbox" checked={selectedAttendees.includes(s.username)}
+                    onChange={() => toggleAttendee(s.username)}
+                    className="w-3.5 h-3.5 accent-emerald-600" />
+                  <span className="text-xs font-medium">{s.username}</span>
+                  <span className="text-xs text-gray-400 capitalize ml-auto">{s.role}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
+          <button onClick={onClose} className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium">Cancel</button>
+          <button onClick={handleSave} disabled={saving}
+            className="flex-1 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium disabled:opacity-50">
+            {saving ? 'Saving...' : 'Save changes'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── MEETING REVIEW MODAL ─────────────────────────────────────────
+function MeetingReviewModal({ booking, onClose, onDelete, onEdit }) {
   const [deleting, setDeleting] = useState(false)
 
   const handleDelete = async () => {
@@ -143,18 +304,23 @@ function MeetingReviewModal({ booking, onClose, onDelete }) {
           )}
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
+        <div className="px-6 py-4 border-t border-gray-100 flex gap-2">
           <button onClick={handleDelete} disabled={deleting}
             className="px-4 py-2 text-xs text-red-500 border border-red-100 rounded-lg hover:bg-red-50 font-medium disabled:opacity-50">
             {deleting ? 'Deleting...' : 'Delete'}
           </button>
-          <button onClick={onClose} className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium">Close</button>
+          <button onClick={onEdit}
+            className="px-4 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium">
+            Edit
+          </button>
+          <button onClick={onClose} className="flex-1 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium">Close</button>
         </div>
       </div>
     </div>
   )
 }
 
+// ── NEW MEETING MODAL ─────────────────────────────────────────────
 function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaultDate }) {
   const [type, setType] = useState('client')
   const [title, setTitle] = useState('')
@@ -442,6 +608,7 @@ export default function Calendar({ currentUser }) {
   const [showConnect, setShowConnect] = useState(false)
   const [selectedDate, setSelectedDate] = useState(null)
   const [selectedBooking, setSelectedBooking] = useState(null)
+  const [editingBooking, setEditingBooking] = useState(null)
   const [loading, setLoading] = useState(true)
   const isDirector = currentUser.role === 'director'
 
@@ -523,11 +690,21 @@ export default function Calendar({ currentUser }) {
       {showConnect && (
         <ConnectCalendarModal onClose={() => setShowConnect(false)} currentUser={currentUser} />
       )}
-      {selectedBooking && (
+      {selectedBooking && !editingBooking && (
         <MeetingReviewModal
           booking={selectedBooking}
           onClose={() => setSelectedBooking(null)}
           onDelete={fetchBookings}
+          onEdit={() => { setEditingBooking(selectedBooking); setSelectedBooking(null) }}
+        />
+      )}
+      {editingBooking && (
+        <EditMeetingModal
+          booking={editingBooking}
+          onClose={() => setEditingBooking(null)}
+          onSave={() => { fetchBookings(); setEditingBooking(null) }}
+          staffList={staffList}
+          jobs={jobs}
         />
       )}
 
@@ -609,9 +786,11 @@ export default function Calendar({ currentUser }) {
                         const heightPx = (b.duration_minutes / 60) * SLOT_HEIGHT
                         const minHeight = Math.max(heightPx - 2, 24)
 
-                        const clientShort = b.client_name
+                        // Priority: client name first, then title
+                        const primaryLabel = b.client_name
                           ? `${b.client_name.split(' ')[0]} ${b.client_name.split(' ')[1]?.[0] || ''}.`
-                          : null
+                          : b.title
+                        const secondaryLabel = b.client_name ? b.title : null
 
                         return (
                           <div
@@ -620,17 +799,16 @@ export default function Calendar({ currentUser }) {
                             className={`absolute left-0.5 right-0.5 rounded-md border overflow-hidden z-10 cursor-pointer ${typeColors[b.type] || 'bg-gray-100 border-gray-200 text-gray-700'}`}
                             style={{ top: `${topOffset}px`, height: `${minHeight}px` }}
                           >
-                            {/* Colour bar on left edge */}
                             <div className={`absolute left-0 top-0 bottom-0 w-1 ${b.type === 'client' ? 'bg-emerald-500' : 'bg-purple-500'}`} />
                             <div className="pl-2 pr-1 pt-0.5 pb-0.5 h-full flex flex-col justify-start overflow-hidden">
-                              {/* Title — always shown, bold */}
-                              <div className="text-xs font-semibold truncate leading-tight">{b.title}</div>
-                              {/* Client name — shown if available and enough space */}
-                              {clientShort && minHeight > 32 && (
-                                <div className="text-xs font-medium truncate leading-tight opacity-90">{clientShort}</div>
+                              {/* Primary — client name or title */}
+                              <div className="text-xs font-semibold truncate leading-tight">{primaryLabel}</div>
+                              {/* Secondary — title if client name shown */}
+                              {secondaryLabel && minHeight > 34 && (
+                                <div className="text-xs truncate leading-tight opacity-80">{secondaryLabel}</div>
                               )}
-                              {/* Time and duration — shown if enough space */}
-                              {minHeight > 44 && (
+                              {/* Time — only if tall enough */}
+                              {minHeight > 48 && (
                                 <div className="text-xs opacity-60 truncate leading-tight mt-auto">
                                   {b.start_time?.slice(0, 5)} · {formatDuration(b.duration_minutes)}
                                 </div>
@@ -663,7 +841,9 @@ export default function Calendar({ currentUser }) {
             className="flex items-center gap-3 py-2.5 border-b border-gray-100 last:border-0 cursor-pointer hover:bg-gray-50 rounded-lg px-2 -mx-2">
             <div className={`w-2 h-2 rounded-full flex-shrink-0 ${b.type === 'client' ? 'bg-emerald-500' : 'bg-purple-500'}`} />
             <div className="flex-1 min-w-0">
-              <div className="text-xs font-medium truncate">{b.title}{b.client_name && ` — ${b.client_name}`}</div>
+              <div className="text-xs font-medium truncate">
+                {b.client_name ? `${b.client_name} — ${b.title}` : b.title}
+              </div>
               <div className="text-xs text-gray-400">
                 {new Date(b.date).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })} · {b.start_time?.slice(0, 5)} · {formatDuration(b.duration_minutes)}
                 {b.attendees?.length > 1 && ` · ${b.attendees.length} attendees`}
