@@ -10,6 +10,7 @@ import NewJob from './NewJob'
 import JobDetail from './JobDetail'
 import Workload from './Workload'
 import Bookings from './Bookings'
+import Calendar from './Calendar'
 import Templates from './Templates'
 import Documents from './Documents'
 import TimeBudget from './TimeBudget'
@@ -24,6 +25,7 @@ const navItems = [
   { id: 'docs', label: 'Documents', section: 'tools' },
   { id: 'time', label: 'Time & Budget', section: 'tools' },
   { id: 'calendly', label: 'Bookings', section: 'tools' },
+  { id: 'calendar', label: 'Calendar', section: 'tools' },
   { id: 'workload', label: 'Workloads', section: 'tools', directorOnly: true },
   { id: 'xero', label: 'Xero', section: 'tools', directorOnly: true },
   { id: 'templates', label: 'Templates', section: 'settings' },
@@ -33,8 +35,8 @@ const navItems = [
 const pageTitles = {
   dashboard: 'Dashboard', jobs: 'All Jobs', newjob: 'New Job',
   docs: 'Documents', time: 'Time & Budget', calendly: 'Bookings',
-  workload: 'Team Workloads', xero: 'Xero', templates: 'Templates',
-  planners: 'Planners', jobdetail: 'Job Detail',
+  calendar: 'Calendar', workload: 'Team Workloads', xero: 'Xero',
+  templates: 'Templates', planners: 'Planners', jobdetail: 'Job Detail',
 }
 
 function formatTimer(seconds) {
@@ -373,7 +375,8 @@ export default function App() {
       case 'jobdetail': return <JobDetail job={selectedJob} onNavigate={handleNavigate} currentUser={currentUser} />
       case 'workload': return isDirector ? <Workload /> : <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-sm text-gray-400">Access restricted to directors.</div>
       case 'xero': return isDirector ? <Xero currentUser={currentUser} /> : <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-sm text-gray-400">Access restricted to directors.</div>
-      case 'calendly': return <Bookings onNavigate={handleNavigate} />
+      case 'calendly': return <Bookings onNavigate={handleNavigate} currentUser={currentUser} />
+      case 'calendar': return <Calendar currentUser={currentUser} />
       case 'templates': return <Templates />
       case 'docs': return <Documents currentUser={currentUser} />
       case 'time': return <TimeBudget />
@@ -433,7 +436,17 @@ export default function App() {
           {isDirector && (
             <div className="relative">
               <button
-                onClick={() => setShowNotifications(!showNotifications)}
+                onClick={() => {
+                  const opening = !showNotifications
+                  setShowNotifications(opening)
+                  if (opening && notifications.length > 0) {
+                    supabase.from('notifications')
+                      .update({ is_read: true })
+                      .eq('company_id', currentUser.company_id)
+                      .eq('is_read', false)
+                      .then(() => setNotifications([]))
+                  }
+                }}
                 className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-gray-100 text-xs text-gray-500 transition-colors"
               >
                 <span>🔔 Notifications</span>
