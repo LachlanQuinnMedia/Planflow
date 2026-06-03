@@ -2,13 +2,16 @@ import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-const HOURS = Array.from({ length: 24 }, (_, i) => i)
 
-const integrations = [
-  { id: 'google', label: 'Google Calendar', color: 'bg-blue-500', icon: 'G' },
-  { id: 'outlook', label: 'Microsoft Outlook', color: 'bg-blue-700', icon: 'O' },
-  { id: 'calendly', label: 'Calendly', color: 'bg-emerald-500', icon: 'C' },
-]
+const typeColors = {
+  client: 'bg-emerald-100 border-emerald-300 text-emerald-800',
+  internal: 'bg-purple-100 border-purple-300 text-purple-800',
+}
+
+const typeColorsBar = {
+  client: 'bg-emerald-400',
+  internal: 'bg-purple-400',
+}
 
 function getWeekDates(date) {
   const start = new Date(date)
@@ -25,6 +28,8 @@ function formatTime(hour) {
   if (hour === 12) return '12pm'
   return hour < 12 ? `${hour}am` : `${hour - 12}pm`
 }
+
+const SLOT_HEIGHT = 56 // px per hour
 
 function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaultDate }) {
   const [type, setType] = useState('client')
@@ -55,9 +60,7 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
     if (!title.trim()) { alert('Please enter a title.'); return }
     if (!date) { alert('Please select a date.'); return }
     setSaving(true)
-
     const selectedJob = jobs.find(j => j.id === jobId)
-
     const { error } = await supabase.from('bookings').insert({
       company_id: currentUser.company_id,
       title: title.trim(),
@@ -74,7 +77,6 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
         : notes,
       created_by: currentUser.username,
     })
-
     if (error) { alert('Failed to save booking.'); setSaving(false); return }
     setSaving(false)
     onSave()
@@ -92,10 +94,7 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
         <div className="px-6 py-4 space-y-4">
           {/* Type */}
           <div className="flex gap-2">
-            {[
-              { id: 'client', label: 'Client meeting' },
-              { id: 'internal', label: 'Staff meeting' },
-            ].map(t => (
+            {[{ id: 'client', label: 'Client meeting' }, { id: 'internal', label: 'Staff meeting' }].map(t => (
               <button key={t.id} onClick={() => setType(t.id)}
                 className={`flex-1 py-2 text-xs rounded-lg font-medium transition-colors ${type === t.id ? 'bg-emerald-600 text-white' : 'border border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
                 {t.label}
@@ -133,6 +132,12 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
                 <option value={60}>1 hour</option>
                 <option value={90}>1.5 hrs</option>
                 <option value={120}>2 hours</option>
+                <option value={150}>2.5 hrs</option>
+                <option value={180}>3 hours</option>
+                <option value={210}>3.5 hrs</option>
+                <option value={240}>4 hours</option>
+                <option value={270}>4.5 hrs</option>
+                <option value={300}>5 hours</option>
               </select>
             </div>
           </div>
@@ -154,8 +159,7 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
                 placeholder="Address / site address"
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
               <textarea value={agenda} onChange={e => setAgenda(e.target.value)}
-                placeholder="Agenda / meeting notes"
-                rows={3}
+                placeholder="Agenda / meeting notes" rows={3}
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400 resize-none" />
             </div>
           )}
@@ -201,8 +205,7 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
               <textarea value={notes} onChange={e => setNotes(e.target.value)}
-                placeholder="Meeting agenda or notes..."
-                rows={3}
+                placeholder="Meeting agenda or notes..." rows={3}
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400 resize-none" />
             </div>
           )}
@@ -221,8 +224,6 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
 }
 
 function ConnectCalendarModal({ onClose, currentUser }) {
-  const [connecting, setConnecting] = useState(null)
-  const [connected, setConnected] = useState([])
   const [calendlyUrl, setCalendlyUrl] = useState('')
   const [savingCalendly, setSavingCalendly] = useState(false)
 
@@ -270,11 +271,9 @@ function ConnectCalendarModal({ onClose, currentUser }) {
           <div className="text-sm font-semibold">Connect Calendar</div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
         </div>
-
         <div className="px-6 py-4 space-y-3">
-          <div className="text-xs text-gray-400 mb-4">Connect your calendar so meetings created in QPlan sync automatically — and bookings from your external calendar appear here.</div>
+          <div className="text-xs text-gray-400 mb-4">Connect your calendar so meetings created in QPlan sync automatically.</div>
 
-          {/* Google Calendar */}
           <div className="border border-gray-200 rounded-xl p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -284,14 +283,10 @@ function ConnectCalendarModal({ onClose, currentUser }) {
                   <div className="text-xs text-gray-400">Gmail / Google Workspace</div>
                 </div>
               </div>
-              <button onClick={handleConnectGoogle}
-                className="px-3 py-1.5 text-xs bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium">
-                Connect
-              </button>
+              <button onClick={handleConnectGoogle} className="px-3 py-1.5 text-xs bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium">Connect</button>
             </div>
           </div>
 
-          {/* Outlook */}
           <div className="border border-gray-200 rounded-xl p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -301,14 +296,10 @@ function ConnectCalendarModal({ onClose, currentUser }) {
                   <div className="text-xs text-gray-400">Office 365 / Microsoft 365</div>
                 </div>
               </div>
-              <button onClick={handleConnectOutlook}
-                className="px-3 py-1.5 text-xs bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium">
-                Connect
-              </button>
+              <button onClick={handleConnectOutlook} className="px-3 py-1.5 text-xs bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium">Connect</button>
             </div>
           </div>
 
-          {/* Calendly */}
           <div className="border border-gray-200 rounded-xl p-4">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-white text-sm font-bold">C</div>
@@ -328,7 +319,6 @@ function ConnectCalendarModal({ onClose, currentUser }) {
             </div>
           </div>
         </div>
-
         <div className="px-6 py-4 border-t border-gray-100">
           <button onClick={onClose} className="w-full py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium">Done</button>
         </div>
@@ -361,7 +351,6 @@ export default function Calendar({ currentUser }) {
     setLoading(true)
     const startDate = weekDates[0].toISOString().split('T')[0]
     const endDate = weekDates[6].toISOString().split('T')[0]
-
     const { data } = await supabase
       .from('bookings')
       .select('*')
@@ -369,12 +358,10 @@ export default function Calendar({ currentUser }) {
       .gte('date', startDate)
       .lte('date', endDate)
       .order('start_time', { ascending: true })
-
     if (data) {
-      const filtered = data.filter(b =>
+      setBookings(data.filter(b =>
         b.attendees?.includes(viewingAs) || b.created_by === viewingAs
-      )
-      setBookings(filtered)
+      ))
     }
     setLoading(false)
   }
@@ -394,39 +381,29 @@ export default function Calendar({ currentUser }) {
     if (data) setJobs(data)
   }
 
-  const goBack = () => {
-    const d = new Date(currentWeek)
-    d.setDate(d.getDate() - 7)
-    setCurrentWeek(d)
-  }
-
-  const goForward = () => {
-    const d = new Date(currentWeek)
-    d.setDate(d.getDate() + 7)
-    setCurrentWeek(d)
-  }
-
+  const goBack = () => { const d = new Date(currentWeek); d.setDate(d.getDate() - 7); setCurrentWeek(d) }
+  const goForward = () => { const d = new Date(currentWeek); d.setDate(d.getDate() + 7); setCurrentWeek(d) }
   const goToday = () => setCurrentWeek(new Date())
 
-  const getBookingsForDay = (date) => {
+  const getBookingsForDayAndHour = (date, hour) => {
     const dateStr = date.toISOString().split('T')[0]
-    return bookings.filter(b => b.date === dateStr)
+    return bookings.filter(b => {
+      if (b.date !== dateStr) return false
+      const bHour = parseInt(b.start_time?.split(':')[0] || '0')
+      const bMin = parseInt(b.start_time?.split(':')[1] || '0')
+      // Only render at the starting hour slot
+      return bHour === hour && bMin < 60
+    })
   }
 
   const formatDateHeader = (date) => {
     const today = new Date()
     const isToday = date.toDateString() === today.toDateString()
-    return {
-      day: DAYS[date.getDay()],
-      num: date.getDate(),
-      isToday,
-    }
+    return { day: DAYS[date.getDay()], num: date.getDate(), isToday }
   }
 
-  const typeColors = {
-    client: 'bg-blue-100 border-blue-300 text-blue-800',
-    internal: 'bg-purple-100 border-purple-300 text-purple-800',
-  }
+  // Hours to show: 7am to 7pm
+  const hours = Array.from({ length: 13 }, (_, i) => i + 7)
 
   return (
     <div>
@@ -441,23 +418,33 @@ export default function Calendar({ currentUser }) {
         />
       )}
       {showConnect && (
-        <ConnectCalendarModal
-          onClose={() => setShowConnect(false)}
-          currentUser={currentUser}
-        />
+        <ConnectCalendarModal onClose={() => setShowConnect(false)} currentUser={currentUser} />
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <div className="flex items-center gap-2">
-          <button onClick={goBack} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">‹</button>
+          <button onClick={goBack} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 text-lg">‹</button>
           <button onClick={goToday} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Today</button>
-          <button onClick={goForward} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">›</button>
+          <button onClick={goForward} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 text-lg">›</button>
           <span className="text-sm font-semibold ml-2">
             {weekDates[0].toLocaleDateString('en-AU', { month: 'long', year: 'numeric' })}
           </span>
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Legend */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-sm bg-emerald-400 flex-shrink-0" />
+              <span className="text-xs text-gray-500">Client meeting</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-sm bg-purple-400 flex-shrink-0" />
+              <span className="text-xs text-gray-500">Staff meeting</span>
+            </div>
+          </div>
+
           {isDirector && (
             <select value={viewingAs} onChange={e => setViewingAs(e.target.value)}
               className="px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
@@ -480,7 +467,7 @@ export default function Calendar({ currentUser }) {
       {/* Week grid */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         {/* Day headers */}
-        <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-gray-200">
+        <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-gray-200 sticky top-0 bg-white z-10">
           <div className="border-r border-gray-100" />
           {weekDates.map((date, i) => {
             const { day, num, isToday } = formatDateHeader(date)
@@ -493,35 +480,53 @@ export default function Calendar({ currentUser }) {
           })}
         </div>
 
-        {/* Time slots — show 7am to 7pm */}
-        <div className="overflow-y-auto max-h-[600px]">
-          {Array.from({ length: 13 }, (_, i) => i + 7).map(hour => (
-            <div key={hour} className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-gray-50 last:border-0 min-h-[56px]">
-              <div className="border-r border-gray-100 px-2 py-1">
-                <span className="text-xs text-gray-400">{formatTime(hour)}</span>
+        {/* Time slots */}
+        <div className="overflow-y-auto" style={{ maxHeight: '600px' }}>
+          <div className="relative">
+            {hours.map(hour => (
+              <div key={hour} className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-gray-50 last:border-0" style={{ height: `${SLOT_HEIGHT}px` }}>
+                <div className="border-r border-gray-100 px-2 pt-1 flex-shrink-0">
+                  <span className="text-xs text-gray-400">{formatTime(hour)}</span>
+                </div>
+                {weekDates.map((date, di) => {
+                  const dateStr = date.toISOString().split('T')[0]
+                  const isToday = date.toDateString() === new Date().toDateString()
+                  const dayBookings = getBookingsForDayAndHour(date, hour)
+
+                  return (
+                    <div key={di}
+                      onClick={() => { setSelectedDate(dateStr); setShowNewMeeting(true) }}
+                      className={`border-r border-gray-100 last:border-0 relative cursor-pointer hover:bg-gray-50 transition-colors ${isToday ? 'bg-emerald-50/20' : ''}`}>
+                      {dayBookings.map((b, bi) => {
+                        const [bH, bM] = (b.start_time || '00:00').split(':').map(Number)
+                        const topOffset = (bM / 60) * SLOT_HEIGHT
+                        const heightPx = (b.duration_minutes / 60) * SLOT_HEIGHT
+
+                        return (
+                          <div
+                            key={bi}
+                            onClick={e => e.stopPropagation()}
+                            className={`absolute left-0.5 right-0.5 rounded-md border px-1 py-0.5 overflow-hidden z-10 ${typeColors[b.type] || 'bg-gray-100 border-gray-200 text-gray-700'}`}
+                            style={{
+                              top: `${topOffset}px`,
+                              height: `${Math.max(heightPx - 2, 20)}px`,
+                            }}
+                          >
+                            <div className="text-xs font-medium truncate leading-tight">{b.title}</div>
+                            {heightPx > 30 && (
+                              <div className="text-xs opacity-70 leading-tight">
+                                {b.start_time?.slice(0, 5)} · {b.duration_minutes}min
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })}
               </div>
-              {weekDates.map((date, di) => {
-                const dateStr = date.toISOString().split('T')[0]
-                const isToday = date.toDateString() === new Date().toDateString()
-                const dayBookings = getBookingsForDay(date).filter(b => {
-                  const bHour = parseInt(b.start_time?.split(':')[0] || '0')
-                  return bHour === hour
-                })
-                return (
-                  <div key={di}
-                    onClick={() => { setSelectedDate(dateStr); setShowNewMeeting(true) }}
-                    className={`border-r border-gray-100 last:border-0 p-1 cursor-pointer hover:bg-gray-50 transition-colors ${isToday ? 'bg-emerald-50/30' : ''}`}>
-                    {dayBookings.map((b, bi) => (
-                      <div key={bi} className={`text-xs px-1.5 py-1 rounded-lg border mb-1 ${typeColors[b.type] || 'bg-gray-100 border-gray-200 text-gray-700'}`}>
-                        <div className="font-medium truncate">{b.title}</div>
-                        <div className="opacity-70">{b.start_time?.slice(0, 5)} · {b.duration_minutes}min</div>
-                      </div>
-                    ))}
-                  </div>
-                )
-              })}
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
 
@@ -536,7 +541,7 @@ export default function Calendar({ currentUser }) {
           <div className="text-xs text-gray-400 text-center py-4">No meetings this week.</div>
         ) : bookings.map((b, i) => (
           <div key={i} className="flex items-center gap-3 py-2.5 border-b border-gray-100 last:border-0">
-            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${b.type === 'client' ? 'bg-blue-500' : 'bg-purple-500'}`} />
+            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${b.type === 'client' ? 'bg-emerald-500' : 'bg-purple-500'}`} />
             <div className="flex-1 min-w-0">
               <div className="text-xs font-medium truncate">{b.title}</div>
               <div className="text-xs text-gray-400">
@@ -547,7 +552,7 @@ export default function Calendar({ currentUser }) {
             {b.job_code && (
               <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">{b.job_code}</span>
             )}
-            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${b.type === 'client' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${b.type === 'client' ? 'bg-emerald-100 text-emerald-700' : 'bg-purple-100 text-purple-700'}`}>
               {b.type === 'client' ? 'Client' : 'Internal'}
             </span>
           </div>
