@@ -37,9 +37,8 @@ function formatDateFull(dateStr) {
   })
 }
 
-const SLOT_HEIGHT = 56
+const SLOT_HEIGHT = 64
 
-// ── MEETING REVIEW MODAL ─────────────────────────────────────────
 function MeetingReviewModal({ booking, onClose, onDelete }) {
   const [deleting, setDeleting] = useState(false)
 
@@ -62,16 +61,13 @@ function MeetingReviewModal({ booking, onClose, onDelete }) {
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
       <div className="bg-white rounded-2xl border border-gray-200 w-full max-w-md">
-        {/* Header */}
         <div className={`px-6 py-4 rounded-t-2xl ${booking.type === 'client' ? 'bg-emerald-50 border-b border-emerald-100' : 'bg-purple-50 border-b border-purple-100'}`}>
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${booking.type === 'client' ? 'bg-emerald-100 text-emerald-700' : 'bg-purple-100 text-purple-700'}`}>
-                  {booking.type === 'client' ? 'Client meeting' : 'Staff meeting'}
-                </span>
-              </div>
-              <div className="text-sm font-semibold text-gray-800">{booking.title}</div>
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${booking.type === 'client' ? 'bg-emerald-100 text-emerald-700' : 'bg-purple-100 text-purple-700'}`}>
+                {booking.type === 'client' ? 'Client meeting' : 'Staff meeting'}
+              </span>
+              <div className="text-sm font-semibold text-gray-800 mt-1">{booking.title}</div>
               {booking.client_name && (
                 <div className="text-xs text-gray-500 mt-0.5">with {booking.client_name}</div>
               )}
@@ -80,37 +76,30 @@ function MeetingReviewModal({ booking, onClose, onDelete }) {
           </div>
         </div>
 
-        {/* Body */}
         <div className="px-6 py-4 space-y-3">
-          {/* Date and time */}
           <div className="flex items-start gap-3">
-            <div className="w-4 h-4 mt-0.5 flex-shrink-0 text-gray-400">📅</div>
+            <span className="text-gray-400 mt-0.5">📅</span>
             <div>
               <div className="text-xs font-medium text-gray-700">{formatDateFull(booking.date)}</div>
-              <div className="text-xs text-gray-500">
-                {booking.start_time?.slice(0, 5)} · {formatDuration(booking.duration_minutes)}
-              </div>
+              <div className="text-xs text-gray-500">{booking.start_time?.slice(0, 5)} · {formatDuration(booking.duration_minutes)}</div>
             </div>
           </div>
 
-          {/* Attendees */}
           {booking.attendees?.length > 0 && (
             <div className="flex items-start gap-3">
-              <div className="w-4 h-4 mt-0.5 flex-shrink-0 text-gray-400">👥</div>
+              <span className="text-gray-400 mt-0.5">👥</span>
               <div className="text-xs text-gray-700">{booking.attendees.join(', ')}</div>
             </div>
           )}
 
-          {/* Linked job */}
           {booking.job_code && (
             <div className="flex items-start gap-3">
-              <div className="w-4 h-4 mt-0.5 flex-shrink-0 text-gray-400">📁</div>
+              <span className="text-gray-400 mt-0.5">📁</span>
               <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">{booking.job_code}</span>
             </div>
           )}
 
-          {/* Client details */}
-          {booking.type === 'client' && (clientEmail || clientPhone || clientAddress || agenda) && (
+          {booking.type === 'client' && (booking.client_name || clientEmail || clientPhone || clientAddress || agenda) && (
             <div className="border border-gray-100 rounded-xl p-3 space-y-2">
               <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Client details</div>
               {booking.client_name && (
@@ -146,7 +135,6 @@ function MeetingReviewModal({ booking, onClose, onDelete }) {
             </div>
           )}
 
-          {/* Internal notes */}
           {booking.type === 'internal' && booking.notes && (
             <div className="border border-gray-100 rounded-xl p-3">
               <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Notes</div>
@@ -155,7 +143,6 @@ function MeetingReviewModal({ booking, onClose, onDelete }) {
           )}
         </div>
 
-        {/* Footer */}
         <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
           <button onClick={handleDelete} disabled={deleting}
             className="px-4 py-2 text-xs text-red-500 border border-red-100 rounded-lg hover:bg-red-50 font-medium disabled:opacity-50">
@@ -168,7 +155,6 @@ function MeetingReviewModal({ booking, onClose, onDelete }) {
   )
 }
 
-// ── NEW MEETING MODAL ─────────────────────────────────────────────
 function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaultDate }) {
   const [type, setType] = useState('client')
   const [title, setTitle] = useState('')
@@ -242,7 +228,7 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Title</label>
             <input value={title} onChange={e => setTitle(e.target.value)}
-              placeholder={type === 'client' ? 'e.g. Initial consultation — J. Smith' : 'e.g. Weekly team review'}
+              placeholder={type === 'client' ? 'e.g. Initial consultation' : 'e.g. Weekly team review'}
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
           </div>
 
@@ -360,7 +346,7 @@ function ConnectCalendarModal({ onClose, currentUser }) {
 
   const handleConnectGoogle = () => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
-    if (!clientId) { alert('Google Calendar not configured yet. Add VITE_GOOGLE_CLIENT_ID to your environment variables.'); return }
+    if (!clientId) { alert('Google Calendar not configured yet.'); return }
     const params = new URLSearchParams({
       client_id: clientId,
       redirect_uri: `${window.location.origin}/calendar/google/callback`,
@@ -374,7 +360,7 @@ function ConnectCalendarModal({ onClose, currentUser }) {
 
   const handleConnectOutlook = () => {
     const clientId = import.meta.env.VITE_OUTLOOK_CLIENT_ID
-    if (!clientId) { alert('Outlook not configured yet. Add VITE_OUTLOOK_CLIENT_ID to your environment variables.'); return }
+    if (!clientId) { alert('Outlook not configured yet.'); return }
     const params = new URLSearchParams({
       client_id: clientId,
       redirect_uri: `${window.location.origin}/calendar/outlook/callback`,
@@ -403,31 +389,22 @@ function ConnectCalendarModal({ onClose, currentUser }) {
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
         </div>
         <div className="px-6 py-4 space-y-3">
-          <div className="text-xs text-gray-400 mb-4">Connect your calendar so meetings created in QPlan sync automatically.</div>
-          <div className="border border-gray-200 rounded-xl p-4">
-            <div className="flex items-center justify-between">
+          <div className="text-xs text-gray-400 mb-2">Connect your calendar so meetings sync automatically.</div>
+          {[
+            { label: 'Google Calendar', sub: 'Gmail / Google Workspace', color: 'bg-blue-500', letter: 'G', action: handleConnectGoogle, btnColor: 'bg-blue-500 hover:bg-blue-600' },
+            { label: 'Microsoft Outlook', sub: 'Office 365 / Microsoft 365', color: 'bg-blue-700', letter: 'O', action: handleConnectOutlook, btnColor: 'bg-blue-700 hover:bg-blue-800' },
+          ].map(item => (
+            <div key={item.label} className="border border-gray-200 rounded-xl p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center text-white text-sm font-bold">G</div>
+                <div className={`w-8 h-8 ${item.color} rounded-lg flex items-center justify-center text-white text-sm font-bold`}>{item.letter}</div>
                 <div>
-                  <div className="text-xs font-semibold">Google Calendar</div>
-                  <div className="text-xs text-gray-400">Gmail / Google Workspace</div>
+                  <div className="text-xs font-semibold">{item.label}</div>
+                  <div className="text-xs text-gray-400">{item.sub}</div>
                 </div>
               </div>
-              <button onClick={handleConnectGoogle} className="px-3 py-1.5 text-xs bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium">Connect</button>
+              <button onClick={item.action} className={`px-3 py-1.5 text-xs ${item.btnColor} text-white rounded-lg font-medium`}>Connect</button>
             </div>
-          </div>
-          <div className="border border-gray-200 rounded-xl p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-blue-700 rounded-lg flex items-center justify-center text-white text-sm font-bold">O</div>
-                <div>
-                  <div className="text-xs font-semibold">Microsoft Outlook</div>
-                  <div className="text-xs text-gray-400">Office 365 / Microsoft 365</div>
-                </div>
-              </div>
-              <button onClick={handleConnectOutlook} className="px-3 py-1.5 text-xs bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium">Connect</button>
-            </div>
-          </div>
+          ))}
           <div className="border border-gray-200 rounded-xl p-4">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-white text-sm font-bold">C</div>
@@ -566,7 +543,6 @@ export default function Calendar({ currentUser }) {
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
-          {/* Legend */}
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5">
               <div className="w-3 h-3 rounded-sm bg-emerald-400 flex-shrink-0" />
@@ -598,7 +574,6 @@ export default function Calendar({ currentUser }) {
 
       {/* Week grid */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        {/* Day headers */}
         <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-gray-200 sticky top-0 bg-white z-10">
           <div className="border-r border-gray-100" />
           {weekDates.map((date, i) => {
@@ -612,7 +587,6 @@ export default function Calendar({ currentUser }) {
           })}
         </div>
 
-        {/* Time slots */}
         <div className="overflow-y-auto" style={{ maxHeight: '600px' }}>
           <div className="relative">
             {hours.map(hour => (
@@ -630,30 +604,37 @@ export default function Calendar({ currentUser }) {
                       onClick={() => { setSelectedDate(dateStr); setShowNewMeeting(true) }}
                       className={`border-r border-gray-100 last:border-0 relative cursor-pointer hover:bg-gray-50 transition-colors ${isToday ? 'bg-emerald-50/20' : ''}`}>
                       {dayBookings.map((b, bi) => {
-                        const [bH, bM] = (b.start_time || '00:00').split(':').map(Number)
+                        const [, bM] = (b.start_time || '00:00').split(':').map(Number)
                         const topOffset = (bM / 60) * SLOT_HEIGHT
                         const heightPx = (b.duration_minutes / 60) * SLOT_HEIGHT
+                        const minHeight = Math.max(heightPx - 2, 24)
 
-                        // Build the label shown on the block
                         const clientShort = b.client_name
                           ? `${b.client_name.split(' ')[0]} ${b.client_name.split(' ')[1]?.[0] || ''}.`
                           : null
-                        const durationLabel = formatDuration(b.duration_minutes)
 
                         return (
                           <div
                             key={bi}
                             onClick={e => { e.stopPropagation(); setSelectedBooking(b) }}
-                            className={`absolute left-0.5 right-0.5 rounded-md border px-1 py-0.5 overflow-hidden z-10 cursor-pointer ${typeColors[b.type] || 'bg-gray-100 border-gray-200 text-gray-700'}`}
-                            style={{
-                              top: `${topOffset}px`,
-                              height: `${Math.max(heightPx - 2, 22)}px`,
-                            }}
+                            className={`absolute left-0.5 right-0.5 rounded-md border overflow-hidden z-10 cursor-pointer ${typeColors[b.type] || 'bg-gray-100 border-gray-200 text-gray-700'}`}
+                            style={{ top: `${topOffset}px`, height: `${minHeight}px` }}
                           >
-                            <div className="text-xs font-semibold truncate leading-tight">{b.title}</div>
-                            <div className="text-xs opacity-75 truncate leading-tight">
-                              {b.start_time?.slice(0, 5)} · {durationLabel}
-                              {clientShort && ` · ${clientShort}`}
+                            {/* Colour bar on left edge */}
+                            <div className={`absolute left-0 top-0 bottom-0 w-1 ${b.type === 'client' ? 'bg-emerald-500' : 'bg-purple-500'}`} />
+                            <div className="pl-2 pr-1 pt-0.5 pb-0.5 h-full flex flex-col justify-start overflow-hidden">
+                              {/* Title — always shown, bold */}
+                              <div className="text-xs font-semibold truncate leading-tight">{b.title}</div>
+                              {/* Client name — shown if available and enough space */}
+                              {clientShort && minHeight > 32 && (
+                                <div className="text-xs font-medium truncate leading-tight opacity-90">{clientShort}</div>
+                              )}
+                              {/* Time and duration — shown if enough space */}
+                              {minHeight > 44 && (
+                                <div className="text-xs opacity-60 truncate leading-tight mt-auto">
+                                  {b.start_time?.slice(0, 5)} · {formatDuration(b.duration_minutes)}
+                                </div>
+                              )}
                             </div>
                           </div>
                         )
@@ -682,10 +663,9 @@ export default function Calendar({ currentUser }) {
             className="flex items-center gap-3 py-2.5 border-b border-gray-100 last:border-0 cursor-pointer hover:bg-gray-50 rounded-lg px-2 -mx-2">
             <div className={`w-2 h-2 rounded-full flex-shrink-0 ${b.type === 'client' ? 'bg-emerald-500' : 'bg-purple-500'}`} />
             <div className="flex-1 min-w-0">
-              <div className="text-xs font-medium truncate">{b.title}</div>
+              <div className="text-xs font-medium truncate">{b.title}{b.client_name && ` — ${b.client_name}`}</div>
               <div className="text-xs text-gray-400">
                 {new Date(b.date).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })} · {b.start_time?.slice(0, 5)} · {formatDuration(b.duration_minutes)}
-                {b.client_name && ` · ${b.client_name}`}
                 {b.attendees?.length > 1 && ` · ${b.attendees.length} attendees`}
               </div>
             </div>
