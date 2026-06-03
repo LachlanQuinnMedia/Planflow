@@ -256,7 +256,6 @@ export default function App() {
     if (session) setCurrentUser(session)
   }, [])
 
-  // Handle Xero OAuth callback
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const code = params.get('code')
@@ -308,10 +307,8 @@ export default function App() {
     const opening = !showNotifications
     setShowNotifications(opening)
     if (opening) {
-      // Mark all current unread notifications as seen locally (badge clears)
       const unreadIds = new Set(notifications.filter(n => !n.is_read).map(n => n.id))
       setSeenNotificationIds(unreadIds)
-      // Mark as read in database in background
       if (unreadIds.size > 0) {
         supabase.from('notifications')
           .update({ is_read: true })
@@ -417,7 +414,6 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
-
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/30 z-30 md:hidden" onClick={() => setSidebarOpen(false)} />
       )}
@@ -514,13 +510,10 @@ export default function App() {
               <rect x="2" y="12.5" width="14" height="1.5" rx="1" fill="currentColor"/>
             </svg>
           </button>
-
           <div className="flex-1 text-sm font-medium truncate">{pageTitles[activePage]}</div>
-
           {isDirector && currentUser.companyName && (
             <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-lg hidden sm:block">{currentUser.companyName}</span>
           )}
-          <button onClick={() => handleNavigate('calendar')} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 hidden sm:block">+ Book</button>
           <button onClick={() => handleNavigate('newjob')} className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex-shrink-0">+ New Job</button>
         </div>
 

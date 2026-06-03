@@ -18,8 +18,7 @@ function formatDateShort(dateStr) {
   })
 }
 
-// ── STAFF VIEW — simple clean list ─────────────────────────────
-function StaffBookings({ bookings, loading, onNavigate }) {
+function StaffBookings({ bookings, loading }) {
   const today = new Date().toISOString().split('T')[0]
   const upcoming = bookings.filter(b => b.date >= today)
   const past = bookings.filter(b => b.date < today).reverse()
@@ -30,7 +29,6 @@ function StaffBookings({ bookings, loading, onNavigate }) {
 
   return (
     <div className="space-y-4">
-      {/* Upcoming */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Upcoming meetings</div>
@@ -39,7 +37,6 @@ function StaffBookings({ bookings, loading, onNavigate }) {
           <div className="px-4 py-8 text-center text-xs text-gray-400">No upcoming meetings.</div>
         ) : upcoming.map((b, i) => (
           <div key={i} className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 last:border-0">
-            {/* Date block */}
             <div className="w-10 text-center flex-shrink-0">
               <div className="text-xs text-gray-400">{new Date(b.date).toLocaleDateString('en-AU', { month: 'short' })}</div>
               <div className="text-lg font-bold text-gray-700 leading-none">{new Date(b.date).getDate()}</div>
@@ -65,7 +62,6 @@ function StaffBookings({ bookings, loading, onNavigate }) {
         ))}
       </div>
 
-      {/* Past */}
       {past.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
@@ -95,21 +91,15 @@ function StaffBookings({ bookings, loading, onNavigate }) {
   )
 }
 
-// ── DIRECTOR VIEW — full tabbed view with staff dropdown ────────
-function DirectorBookings({ currentUser, onNavigate }) {
+function DirectorBookings({ currentUser }) {
   const [bookings, setBookings] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('upcoming')
   const [viewingAs, setViewingAs] = useState(currentUser?.username || '')
   const [staffList, setStaffList] = useState([])
 
-  useEffect(() => {
-    fetchStaff()
-  }, [])
-
-  useEffect(() => {
-    fetchBookings()
-  }, [viewingAs])
+  useEffect(() => { fetchStaff() }, [])
+  useEffect(() => { fetchBookings() }, [viewingAs])
 
   const fetchBookings = async () => {
     setLoading(true)
@@ -144,8 +134,6 @@ function DirectorBookings({ currentUser, onNavigate }) {
   const clientBookings = bookings.filter(b => b.type === 'client')
   const internalMeetings = bookings.filter(b => b.type === 'internal')
 
-  const tabs = ['upcoming', 'client', 'internal', 'past']
-
   const BookingRow = ({ b, showAttendees = false, faded = false }) => (
     <div className={`flex items-center gap-3 py-3 border-b border-gray-100 last:border-0 ${faded ? 'opacity-60' : ''}`}>
       <div className="w-10 text-center flex-shrink-0">
@@ -165,12 +153,6 @@ function DirectorBookings({ currentUser, onNavigate }) {
         {b.job_code && (
           <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">{b.job_code}</span>
         )}
-        {b.type === 'client' && !b.job_code && !faded && (
-          <button onClick={() => onNavigate('newjob')}
-            className="px-2 py-1 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
-            → Job
-          </button>
-        )}
         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${typeColors[b.type] || 'bg-gray-100 text-gray-500'}`}>
           {b.type === 'client' ? 'Client' : 'Internal'}
         </span>
@@ -180,7 +162,6 @@ function DirectorBookings({ currentUser, onNavigate }) {
 
   return (
     <div>
-      {/* Director controls */}
       <div className="flex items-center gap-3 mb-4 bg-white rounded-xl border border-gray-200 p-3">
         <div className="text-xs font-medium text-gray-500">Viewing:</div>
         <select value={viewingAs} onChange={e => setViewingAs(e.target.value)}
@@ -201,21 +182,14 @@ function DirectorBookings({ currentUser, onNavigate }) {
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-1 border-b border-gray-200 mb-4">
-        {tabs.map(tab => (
+        {['upcoming', 'client', 'internal', 'past'].map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             className={`px-4 py-2 text-xs capitalize border-b-2 transition-colors ${activeTab === tab ? 'border-emerald-500 text-emerald-600 font-medium' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
             {tab}
-            {tab === 'upcoming' && upcoming.length > 0 && (
-              <span className="ml-1.5 text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">{upcoming.length}</span>
-            )}
-            {tab === 'client' && clientBookings.length > 0 && (
-              <span className="ml-1.5 text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">{clientBookings.length}</span>
-            )}
-            {tab === 'internal' && internalMeetings.length > 0 && (
-              <span className="ml-1.5 text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full">{internalMeetings.length}</span>
-            )}
+            {tab === 'upcoming' && upcoming.length > 0 && <span className="ml-1.5 text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">{upcoming.length}</span>}
+            {tab === 'client' && clientBookings.length > 0 && <span className="ml-1.5 text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">{clientBookings.length}</span>}
+            {tab === 'internal' && internalMeetings.length > 0 && <span className="ml-1.5 text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full">{internalMeetings.length}</span>}
           </button>
         ))}
       </div>
@@ -291,7 +265,6 @@ function DirectorBookings({ currentUser, onNavigate }) {
   )
 }
 
-// ── MAIN EXPORT ─────────────────────────────────────────────────
 export default function Bookings({ onNavigate, currentUser }) {
   const [myBookings, setMyBookings] = useState([])
   const [loading, setLoading] = useState(true)
@@ -317,9 +290,6 @@ export default function Bookings({ onNavigate, currentUser }) {
     setLoading(false)
   }
 
-  if (isDirector) {
-    return <DirectorBookings currentUser={currentUser} onNavigate={onNavigate} />
-  }
-
-  return <StaffBookings bookings={myBookings} loading={loading} onNavigate={onNavigate} />
+  if (isDirector) return <DirectorBookings currentUser={currentUser} />
+  return <StaffBookings bookings={myBookings} loading={loading} />
 }
