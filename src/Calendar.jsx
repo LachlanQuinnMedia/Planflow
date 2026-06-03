@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabase'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
 const typeColors = {
   client: 'bg-emerald-100 border-emerald-300 text-emerald-800',
@@ -37,7 +38,113 @@ function formatDateFull(dateStr) {
   })
 }
 
+function formatWeekRange(weekDates) {
+  const start = weekDates[0]
+  const end = weekDates[6]
+  const startDay = start.getDate()
+  const endDay = end.getDate()
+  const startMonth = start.toLocaleDateString('en-AU', { month: 'short' })
+  const endMonth = end.toLocaleDateString('en-AU', { month: 'short' })
+  const year = end.getFullYear()
+  if (start.getMonth() === end.getMonth()) {
+    return `${startDay} – ${endDay} ${endMonth} ${year}`
+  }
+  return `${startDay} ${startMonth} – ${endDay} ${endMonth} ${year}`
+}
+
 const SLOT_HEIGHT = 64
+
+// ── DATE PICKER MODAL ────────────────────────────────────────────
+function DatePickerModal({ currentDate, onSelect, onClose }) {
+  const [viewMonth, setViewMonth] = useState(currentDate.getMonth())
+  const [viewYear, setViewYear] = useState(currentDate.getFullYear())
+
+  const firstDay = new Date(viewYear, viewMonth, 1).getDay()
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
+  const today = new Date()
+
+  const prevMonth = () => {
+    if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1) }
+    else setViewMonth(m => m - 1)
+  }
+
+  const nextMonth = () => {
+    if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1) }
+    else setViewMonth(m => m + 1)
+  }
+
+  const handleSelect = (day) => {
+    const selected = new Date(viewYear, viewMonth, day)
+    onSelect(selected)
+    onClose()
+  }
+
+  const cells = []
+  for (let i = 0; i < firstDay; i++) cells.push(null)
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d)
+  while (cells.length % 7 !== 0) cells.push(null)
+
+  const isToday = (day) => {
+    return day && today.getDate() === day && today.getMonth() === viewMonth && today.getFullYear() === viewYear
+  }
+
+  const isCurrent = (day) => {
+    return day && currentDate.getDate() === day && currentDate.getMonth() === viewMonth && currentDate.getFullYear() === viewYear
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-32" onClick={onClose}>
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-xl p-4 w-72" onClick={e => e.stopPropagation()}>
+        {/* Month navigation */}
+        <div className="flex items-center justify-between mb-3">
+          <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">‹</button>
+          <div className="text-sm font-semibold">{MONTHS[viewMonth]} {viewYear}</div>
+          <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">›</button>
+        </div>
+
+        {/* Day headers */}
+        <div className="grid grid-cols-7 mb-1">
+          {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
+            <div key={d} className="text-center text-xs text-gray-400 py-1 font-medium">{d}</div>
+          ))}
+        </div>
+
+        {/* Calendar grid */}
+        <div className="grid grid-cols-7 gap-0.5">
+          {cells.map((day, i) => (
+            <button key={i} onClick={() => day && handleSelect(day)}
+              disabled={!day}
+              className={`
+                h-8 w-full rounded-lg text-xs font-medium transition-colors
+                ${!day ? 'invisible' : ''}
+                ${isCurrent(day) ? 'bg-emerald-600 text-white' : ''}
+                ${isToday(day) && !isCurrent(day) ? 'bg-emerald-100 text-emerald-700' : ''}
+                ${day && !isCurrent(day) && !isToday(day) ? 'hover:bg-gray-100 text-gray-700' : ''}
+              `}>
+              {day}
+            </button>
+          ))}
+        </div>
+
+        {/* Quick jumps */}
+        <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
+          <button onClick={() => { onSelect(new Date()); onClose() }}
+            className="flex-1 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium">
+            Today
+          </button>
+          <button onClick={() => {
+            const next = new Date()
+            next.setMonth(next.getMonth() + 1)
+            onSelect(next)
+            onClose()
+          }} className="flex-1 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium">
+            Next month
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // ── EDIT MEETING MODAL ───────────────────────────────────────────
 function EditMeetingModal({ booking, onClose, onSave, staffList, jobs }) {
@@ -94,14 +201,12 @@ function EditMeetingModal({ booking, onClose, onSave, staffList, jobs }) {
           <div className="text-sm font-semibold">Edit Meeting</div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
         </div>
-
         <div className="px-6 py-4 space-y-4">
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Title</label>
             <input value={title} onChange={e => setTitle(e.target.value)}
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
           </div>
-
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Date</label>
@@ -132,36 +237,28 @@ function EditMeetingModal({ booking, onClose, onSave, staffList, jobs }) {
               </select>
             </div>
           </div>
-
           {booking.type === 'client' && (
             <div className="space-y-3 border border-gray-100 rounded-xl p-3">
               <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Client details</div>
-              <input value={clientName} onChange={e => setClientName(e.target.value)}
-                placeholder="Client name"
+              <input value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Client name"
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
-              <input value={clientEmail} onChange={e => setClientEmail(e.target.value)}
-                placeholder="Email address"
+              <input value={clientEmail} onChange={e => setClientEmail(e.target.value)} placeholder="Email address"
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
-              <input value={clientPhone} onChange={e => setClientPhone(e.target.value)}
-                placeholder="Phone number"
+              <input value={clientPhone} onChange={e => setClientPhone(e.target.value)} placeholder="Phone number"
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
-              <input value={clientAddress} onChange={e => setClientAddress(e.target.value)}
-                placeholder="Address / site address"
+              <input value={clientAddress} onChange={e => setClientAddress(e.target.value)} placeholder="Address / site address"
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
-              <textarea value={agenda} onChange={e => setAgenda(e.target.value)}
-                placeholder="Agenda / meeting notes" rows={3}
+              <textarea value={agenda} onChange={e => setAgenda(e.target.value)} placeholder="Agenda / meeting notes" rows={3}
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400 resize-none" />
             </div>
           )}
-
           {booking.type === 'internal' && (
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
-              <textarea value={internalNotes} onChange={e => setInternalNotes(e.target.value)}
-                rows={3} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400 resize-none" />
+              <textarea value={internalNotes} onChange={e => setInternalNotes(e.target.value)} rows={3}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400 resize-none" />
             </div>
           )}
-
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Link to job (optional)</label>
             <select value={jobId} onChange={e => setJobId(e.target.value)}
@@ -170,15 +267,13 @@ function EditMeetingModal({ booking, onClose, onSave, staffList, jobs }) {
               {jobs.map(j => <option key={j.id} value={j.id}>{j.code} — {j.name}</option>)}
             </select>
           </div>
-
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-2">Attendees</label>
             <div className="border border-gray-200 rounded-xl overflow-hidden max-h-40 overflow-y-auto">
               {staffList.map(s => (
                 <label key={s.username} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0">
                   <input type="checkbox" checked={selectedAttendees.includes(s.username)}
-                    onChange={() => toggleAttendee(s.username)}
-                    className="w-3.5 h-3.5 accent-emerald-600" />
+                    onChange={() => toggleAttendee(s.username)} className="w-3.5 h-3.5 accent-emerald-600" />
                   <span className="text-xs font-medium">{s.username}</span>
                   <span className="text-xs text-gray-400 capitalize ml-auto">{s.role}</span>
                 </label>
@@ -186,7 +281,6 @@ function EditMeetingModal({ booking, onClose, onSave, staffList, jobs }) {
             </div>
           </div>
         </div>
-
         <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
           <button onClick={onClose} className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium">Cancel</button>
           <button onClick={handleSave} disabled={saving}
@@ -229,14 +323,11 @@ function MeetingReviewModal({ booking, onClose, onDelete, onEdit }) {
                 {booking.type === 'client' ? 'Client meeting' : 'Staff meeting'}
               </span>
               <div className="text-sm font-semibold text-gray-800 mt-1">{booking.title}</div>
-              {booking.client_name && (
-                <div className="text-xs text-gray-500 mt-0.5">with {booking.client_name}</div>
-              )}
+              {booking.client_name && <div className="text-xs text-gray-500 mt-0.5">with {booking.client_name}</div>}
             </div>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600 ml-3 flex-shrink-0">✕</button>
           </div>
         </div>
-
         <div className="px-6 py-4 space-y-3">
           <div className="flex items-start gap-3">
             <span className="text-gray-400 mt-0.5">📅</span>
@@ -245,21 +336,18 @@ function MeetingReviewModal({ booking, onClose, onDelete, onEdit }) {
               <div className="text-xs text-gray-500">{booking.start_time?.slice(0, 5)} · {formatDuration(booking.duration_minutes)}</div>
             </div>
           </div>
-
           {booking.attendees?.length > 0 && (
             <div className="flex items-start gap-3">
               <span className="text-gray-400 mt-0.5">👥</span>
               <div className="text-xs text-gray-700">{booking.attendees.join(', ')}</div>
             </div>
           )}
-
           {booking.job_code && (
             <div className="flex items-start gap-3">
               <span className="text-gray-400 mt-0.5">📁</span>
               <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">{booking.job_code}</span>
             </div>
           )}
-
           {booking.type === 'client' && (booking.client_name || clientEmail || clientPhone || clientAddress || agenda) && (
             <div className="border border-gray-100 rounded-xl p-3 space-y-2">
               <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Client details</div>
@@ -295,7 +383,6 @@ function MeetingReviewModal({ booking, onClose, onDelete, onEdit }) {
               )}
             </div>
           )}
-
           {booking.type === 'internal' && booking.notes && (
             <div className="border border-gray-100 rounded-xl p-3">
               <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Notes</div>
@@ -303,16 +390,12 @@ function MeetingReviewModal({ booking, onClose, onDelete, onEdit }) {
             </div>
           )}
         </div>
-
         <div className="px-6 py-4 border-t border-gray-100 flex gap-2">
           <button onClick={handleDelete} disabled={deleting}
             className="px-4 py-2 text-xs text-red-500 border border-red-100 rounded-lg hover:bg-red-50 font-medium disabled:opacity-50">
             {deleting ? 'Deleting...' : 'Delete'}
           </button>
-          <button onClick={onEdit}
-            className="px-4 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium">
-            Edit
-          </button>
+          <button onClick={onEdit} className="px-4 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium">Edit</button>
           <button onClick={onClose} className="flex-1 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium">Close</button>
         </div>
       </div>
@@ -337,40 +420,25 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
 
-  const toggleAttendee = (username) => {
-    setSelectedAttendees(prev =>
-      prev.includes(username) ? prev.filter(u => u !== username) : [...prev, username]
-    )
-  }
-
+  const toggleAttendee = (u) => setSelectedAttendees(prev => prev.includes(u) ? prev.filter(x => x !== u) : [...prev, u])
   const selectAll = () => setSelectedAttendees(staffList.map(s => s.username))
   const clearAll = () => setSelectedAttendees([currentUser.username])
 
   const handleSave = async () => {
     if (!title.trim()) { alert('Please enter a title.'); return }
-    if (!date) { alert('Please select a date.'); return }
     setSaving(true)
     const selectedJob = jobs.find(j => j.id === jobId)
     const { error } = await supabase.from('bookings').insert({
-      company_id: currentUser.company_id,
-      title: title.trim(),
-      type,
-      date,
-      start_time: startTime,
-      duration_minutes: duration,
-      attendees: selectedAttendees,
-      job_id: jobId || null,
-      job_code: selectedJob?.code || null,
-      client_name: clientName || null,
+      company_id: currentUser.company_id, title: title.trim(), type, date,
+      start_time: startTime, duration_minutes: duration, attendees: selectedAttendees,
+      job_id: jobId || null, job_code: selectedJob?.code || null, client_name: clientName || null,
       notes: type === 'client'
         ? `Email: ${clientEmail}\nPhone: ${clientPhone}\nAddress: ${clientAddress}\nAgenda: ${agenda}`
         : notes,
       created_by: currentUser.username,
     })
-    if (error) { alert('Failed to save booking.'); setSaving(false); return }
-    setSaving(false)
-    onSave()
-    onClose()
+    if (error) { alert('Failed to save.'); setSaving(false); return }
+    setSaving(false); onSave(); onClose()
   }
 
   return (
@@ -380,7 +448,6 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
           <div className="text-sm font-semibold">New Meeting</div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
         </div>
-
         <div className="px-6 py-4 space-y-4">
           <div className="flex gap-2">
             {[{ id: 'client', label: 'Client meeting' }, { id: 'internal', label: 'Staff meeting' }].map(t => (
@@ -390,14 +457,12 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
               </button>
             ))}
           </div>
-
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Title</label>
             <input value={title} onChange={e => setTitle(e.target.value)}
               placeholder={type === 'client' ? 'e.g. Initial consultation' : 'e.g. Weekly team review'}
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
           </div>
-
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Date</label>
@@ -413,43 +478,30 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
               <label className="block text-xs font-medium text-gray-600 mb-1">Duration</label>
               <select value={duration} onChange={e => setDuration(Number(e.target.value))}
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
-                <option value={15}>15 min</option>
-                <option value={30}>30 min</option>
-                <option value={45}>45 min</option>
-                <option value={60}>1 hour</option>
-                <option value={90}>1.5 hrs</option>
-                <option value={120}>2 hours</option>
-                <option value={150}>2.5 hrs</option>
-                <option value={180}>3 hours</option>
-                <option value={210}>3.5 hrs</option>
-                <option value={240}>4 hours</option>
-                <option value={270}>4.5 hrs</option>
-                <option value={300}>5 hours</option>
+                <option value={15}>15 min</option><option value={30}>30 min</option>
+                <option value={45}>45 min</option><option value={60}>1 hour</option>
+                <option value={90}>1.5 hrs</option><option value={120}>2 hours</option>
+                <option value={150}>2.5 hrs</option><option value={180}>3 hours</option>
+                <option value={210}>3.5 hrs</option><option value={240}>4 hours</option>
+                <option value={270}>4.5 hrs</option><option value={300}>5 hours</option>
               </select>
             </div>
           </div>
-
           {type === 'client' && (
             <div className="space-y-3 border border-gray-100 rounded-xl p-3">
               <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Client details</div>
-              <input value={clientName} onChange={e => setClientName(e.target.value)}
-                placeholder="Client name"
+              <input value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Client name"
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
-              <input value={clientEmail} onChange={e => setClientEmail(e.target.value)}
-                placeholder="Email address" type="email"
+              <input value={clientEmail} onChange={e => setClientEmail(e.target.value)} placeholder="Email address" type="email"
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
-              <input value={clientPhone} onChange={e => setClientPhone(e.target.value)}
-                placeholder="Phone number"
+              <input value={clientPhone} onChange={e => setClientPhone(e.target.value)} placeholder="Phone number"
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
-              <input value={clientAddress} onChange={e => setClientAddress(e.target.value)}
-                placeholder="Address / site address"
+              <input value={clientAddress} onChange={e => setClientAddress(e.target.value)} placeholder="Address / site address"
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
-              <textarea value={agenda} onChange={e => setAgenda(e.target.value)}
-                placeholder="Agenda / meeting notes" rows={3}
+              <textarea value={agenda} onChange={e => setAgenda(e.target.value)} placeholder="Agenda / meeting notes" rows={3}
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400 resize-none" />
             </div>
           )}
-
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Link to job (optional)</label>
             <select value={jobId} onChange={e => setJobId(e.target.value)}
@@ -458,7 +510,6 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
               {jobs.map(j => <option key={j.id} value={j.id}>{j.code} — {j.name}</option>)}
             </select>
           </div>
-
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-medium text-gray-600">Attendees</label>
@@ -472,8 +523,7 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
               {staffList.map(s => (
                 <label key={s.username} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0">
                   <input type="checkbox" checked={selectedAttendees.includes(s.username)}
-                    onChange={() => toggleAttendee(s.username)}
-                    className="w-3.5 h-3.5 accent-emerald-600" />
+                    onChange={() => toggleAttendee(s.username)} className="w-3.5 h-3.5 accent-emerald-600" />
                   <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-medium text-emerald-700 flex-shrink-0">
                     {s.username.slice(0, 2).toUpperCase()}
                   </div>
@@ -483,17 +533,14 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
               ))}
             </div>
           </div>
-
           {type === 'internal' && (
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
-              <textarea value={notes} onChange={e => setNotes(e.target.value)}
-                placeholder="Meeting agenda or notes..." rows={3}
+              <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Meeting agenda or notes..." rows={3}
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400 resize-none" />
             </div>
           )}
         </div>
-
         <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
           <button onClick={onClose} className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium">Cancel</button>
           <button onClick={handleSave} disabled={saving}
@@ -514,12 +561,9 @@ function ConnectCalendarModal({ onClose, currentUser }) {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
     if (!clientId) { alert('Google Calendar not configured yet.'); return }
     const params = new URLSearchParams({
-      client_id: clientId,
-      redirect_uri: `${window.location.origin}/calendar/google/callback`,
-      response_type: 'code',
-      scope: 'https://www.googleapis.com/auth/calendar',
-      access_type: 'offline',
-      state: btoa(JSON.stringify({ company_id: currentUser.company_id, username: currentUser.username })),
+      client_id: clientId, redirect_uri: `${window.location.origin}/calendar/google/callback`,
+      response_type: 'code', scope: 'https://www.googleapis.com/auth/calendar',
+      access_type: 'offline', state: btoa(JSON.stringify({ company_id: currentUser.company_id, username: currentUser.username })),
     })
     window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params}`
   }
@@ -528,10 +572,8 @@ function ConnectCalendarModal({ onClose, currentUser }) {
     const clientId = import.meta.env.VITE_OUTLOOK_CLIENT_ID
     if (!clientId) { alert('Outlook not configured yet.'); return }
     const params = new URLSearchParams({
-      client_id: clientId,
-      redirect_uri: `${window.location.origin}/calendar/outlook/callback`,
-      response_type: 'code',
-      scope: 'Calendars.ReadWrite offline_access',
+      client_id: clientId, redirect_uri: `${window.location.origin}/calendar/outlook/callback`,
+      response_type: 'code', scope: 'Calendars.ReadWrite offline_access',
       state: btoa(JSON.stringify({ company_id: currentUser.company_id, username: currentUser.username })),
     })
     window.location.href = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params}`
@@ -541,8 +583,7 @@ function ConnectCalendarModal({ onClose, currentUser }) {
     if (!calendlyUrl.trim()) { alert('Please enter your Calendly URL.'); return }
     setSavingCalendly(true)
     await supabase.from('app_users').update({ calendly_url: calendlyUrl.trim() })
-      .eq('username', currentUser.username)
-      .eq('company_id', currentUser.company_id)
+      .eq('username', currentUser.username).eq('company_id', currentUser.company_id)
     setSavingCalendly(false)
     alert('Calendly URL saved.')
   }
@@ -580,8 +621,7 @@ function ConnectCalendarModal({ onClose, currentUser }) {
               </div>
             </div>
             <div className="flex gap-2">
-              <input value={calendlyUrl} onChange={e => setCalendlyUrl(e.target.value)}
-                placeholder="https://calendly.com/your-link"
+              <input value={calendlyUrl} onChange={e => setCalendlyUrl(e.target.value)} placeholder="https://calendly.com/your-link"
                 className="flex-1 px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
               <button onClick={handleSaveCalendly} disabled={savingCalendly}
                 className="px-3 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium disabled:opacity-50">
@@ -598,6 +638,7 @@ function ConnectCalendarModal({ onClose, currentUser }) {
   )
 }
 
+// ── MAIN CALENDAR ─────────────────────────────────────────────────
 export default function Calendar({ currentUser }) {
   const [currentWeek, setCurrentWeek] = useState(new Date())
   const [bookings, setBookings] = useState([])
@@ -606,6 +647,7 @@ export default function Calendar({ currentUser }) {
   const [viewingAs, setViewingAs] = useState(currentUser.username)
   const [showNewMeeting, setShowNewMeeting] = useState(false)
   const [showConnect, setShowConnect] = useState(false)
+  const [showDatePicker, setShowDatePicker] = useState(false)
   const [selectedDate, setSelectedDate] = useState(null)
   const [selectedBooking, setSelectedBooking] = useState(null)
   const [editingBooking, setEditingBooking] = useState(null)
@@ -625,27 +667,19 @@ export default function Calendar({ currentUser }) {
     const startDate = weekDates[0].toISOString().split('T')[0]
     const endDate = weekDates[6].toISOString().split('T')[0]
     const { data } = await supabase
-      .from('bookings')
-      .select('*')
+      .from('bookings').select('*')
       .eq('company_id', currentUser.company_id)
-      .gte('date', startDate)
-      .lte('date', endDate)
+      .gte('date', startDate).lte('date', endDate)
       .order('start_time', { ascending: true })
     if (data) {
-      setBookings(data.filter(b =>
-        b.attendees?.includes(viewingAs) || b.created_by === viewingAs
-      ))
+      setBookings(data.filter(b => b.attendees?.includes(viewingAs) || b.created_by === viewingAs))
     }
     setLoading(false)
   }
 
   const fetchStaff = async () => {
-    const { data } = await supabase
-      .from('app_users')
-      .select('username, role')
-      .eq('company_id', currentUser.company_id)
-      .eq('is_approved', true)
-      .order('username', { ascending: true })
+    const { data } = await supabase.from('app_users').select('username, role')
+      .eq('company_id', currentUser.company_id).eq('is_approved', true).order('username', { ascending: true })
     if (data) setStaffList(data)
   }
 
@@ -658,18 +692,20 @@ export default function Calendar({ currentUser }) {
   const goForward = () => { const d = new Date(currentWeek); d.setDate(d.getDate() + 7); setCurrentWeek(d) }
   const goToday = () => setCurrentWeek(new Date())
 
+  const handleDatePickerSelect = (date) => {
+    setCurrentWeek(date)
+  }
+
   const getBookingsForDayAndHour = (date, hour) => {
     const dateStr = date.toISOString().split('T')[0]
     return bookings.filter(b => {
       if (b.date !== dateStr) return false
-      const bHour = parseInt(b.start_time?.split(':')[0] || '0')
-      return bHour === hour
+      return parseInt(b.start_time?.split(':')[0] || '0') === hour
     })
   }
 
   const formatDateHeader = (date) => {
-    const today = new Date()
-    const isToday = date.toDateString() === today.toDateString()
+    const isToday = date.toDateString() === new Date().toDateString()
     return { day: DAYS[date.getDay()], num: date.getDate(), isToday }
   }
 
@@ -678,34 +714,24 @@ export default function Calendar({ currentUser }) {
   return (
     <div>
       {showNewMeeting && (
-        <NewMeetingModal
-          onClose={() => setShowNewMeeting(false)}
-          onSave={fetchBookings}
-          currentUser={currentUser}
-          staffList={staffList}
-          jobs={jobs}
-          defaultDate={selectedDate}
-        />
+        <NewMeetingModal onClose={() => setShowNewMeeting(false)} onSave={fetchBookings}
+          currentUser={currentUser} staffList={staffList} jobs={jobs} defaultDate={selectedDate} />
       )}
-      {showConnect && (
-        <ConnectCalendarModal onClose={() => setShowConnect(false)} currentUser={currentUser} />
+      {showConnect && <ConnectCalendarModal onClose={() => setShowConnect(false)} currentUser={currentUser} />}
+      {showDatePicker && (
+        <DatePickerModal
+          currentDate={currentWeek}
+          onSelect={handleDatePickerSelect}
+          onClose={() => setShowDatePicker(false)}
+        />
       )}
       {selectedBooking && !editingBooking && (
-        <MeetingReviewModal
-          booking={selectedBooking}
-          onClose={() => setSelectedBooking(null)}
-          onDelete={fetchBookings}
-          onEdit={() => { setEditingBooking(selectedBooking); setSelectedBooking(null) }}
-        />
+        <MeetingReviewModal booking={selectedBooking} onClose={() => setSelectedBooking(null)}
+          onDelete={fetchBookings} onEdit={() => { setEditingBooking(selectedBooking); setSelectedBooking(null) }} />
       )}
       {editingBooking && (
-        <EditMeetingModal
-          booking={editingBooking}
-          onClose={() => setEditingBooking(null)}
-          onSave={() => { fetchBookings(); setEditingBooking(null) }}
-          staffList={staffList}
-          jobs={jobs}
-        />
+        <EditMeetingModal booking={editingBooking} onClose={() => setEditingBooking(null)}
+          onSave={() => { fetchBookings(); setEditingBooking(null) }} staffList={staffList} jobs={jobs} />
       )}
 
       {/* Header */}
@@ -714,9 +740,23 @@ export default function Calendar({ currentUser }) {
           <button onClick={goBack} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 text-lg">‹</button>
           <button onClick={goToday} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Today</button>
           <button onClick={goForward} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 text-lg">›</button>
-          <span className="text-sm font-semibold ml-2">
-            {weekDates[0].toLocaleDateString('en-AU', { month: 'long', year: 'numeric' })}
-          </span>
+
+          {/* Week range + calendar icon */}
+          <div className="flex items-center gap-1.5 ml-2">
+            <span className="text-sm font-semibold">{formatWeekRange(weekDates)}</span>
+            <button
+              onClick={() => setShowDatePicker(true)}
+              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+              title="Jump to date"
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <rect x="1" y="2" width="12" height="11" rx="2" stroke="currentColor" strokeWidth="1.2"/>
+                <line x1="1" y1="5.5" x2="13" y2="5.5" stroke="currentColor" strokeWidth="1.2"/>
+                <line x1="4.5" y1="1" x2="4.5" y2="3.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                <line x1="9.5" y1="1" x2="9.5" y2="3.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
@@ -733,13 +773,10 @@ export default function Calendar({ currentUser }) {
           {isDirector && (
             <select value={viewingAs} onChange={e => setViewingAs(e.target.value)}
               className="px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
-              {staffList.map(s => (
-                <option key={s.username} value={s.username}>{s.username}</option>
-              ))}
+              {staffList.map(s => <option key={s.username} value={s.username}>{s.username}</option>)}
             </select>
           )}
-          <button onClick={() => setShowConnect(true)}
-            className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">
+          <button onClick={() => setShowConnect(true)} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">
             🔗 Connect calendar
           </button>
           <button onClick={() => { setSelectedDate(null); setShowNewMeeting(true) }}
@@ -775,7 +812,6 @@ export default function Calendar({ currentUser }) {
                   const dateStr = date.toISOString().split('T')[0]
                   const isToday = date.toDateString() === new Date().toDateString()
                   const dayBookings = getBookingsForDayAndHour(date, hour)
-
                   return (
                     <div key={di}
                       onClick={() => { setSelectedDate(dateStr); setShowNewMeeting(true) }}
@@ -785,29 +821,22 @@ export default function Calendar({ currentUser }) {
                         const topOffset = (bM / 60) * SLOT_HEIGHT
                         const heightPx = (b.duration_minutes / 60) * SLOT_HEIGHT
                         const minHeight = Math.max(heightPx - 2, 24)
-
-                        // Priority: client name first, then title
                         const primaryLabel = b.client_name
                           ? `${b.client_name.split(' ')[0]} ${b.client_name.split(' ')[1]?.[0] || ''}.`
                           : b.title
                         const secondaryLabel = b.client_name ? b.title : null
 
                         return (
-                          <div
-                            key={bi}
+                          <div key={bi}
                             onClick={e => { e.stopPropagation(); setSelectedBooking(b) }}
                             className={`absolute left-0.5 right-0.5 rounded-md border overflow-hidden z-10 cursor-pointer ${typeColors[b.type] || 'bg-gray-100 border-gray-200 text-gray-700'}`}
-                            style={{ top: `${topOffset}px`, height: `${minHeight}px` }}
-                          >
+                            style={{ top: `${topOffset}px`, height: `${minHeight}px` }}>
                             <div className={`absolute left-0 top-0 bottom-0 w-1 ${b.type === 'client' ? 'bg-emerald-500' : 'bg-purple-500'}`} />
                             <div className="pl-2 pr-1 pt-0.5 pb-0.5 h-full flex flex-col justify-start overflow-hidden">
-                              {/* Primary — client name or title */}
                               <div className="text-xs font-semibold truncate leading-tight">{primaryLabel}</div>
-                              {/* Secondary — title if client name shown */}
                               {secondaryLabel && minHeight > 34 && (
                                 <div className="text-xs truncate leading-tight opacity-80">{secondaryLabel}</div>
                               )}
-                              {/* Time — only if tall enough */}
                               {minHeight > 48 && (
                                 <div className="text-xs opacity-60 truncate leading-tight mt-auto">
                                   {b.start_time?.slice(0, 5)} · {formatDuration(b.duration_minutes)}
@@ -836,8 +865,7 @@ export default function Calendar({ currentUser }) {
         ) : bookings.length === 0 ? (
           <div className="text-xs text-gray-400 text-center py-4">No meetings this week.</div>
         ) : bookings.map((b, i) => (
-          <div key={i}
-            onClick={() => setSelectedBooking(b)}
+          <div key={i} onClick={() => setSelectedBooking(b)}
             className="flex items-center gap-3 py-2.5 border-b border-gray-100 last:border-0 cursor-pointer hover:bg-gray-50 rounded-lg px-2 -mx-2">
             <div className={`w-2 h-2 rounded-full flex-shrink-0 ${b.type === 'client' ? 'bg-emerald-500' : 'bg-purple-500'}`} />
             <div className="flex-1 min-w-0">
@@ -849,9 +877,7 @@ export default function Calendar({ currentUser }) {
                 {b.attendees?.length > 1 && ` · ${b.attendees.length} attendees`}
               </div>
             </div>
-            {b.job_code && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">{b.job_code}</span>
-            )}
+            {b.job_code && <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">{b.job_code}</span>}
             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${b.type === 'client' ? 'bg-emerald-100 text-emerald-700' : 'bg-purple-100 text-purple-700'}`}>
               {b.type === 'client' ? 'Client' : 'Internal'}
             </span>
