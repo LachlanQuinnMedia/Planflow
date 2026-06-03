@@ -24,10 +24,10 @@ const navItems = [
   { id: 'newjob', label: 'New Job', section: 'main' },
   { id: 'docs', label: 'Documents', section: 'tools' },
   { id: 'time', label: 'Time & Budget', section: 'tools' },
-  { id: 'calendly', label: 'Bookings', section: 'tools' },
+  { id: 'calendly', label: 'Bookings', section: 'tools', directorOnly: true },
   { id: 'calendar', label: 'Calendar', section: 'tools' },
   { id: 'workload', label: 'Workloads', section: 'tools', directorOnly: true },
-  { id: 'xero', label: 'Xero', section: 'tools', directorOnly: true },
+  { id: 'xero', label: 'Xero', section: 'tools' },
   { id: 'templates', label: 'Templates', section: 'settings' },
   { id: 'planners', label: 'Planners', section: 'settings' },
 ]
@@ -399,7 +399,7 @@ export default function App() {
       case 'newjob': return <NewJob onNavigate={handleNavigate} currentUser={currentUser} />
       case 'jobdetail': return <JobDetail job={selectedJob} onNavigate={handleNavigate} currentUser={currentUser} />
       case 'workload': return isDirector ? <Workload /> : <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-sm text-gray-400">Access restricted to directors.</div>
-      case 'xero': return isDirector ? <Xero currentUser={currentUser} /> : <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-sm text-gray-400">Access restricted to directors.</div>
+      case 'xero': return <Xero currentUser={currentUser} />
       case 'calendly': return <Bookings onNavigate={handleNavigate} currentUser={currentUser} />
       case 'calendar': return <Calendar currentUser={currentUser} />
       case 'templates': return <Templates />
