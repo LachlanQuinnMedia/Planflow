@@ -8,11 +8,6 @@ const typeColors = {
   internal: 'bg-purple-100 border-purple-300 text-purple-800',
 }
 
-const typeColorsBar = {
-  client: 'bg-emerald-400',
-  internal: 'bg-purple-400',
-}
-
 function getWeekDates(date) {
   const start = new Date(date)
   start.setDate(start.getDate() - start.getDay())
@@ -29,8 +24,151 @@ function formatTime(hour) {
   return hour < 12 ? `${hour}am` : `${hour - 12}pm`
 }
 
-const SLOT_HEIGHT = 56 // px per hour
+function formatDuration(mins) {
+  if (mins < 60) return `${mins}min`
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  return m === 0 ? `${h}hr` : `${h}hr ${m}min`
+}
 
+function formatDateFull(dateStr) {
+  return new Date(dateStr).toLocaleDateString('en-AU', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+  })
+}
+
+const SLOT_HEIGHT = 56
+
+// ── MEETING REVIEW MODAL ─────────────────────────────────────────
+function MeetingReviewModal({ booking, onClose, onDelete }) {
+  const [deleting, setDeleting] = useState(false)
+
+  const handleDelete = async () => {
+    if (!window.confirm('Delete this meeting?')) return
+    setDeleting(true)
+    await supabase.from('bookings').delete().eq('id', booking.id)
+    setDeleting(false)
+    onDelete()
+    onClose()
+  }
+
+  const notes = booking.notes || ''
+  const noteLines = notes.split('\n').filter(Boolean)
+  const clientEmail = noteLines.find(l => l.startsWith('Email:'))?.replace('Email:', '').trim()
+  const clientPhone = noteLines.find(l => l.startsWith('Phone:'))?.replace('Phone:', '').trim()
+  const clientAddress = noteLines.find(l => l.startsWith('Address:'))?.replace('Address:', '').trim()
+  const agenda = noteLines.find(l => l.startsWith('Agenda:'))?.replace('Agenda:', '').trim()
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
+      <div className="bg-white rounded-2xl border border-gray-200 w-full max-w-md">
+        {/* Header */}
+        <div className={`px-6 py-4 rounded-t-2xl ${booking.type === 'client' ? 'bg-emerald-50 border-b border-emerald-100' : 'bg-purple-50 border-b border-purple-100'}`}>
+          <div className="flex items-start justify-between">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${booking.type === 'client' ? 'bg-emerald-100 text-emerald-700' : 'bg-purple-100 text-purple-700'}`}>
+                  {booking.type === 'client' ? 'Client meeting' : 'Staff meeting'}
+                </span>
+              </div>
+              <div className="text-sm font-semibold text-gray-800">{booking.title}</div>
+              {booking.client_name && (
+                <div className="text-xs text-gray-500 mt-0.5">with {booking.client_name}</div>
+              )}
+            </div>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 ml-3 flex-shrink-0">✕</button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="px-6 py-4 space-y-3">
+          {/* Date and time */}
+          <div className="flex items-start gap-3">
+            <div className="w-4 h-4 mt-0.5 flex-shrink-0 text-gray-400">📅</div>
+            <div>
+              <div className="text-xs font-medium text-gray-700">{formatDateFull(booking.date)}</div>
+              <div className="text-xs text-gray-500">
+                {booking.start_time?.slice(0, 5)} · {formatDuration(booking.duration_minutes)}
+              </div>
+            </div>
+          </div>
+
+          {/* Attendees */}
+          {booking.attendees?.length > 0 && (
+            <div className="flex items-start gap-3">
+              <div className="w-4 h-4 mt-0.5 flex-shrink-0 text-gray-400">👥</div>
+              <div className="text-xs text-gray-700">{booking.attendees.join(', ')}</div>
+            </div>
+          )}
+
+          {/* Linked job */}
+          {booking.job_code && (
+            <div className="flex items-start gap-3">
+              <div className="w-4 h-4 mt-0.5 flex-shrink-0 text-gray-400">📁</div>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">{booking.job_code}</span>
+            </div>
+          )}
+
+          {/* Client details */}
+          {booking.type === 'client' && (clientEmail || clientPhone || clientAddress || agenda) && (
+            <div className="border border-gray-100 rounded-xl p-3 space-y-2">
+              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Client details</div>
+              {booking.client_name && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-400">Name</span>
+                  <span className="font-medium text-gray-700">{booking.client_name}</span>
+                </div>
+              )}
+              {clientEmail && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-400">Email</span>
+                  <span className="font-medium text-gray-700">{clientEmail}</span>
+                </div>
+              )}
+              {clientPhone && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-400">Phone</span>
+                  <span className="font-medium text-gray-700">{clientPhone}</span>
+                </div>
+              )}
+              {clientAddress && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-400">Address</span>
+                  <span className="font-medium text-gray-700 text-right max-w-[200px]">{clientAddress}</span>
+                </div>
+              )}
+              {agenda && (
+                <div className="pt-1 border-t border-gray-50">
+                  <div className="text-xs text-gray-400 mb-1">Agenda</div>
+                  <div className="text-xs text-gray-700">{agenda}</div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Internal notes */}
+          {booking.type === 'internal' && booking.notes && (
+            <div className="border border-gray-100 rounded-xl p-3">
+              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Notes</div>
+              <div className="text-xs text-gray-700">{booking.notes}</div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
+          <button onClick={handleDelete} disabled={deleting}
+            className="px-4 py-2 text-xs text-red-500 border border-red-100 rounded-lg hover:bg-red-50 font-medium disabled:opacity-50">
+            {deleting ? 'Deleting...' : 'Delete'}
+          </button>
+          <button onClick={onClose} className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium">Close</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── NEW MEETING MODAL ─────────────────────────────────────────────
 function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaultDate }) {
   const [type, setType] = useState('client')
   const [title, setTitle] = useState('')
@@ -92,7 +230,6 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
         </div>
 
         <div className="px-6 py-4 space-y-4">
-          {/* Type */}
           <div className="flex gap-2">
             {[{ id: 'client', label: 'Client meeting' }, { id: 'internal', label: 'Staff meeting' }].map(t => (
               <button key={t.id} onClick={() => setType(t.id)}
@@ -102,7 +239,6 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
             ))}
           </div>
 
-          {/* Title */}
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Title</label>
             <input value={title} onChange={e => setTitle(e.target.value)}
@@ -110,9 +246,8 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
           </div>
 
-          {/* Date and time */}
           <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-1">
+            <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Date</label>
               <input type="date" value={date} onChange={e => setDate(e.target.value)}
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
@@ -142,7 +277,6 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
             </div>
           </div>
 
-          {/* Client details */}
           {type === 'client' && (
             <div className="space-y-3 border border-gray-100 rounded-xl p-3">
               <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Client details</div>
@@ -164,7 +298,6 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
             </div>
           )}
 
-          {/* Link to job */}
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Link to job (optional)</label>
             <select value={jobId} onChange={e => setJobId(e.target.value)}
@@ -174,7 +307,6 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
             </select>
           </div>
 
-          {/* Attendees */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-medium text-gray-600">Attendees</label>
@@ -200,7 +332,6 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
             </div>
           </div>
 
-          {/* Internal notes */}
           {type === 'internal' && (
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
@@ -273,7 +404,6 @@ function ConnectCalendarModal({ onClose, currentUser }) {
         </div>
         <div className="px-6 py-4 space-y-3">
           <div className="text-xs text-gray-400 mb-4">Connect your calendar so meetings created in QPlan sync automatically.</div>
-
           <div className="border border-gray-200 rounded-xl p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -286,7 +416,6 @@ function ConnectCalendarModal({ onClose, currentUser }) {
               <button onClick={handleConnectGoogle} className="px-3 py-1.5 text-xs bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium">Connect</button>
             </div>
           </div>
-
           <div className="border border-gray-200 rounded-xl p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -299,7 +428,6 @@ function ConnectCalendarModal({ onClose, currentUser }) {
               <button onClick={handleConnectOutlook} className="px-3 py-1.5 text-xs bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium">Connect</button>
             </div>
           </div>
-
           <div className="border border-gray-200 rounded-xl p-4">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-white text-sm font-bold">C</div>
@@ -336,6 +464,7 @@ export default function Calendar({ currentUser }) {
   const [showNewMeeting, setShowNewMeeting] = useState(false)
   const [showConnect, setShowConnect] = useState(false)
   const [selectedDate, setSelectedDate] = useState(null)
+  const [selectedBooking, setSelectedBooking] = useState(null)
   const [loading, setLoading] = useState(true)
   const isDirector = currentUser.role === 'director'
 
@@ -390,9 +519,7 @@ export default function Calendar({ currentUser }) {
     return bookings.filter(b => {
       if (b.date !== dateStr) return false
       const bHour = parseInt(b.start_time?.split(':')[0] || '0')
-      const bMin = parseInt(b.start_time?.split(':')[1] || '0')
-      // Only render at the starting hour slot
-      return bHour === hour && bMin < 60
+      return bHour === hour
     })
   }
 
@@ -402,7 +529,6 @@ export default function Calendar({ currentUser }) {
     return { day: DAYS[date.getDay()], num: date.getDate(), isToday }
   }
 
-  // Hours to show: 7am to 7pm
   const hours = Array.from({ length: 13 }, (_, i) => i + 7)
 
   return (
@@ -419,6 +545,13 @@ export default function Calendar({ currentUser }) {
       )}
       {showConnect && (
         <ConnectCalendarModal onClose={() => setShowConnect(false)} currentUser={currentUser} />
+      )}
+      {selectedBooking && (
+        <MeetingReviewModal
+          booking={selectedBooking}
+          onClose={() => setSelectedBooking(null)}
+          onDelete={fetchBookings}
+        />
       )}
 
       {/* Header */}
@@ -444,7 +577,6 @@ export default function Calendar({ currentUser }) {
               <span className="text-xs text-gray-500">Staff meeting</span>
             </div>
           </div>
-
           {isDirector && (
             <select value={viewingAs} onChange={e => setViewingAs(e.target.value)}
               className="px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
@@ -502,22 +634,27 @@ export default function Calendar({ currentUser }) {
                         const topOffset = (bM / 60) * SLOT_HEIGHT
                         const heightPx = (b.duration_minutes / 60) * SLOT_HEIGHT
 
+                        // Build the label shown on the block
+                        const clientShort = b.client_name
+                          ? `${b.client_name.split(' ')[0]} ${b.client_name.split(' ')[1]?.[0] || ''}.`
+                          : null
+                        const durationLabel = formatDuration(b.duration_minutes)
+
                         return (
                           <div
                             key={bi}
-                            onClick={e => e.stopPropagation()}
-                            className={`absolute left-0.5 right-0.5 rounded-md border px-1 py-0.5 overflow-hidden z-10 ${typeColors[b.type] || 'bg-gray-100 border-gray-200 text-gray-700'}`}
+                            onClick={e => { e.stopPropagation(); setSelectedBooking(b) }}
+                            className={`absolute left-0.5 right-0.5 rounded-md border px-1 py-0.5 overflow-hidden z-10 cursor-pointer ${typeColors[b.type] || 'bg-gray-100 border-gray-200 text-gray-700'}`}
                             style={{
                               top: `${topOffset}px`,
-                              height: `${Math.max(heightPx - 2, 20)}px`,
+                              height: `${Math.max(heightPx - 2, 22)}px`,
                             }}
                           >
-                            <div className="text-xs font-medium truncate leading-tight">{b.title}</div>
-                            {heightPx > 30 && (
-                              <div className="text-xs opacity-70 leading-tight">
-                                {b.start_time?.slice(0, 5)} · {b.duration_minutes}min
-                              </div>
-                            )}
+                            <div className="text-xs font-semibold truncate leading-tight">{b.title}</div>
+                            <div className="text-xs opacity-75 truncate leading-tight">
+                              {b.start_time?.slice(0, 5)} · {durationLabel}
+                              {clientShort && ` · ${clientShort}`}
+                            </div>
                           </div>
                         )
                       })}
@@ -540,12 +677,15 @@ export default function Calendar({ currentUser }) {
         ) : bookings.length === 0 ? (
           <div className="text-xs text-gray-400 text-center py-4">No meetings this week.</div>
         ) : bookings.map((b, i) => (
-          <div key={i} className="flex items-center gap-3 py-2.5 border-b border-gray-100 last:border-0">
+          <div key={i}
+            onClick={() => setSelectedBooking(b)}
+            className="flex items-center gap-3 py-2.5 border-b border-gray-100 last:border-0 cursor-pointer hover:bg-gray-50 rounded-lg px-2 -mx-2">
             <div className={`w-2 h-2 rounded-full flex-shrink-0 ${b.type === 'client' ? 'bg-emerald-500' : 'bg-purple-500'}`} />
             <div className="flex-1 min-w-0">
               <div className="text-xs font-medium truncate">{b.title}</div>
               <div className="text-xs text-gray-400">
-                {new Date(b.date).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })} · {b.start_time?.slice(0, 5)} · {b.duration_minutes}min
+                {new Date(b.date).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })} · {b.start_time?.slice(0, 5)} · {formatDuration(b.duration_minutes)}
+                {b.client_name && ` · ${b.client_name}`}
                 {b.attendees?.length > 1 && ` · ${b.attendees.length} attendees`}
               </div>
             </div>
