@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
 const SUPABASE_URL = 'https://sltaaiumviyzgdsdkkbe.supabase.co'
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdGFhaXVtdml5emdkc2Rra2JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MTYyNTMsImV4cCI6MjA5MDQ5MjI1M30.xqWqvx8vdofj119nXDpasQ8xVD67YJU0RrjTrxycTGo'
 
 const typeColors = {
   client: 'bg-emerald-100 border-emerald-300 text-emerald-800',
@@ -56,7 +57,6 @@ function formatWeekRange(weekDates) {
 
 const SLOT_HEIGHT = 64
 
-// ── DATE PICKER ───────────────────────────────────────────────────
 function DatePickerModal({ currentDate, onSelect, onClose }) {
   const [viewMonth, setViewMonth] = useState(currentDate.getMonth())
   const [viewYear, setViewYear] = useState(currentDate.getFullYear())
@@ -74,10 +74,7 @@ function DatePickerModal({ currentDate, onSelect, onClose }) {
     else setViewMonth(m => m + 1)
   }
 
-  const handleSelect = (day) => {
-    onSelect(new Date(viewYear, viewMonth, day))
-    onClose()
-  }
+  const handleSelect = (day) => { onSelect(new Date(viewYear, viewMonth, day)); onClose() }
 
   const cells = []
   for (let i = 0; i < firstDay; i++) cells.push(null)
@@ -122,12 +119,9 @@ function DatePickerModal({ currentDate, onSelect, onClose }) {
   )
 }
 
-// ── CONNECT CALENDAR MODAL ────────────────────────────────────────
 function ConnectCalendarModal({ onClose, currentUser, onConnectionChange }) {
   const [connections, setConnections] = useState({ google: null, outlook: null, calendly: null })
   const [loading, setLoading] = useState(true)
-  const [calendlyUrl, setCalendlyUrl] = useState('')
-  const [savingCalendly, setSavingCalendly] = useState(false)
 
   useEffect(() => { checkConnections() }, [])
 
@@ -136,11 +130,11 @@ function ConnectCalendarModal({ onClose, currentUser, onConnectionChange }) {
     const providers = ['google', 'outlook', 'calendly']
     const results = {}
     for (const provider of providers) {
-      const fnName = provider === 'google' ? 'calendar-google' : provider === 'outlook' ? 'calendar-outlook' : 'calendar-calendly'
+      const fnName = `calendar-${provider}`
       try {
         const res = await fetch(`${SUPABASE_URL}/functions/v1/${fnName}?action=status`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ANON_KEY}` },
           body: JSON.stringify({ company_id: currentUser.company_id, username: currentUser.username }),
         })
         const data = await res.json()
@@ -186,16 +180,17 @@ function ConnectCalendarModal({ onClose, currentUser, onConnectionChange }) {
       client_id: clientId,
       redirect_uri: 'https://planflow-beige.vercel.app/calendar/calendly/callback',
       response_type: 'code',
+      state: btoa(JSON.stringify({ company_id: currentUser.company_id, username: currentUser.username })),
     })
     window.location.href = `https://auth.calendly.com/oauth/authorize?${params}`
   }
 
   const handleDisconnect = async (provider) => {
     if (!window.confirm(`Disconnect ${provider}?`)) return
-    const fnName = provider === 'google' ? 'calendar-google' : provider === 'outlook' ? 'calendar-outlook' : 'calendar-calendly'
+    const fnName = `calendar-${provider}`
     await fetch(`${SUPABASE_URL}/functions/v1/${fnName}?action=disconnect`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ANON_KEY}` },
       body: JSON.stringify({ company_id: currentUser.company_id, username: currentUser.username }),
     })
     checkConnections()
@@ -256,7 +251,6 @@ function ConnectCalendarModal({ onClose, currentUser, onConnectionChange }) {
   )
 }
 
-// ── EDIT MEETING MODAL ────────────────────────────────────────────
 function EditMeetingModal({ booking, onClose, onSave, staffList, jobs }) {
   const [title, setTitle] = useState(booking.title || '')
   const [date, setDate] = useState(booking.date || '')
@@ -388,7 +382,6 @@ function EditMeetingModal({ booking, onClose, onSave, staffList, jobs }) {
   )
 }
 
-// ── MEETING REVIEW MODAL ──────────────────────────────────────────
 function MeetingReviewModal({ booking, onClose, onDelete, onEdit }) {
   const [deleting, setDeleting] = useState(false)
 
@@ -477,7 +470,6 @@ function MeetingReviewModal({ booking, onClose, onDelete, onEdit }) {
   )
 }
 
-// ── NEW MEETING MODAL ─────────────────────────────────────────────
 function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaultDate }) {
   const [type, setType] = useState('client')
   const [title, setTitle] = useState('')
@@ -514,18 +506,15 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
 
     if (error) { alert('Failed to save.'); setSaving(false); return }
 
-    // Sync to connected calendars
     if (newBooking) {
-      const providers = ['google', 'outlook']
-      for (const provider of providers) {
-        const fnName = `calendar-${provider}`
+      for (const provider of ['google', 'outlook']) {
         try {
-          await fetch(`${SUPABASE_URL}/functions/v1/${fnName}?action=sync_booking`, {
+          await fetch(`${SUPABASE_URL}/functions/v1/calendar-${provider}?action=sync_booking`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ANON_KEY}` },
             body: JSON.stringify({ company_id: currentUser.company_id, username: currentUser.username, booking: newBooking }),
           })
-        } catch (e) { console.log(`${provider} sync skipped — not connected`) }
+        } catch (e) { console.log(`${provider} sync skipped`) }
       }
     }
 
@@ -644,8 +633,7 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
   )
 }
 
-// ── MAIN CALENDAR ─────────────────────────────────────────────────
-export default function Calendar({ currentUser }) {
+export default function Calendar({ currentUser, showConnectOnMount, onConnectShown }) {
   const [currentWeek, setCurrentWeek] = useState(new Date())
   const [bookings, setBookings] = useState([])
   const [staffList, setStaffList] = useState([])
@@ -663,39 +651,17 @@ export default function Calendar({ currentUser }) {
   const weekDates = getWeekDates(currentWeek)
 
   useEffect(() => {
+    if (showConnectOnMount) {
+      setShowConnect(true)
+      onConnectShown?.()
+    }
+  }, [showConnectOnMount])
+
+  useEffect(() => {
     fetchBookings()
     fetchStaff()
     fetchJobs()
   }, [currentWeek, viewingAs])
-
-  // Handle OAuth callbacks
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const code = params.get('code')
-    const state = params.get('state')
-    const path = window.location.pathname
-
-    if (code && path.includes('/calendar/')) {
-      let provider = ''
-      if (path.includes('/google/')) provider = 'google'
-      else if (path.includes('/outlook/')) provider = 'outlook'
-      else if (path.includes('/calendly/')) provider = 'calendly'
-
-      if (provider) {
-        const stateData = state ? JSON.parse(atob(state)) : { company_id: currentUser.company_id, username: currentUser.username }
-        const fnName = `calendar-${provider}`
-
-        fetch(`${SUPABASE_URL}/functions/v1/${fnName}?action=callback`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
-          body: JSON.stringify({ code, company_id: stateData.company_id, username: stateData.username }),
-        }).then(() => {
-          window.history.replaceState({}, '', '/')
-          setShowConnect(true)
-        })
-      }
-    }
-  }, [])
 
   const fetchBookings = async () => {
     setLoading(true)
@@ -763,7 +729,6 @@ export default function Calendar({ currentUser }) {
           onSave={() => { fetchBookings(); setEditingBooking(null) }} staffList={staffList} jobs={jobs} />
       )}
 
-      {/* Header */}
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <button onClick={goBack} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 text-lg">‹</button>
@@ -810,7 +775,6 @@ export default function Calendar({ currentUser }) {
         </div>
       </div>
 
-      {/* Week grid */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-gray-200 sticky top-0 bg-white z-10">
           <div className="border-r border-gray-100" />
@@ -879,7 +843,6 @@ export default function Calendar({ currentUser }) {
         </div>
       </div>
 
-      {/* Upcoming list */}
       <div className="mt-4 bg-white rounded-xl border border-gray-200 p-4">
         <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
           This week — {viewingAs}
