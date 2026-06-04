@@ -3,7 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const CALENDLY_CLIENT_ID = Deno.env.get('CALENDLY_CLIENT_ID')
 const CALENDLY_CLIENT_SECRET = Deno.env.get('CALENDLY_CLIENT_SECRET')
-const REDIRECT_URI = 'https://planflow-beige.vercel.app/calendar/calendly/callback'
+const REDIRECT_URI = 'https://planflow-beige.vercel.app'
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
 const SUPABASE_SERVICE_KEY = Deno.env.get('SERVICE_ROLE_KEY')
 
@@ -39,7 +39,7 @@ serve(async (req) => {
 
       const tokens = await tokenRes.json()
       if (!tokens.access_token) {
-        return new Response(JSON.stringify({ success: false, error: 'No access token' }), {
+        return new Response(JSON.stringify({ success: false, error: 'No access token', detail: tokens }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
@@ -62,7 +62,6 @@ serve(async (req) => {
         expires_at: new Date(Date.now() + (tokens.expires_in || 3600) * 1000).toISOString(),
       }, { onConflict: 'company_id,username,provider' })
 
-      // Register webhook
       await fetch('https://api.calendly.com/webhook_subscriptions', {
         method: 'POST',
         headers: {
@@ -103,7 +102,7 @@ serve(async (req) => {
           start_time: startTime.toTimeString().slice(0, 5),
           duration_minutes: durationMinutes,
           client_name: event.name,
-          notes: `Email: ${event.email}\nAgenda: ${event.questions_and_answers?.map((q: any) => `${q.question}: ${q.answer}`).join('\n') || ''}`,
+          notes: `Email: ${event.email}`,
           attendees: [username],
           created_by: username,
           external_id: event.uri,

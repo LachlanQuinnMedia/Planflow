@@ -148,12 +148,12 @@ function ConnectCalendarModal({ onClose, currentUser, onConnectionChange }) {
     if (!clientId) { alert('Google Calendar not configured yet.'); return }
     const params = new URLSearchParams({
       client_id: clientId,
-      redirect_uri: 'https://planflow-beige.vercel.app/calendar/google/callback',
+      redirect_uri: 'https://planflow-beige.vercel.app',
       response_type: 'code',
       scope: 'https://www.googleapis.com/auth/calendar',
       access_type: 'offline',
       prompt: 'consent',
-      state: btoa(JSON.stringify({ company_id: currentUser.company_id, username: currentUser.username })),
+      state: btoa(JSON.stringify({ provider: 'google', company_id: currentUser.company_id, username: currentUser.username })),
     })
     window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params}`
   }
@@ -163,11 +163,11 @@ function ConnectCalendarModal({ onClose, currentUser, onConnectionChange }) {
     if (!clientId) { alert('Outlook not configured yet.'); return }
     const params = new URLSearchParams({
       client_id: clientId,
-      redirect_uri: 'https://planflow-beige.vercel.app/calendar/outlook/callback',
+      redirect_uri: 'https://planflow-beige.vercel.app',
       response_type: 'code',
       scope: 'Calendars.ReadWrite offline_access',
       prompt: 'select_account',
-      state: btoa(JSON.stringify({ company_id: currentUser.company_id, username: currentUser.username })),
+      state: btoa(JSON.stringify({ provider: 'outlook', company_id: currentUser.company_id, username: currentUser.username })),
     })
     window.location.href = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params}`
   }
@@ -177,9 +177,9 @@ function ConnectCalendarModal({ onClose, currentUser, onConnectionChange }) {
     if (!clientId) { alert('Calendly not configured yet.'); return }
     const params = new URLSearchParams({
       client_id: clientId,
-      redirect_uri: 'https://planflow-beige.vercel.app/calendar/calendly/callback',
+      redirect_uri: 'https://planflow-beige.vercel.app',
       response_type: 'code',
-      state: btoa(JSON.stringify({ company_id: currentUser.company_id, username: currentUser.username })),
+      state: btoa(JSON.stringify({ provider: 'calendly', company_id: currentUser.company_id, username: currentUser.username })),
     })
     window.location.href = `https://auth.calendly.com/oauth/authorize?${params}`
   }

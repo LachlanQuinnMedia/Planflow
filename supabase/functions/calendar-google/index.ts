@@ -3,7 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const GOOGLE_CLIENT_ID = Deno.env.get('GOOGLE_CLIENT_ID')
 const GOOGLE_CLIENT_SECRET = Deno.env.get('GOOGLE_CLIENT_SECRET')
-const REDIRECT_URI = 'https://planflow-beige.vercel.app/calendar/google/callback'
+const REDIRECT_URI = 'https://planflow-beige.vercel.app'
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
 const SUPABASE_SERVICE_KEY = Deno.env.get('SERVICE_ROLE_KEY')
 
@@ -21,7 +21,6 @@ serve(async (req) => {
     const body = req.method === 'POST' ? await req.json() : {}
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_KEY!)
 
-    // Exchange code for tokens
     if (action === 'callback') {
       const { code, company_id, username } = body
 
@@ -39,18 +38,16 @@ serve(async (req) => {
 
       const tokens = await tokenRes.json()
       if (!tokens.access_token) {
-        return new Response(JSON.stringify({ success: false, error: 'No access token' }), {
+        return new Response(JSON.stringify({ success: false, error: 'No access token', detail: tokens }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
 
-      // Get user info
       const userRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
         headers: { Authorization: `Bearer ${tokens.access_token}` }
       })
       const userInfo = await userRes.json()
 
-      // Store tokens
       await supabase.from('calendar_connections').upsert({
         company_id,
         username,
@@ -66,7 +63,6 @@ serve(async (req) => {
       })
     }
 
-    // Sync QPlan booking to Google Calendar
     if (action === 'sync_booking') {
       const { company_id, username, booking } = body
 
@@ -82,7 +78,6 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
 
-      // Refresh token if needed
       let accessToken = conn.access_token
       if (new Date(conn.expires_at) < new Date()) {
         const refreshRes = await fetch('https://oauth2.googleapis.com/token', {
@@ -103,7 +98,6 @@ serve(async (req) => {
         }).eq('id', conn.id)
       }
 
-      const [startHour, startMin] = booking.start_time.split(':').map(Number)
       const startDate = new Date(`${booking.date}T${booking.start_time}:00`)
       const endDate = new Date(startDate.getTime() + booking.duration_minutes * 60000)
 
@@ -125,7 +119,6 @@ serve(async (req) => {
 
       const createdEvent = await eventRes.json()
 
-      // Save google event id back to booking
       await supabase.from('bookings').update({
         external_id: createdEvent.id,
         external_source: 'google',
@@ -136,7 +129,6 @@ serve(async (req) => {
       })
     }
 
-    // Get connection status
     if (action === 'status') {
       const { company_id, username } = body
       const { data } = await supabase
@@ -152,7 +144,6 @@ serve(async (req) => {
       })
     }
 
-    // Disconnect
     if (action === 'disconnect') {
       const { company_id, username } = body
       await supabase.from('calendar_connections')

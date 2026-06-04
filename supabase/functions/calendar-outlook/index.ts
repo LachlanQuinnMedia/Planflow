@@ -3,7 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const OUTLOOK_CLIENT_ID = Deno.env.get('OUTLOOK_CLIENT_ID')
 const OUTLOOK_CLIENT_SECRET = Deno.env.get('OUTLOOK_CLIENT_SECRET')
-const REDIRECT_URI = 'https://planflow-beige.vercel.app/calendar/outlook/callback'
+const REDIRECT_URI = 'https://planflow-beige.vercel.app'
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
 const SUPABASE_SERVICE_KEY = Deno.env.get('SERVICE_ROLE_KEY')
 
@@ -38,12 +38,11 @@ serve(async (req) => {
 
       const tokens = await tokenRes.json()
       if (!tokens.access_token) {
-        return new Response(JSON.stringify({ success: false, error: 'No access token' }), {
+        return new Response(JSON.stringify({ success: false, error: 'No access token', detail: tokens }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
 
-      // Get user info
       const userRes = await fetch('https://graph.microsoft.com/v1.0/me', {
         headers: { Authorization: `Bearer ${tokens.access_token}` }
       })
@@ -59,7 +58,7 @@ serve(async (req) => {
         expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
       }, { onConflict: 'company_id,username,provider' })
 
-      return new Response(JSON.stringify({ success: true, email: userInfo.mail }), {
+      return new Response(JSON.stringify({ success: true, email: userInfo.mail || userInfo.userPrincipalName }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }

@@ -253,77 +253,69 @@ export default function App() {
   const [history, setHistory] = useState(['dashboard'])
   const [historyIndex, setHistoryIndex] = useState(0)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [pendingCalendarCallback, setPendingCalendarCallback] = useState(null)
+  const [pendingCalendarConnect, setPendingCalendarConnect] = useState(false)
 
   useEffect(() => {
     const session = loadSession()
     if (session) setCurrentUser(session)
 
-    // Check for OAuth callback on initial load only
     const params = new URLSearchParams(window.location.search)
     const code = params.get('code')
     const state = params.get('state')
-    const path = window.location.pathname
 
     if (!code) return
 
-    // Immediately clear the URL so it never triggers again
+    // Clear URL immediately — this is the key fix, done before anything else
     window.history.replaceState({}, '', '/')
 
-    // Xero callback
-    if (state && !path.includes('/calendar/')) {
-      try {
-        const stateData = JSON.parse(atob(state))
-        if (stateData.company_id) {
-          sessionStorage.setItem('xero_callback', JSON.stringify({ code, company_id: stateData.company_id }))
-        }
-      } catch (e) {}
+    if (!state) return
+
+    let stateData
+    try {
+      stateData = JSON.parse(atob(state))
+    } catch (e) {
       return
     }
 
-    // Calendar callbacks — store in sessionStorage, process after login
-    if (path.includes('/calendar/google')) {
-      const stateData = state ? JSON.parse(atob(state)) : null
-      if (stateData) sessionStorage.setItem('calendar_callback', JSON.stringify({ provider: 'google', code, ...stateData }))
-    } else if (path.includes('/calendar/outlook')) {
-      const stateData = state ? JSON.parse(atob(state)) : null
-      if (stateData) sessionStorage.setItem('calendar_callback', JSON.stringify({ provider: 'outlook', code, ...stateData }))
-    } else if (path.includes('/calendar/calendly')) {
-      const stateData = state ? JSON.parse(atob(state)) : null
-      if (stateData) sessionStorage.setItem('calendar_callback', JSON.stringify({ provider: 'calendly', code, ...stateData }))
+    if (stateData.provider) {
+      sessionStorage.setItem('oauth_callback', JSON.stringify({ type: 'calendar', ...stateData, code }))
+    } else if (stateData.company_id) {
+      sessionStorage.setItem('oauth_callback', JSON.stringify({ type: 'xero', ...stateData, code }))
     }
   }, [])
 
-  // Process stored callbacks once user is logged in
   useEffect(() => {
     if (!currentUser) return
 
-    // Handle Xero callback
-    const xeroCallback = sessionStorage.getItem('xero_callback')
-    if (xeroCallback) {
-      sessionStorage.removeItem('xero_callback')
-      const { code, company_id } = JSON.parse(xeroCallback)
+    const stored = sessionStorage.getItem('oauth_callback')
+    if (!stored) return
+    sessionStorage.removeItem('oauth_callback')
+
+    const callback = JSON.parse(stored)
+
+    if (callback.type === 'xero') {
       import('./xero').then(({ handleXeroCallback }) => {
-        handleXeroCallback(code, company_id).then(result => {
+        handleXeroCallback(callback.code, callback.company_id).then(result => {
           if (result.success) setActivePage('xero')
         })
       })
       return
     }
 
-    // Handle calendar callback
-    const calendarCallback = sessionStorage.getItem('calendar_callback')
-    if (calendarCallback) {
-      sessionStorage.removeItem('calendar_callback')
-      const { provider, code, company_id, username } = JSON.parse(calendarCallback)
-      const fnName = `calendar-${provider}`
-      fetch(`${SUPABASE_URL}/functions/v1/${fnName}?action=callback`, {
+    if (callback.type === 'calendar') {
+      fetch(`${SUPABASE_URL}/functions/v1/calendar-${callback.provider}?action=callback`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ANON_KEY}` },
-        body: JSON.stringify({ code, company_id, username }),
-      }).then(() => {
-        setActivePage('calendar')
-        setPendingCalendarCallback(true)
+        body: JSON.stringify({
+          code: callback.code,
+          company_id: callback.company_id,
+          username: callback.username,
+        }),
+      }).then(res => res.json()).then(data => {
+        if (data.success) {
+          setActivePage('calendar')
+          setPendingCalendarConnect(true)
+        }
       })
     }
   }, [currentUser])
@@ -404,7 +396,8 @@ export default function App() {
     setJobs([])
     setNotifications([])
     setSeenNotificationIds(new Set())
-    setPendingCalendarCallback(null)
+    setPendingCalendarConnect(false)
+    sessionStorage.removeItem('oauth_callback')
   }
 
   const handleNavigate = (page, job = null) => {
@@ -456,8 +449,8 @@ export default function App() {
       case 'calendar': return (
         <Calendar
           currentUser={currentUser}
-          showConnectOnMount={!!pendingCalendarCallback}
-          onConnectShown={() => setPendingCalendarCallback(null)}
+          showConnectOnMount={pendingCalendarConnect}
+          onConnectShown={() => setPendingCalendarConnect(false)}
         />
       )
       case 'templates': return <Templates />
