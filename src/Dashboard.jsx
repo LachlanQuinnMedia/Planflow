@@ -2,77 +2,6 @@ import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
 import { sendIRDeadlineAlert } from './notifications'
 
-const allJobs = [
-  {
-    code: '2025-031', name: 'Ridgeline Mixed-Use MCU', address: '44 Ridge St, Toowoomba',
-    client: 'Jonas Hartmann', type: 'MCU', planner: 'Sarah Barnes', status: 'Active', budget: 82,
-    dates: { confirmation: '25 Jan 2025', irResponse: '19 Mar 2025', referral: '26 Mar 2025', publicNoticeStart: null, publicNoticeEnd: null, decision: '10 Apr 2025' }
-  },
-  {
-    code: '2025-028', name: 'Stonewood Estate ROL', address: 'Lot 12 Stonewood Rd, Warwick',
-    client: 'Greenfield Dev.', type: 'ROL', planner: 'Priya Mehta', status: 'Active', budget: 55,
-    dates: { confirmation: '15 Jan 2025', irResponse: '28 Mar 2025', referral: null, publicNoticeStart: '1 Apr 2025', publicNoticeEnd: '22 Apr 2025', decision: '15 May 2025' }
-  },
-  {
-    code: '2025-033', name: 'Apex Logistics RAA', address: '22 Commerce Dr, Toowoomba',
-    client: 'Apex P/L', type: 'RAA', planner: 'Sarah Barnes', status: 'Review', budget: 112,
-    dates: { confirmation: '1 Feb 2025', irResponse: '21 Mar 2025', referral: '28 Mar 2025', publicNoticeStart: null, publicNoticeEnd: null, decision: '1 Apr 2025' }
-  },
-  {
-    code: '2025-034', name: 'Creek Rd OW Stage 2', address: '5 Creek Rd, Gatton',
-    client: 'P. & L. Burke', type: 'OW', planner: 'Luke Rawlings', status: 'Draft', budget: 18,
-    dates: { confirmation: '10 Mar 2025', irResponse: null, referral: null, publicNoticeStart: null, publicNoticeEnd: null, decision: '10 Jun 2025' }
-  },
-  {
-    code: '2025-029', name: 'Hillcrest SPS Request', address: '17 Hillcrest Ave, Ipswich',
-    client: 'T. & M. Hill', type: 'SPS', planner: 'Amy Chen', status: 'Active', budget: 70,
-    dates: { confirmation: '20 Feb 2025', irResponse: '5 Apr 2025', referral: null, publicNoticeStart: null, publicNoticeEnd: null, decision: '20 May 2025' }
-  },
-  {
-    code: '2025-027', name: 'Park St Mixed-Use MCU', address: '5 Park St, Toowoomba',
-    client: 'R. Okafor', type: 'MCU', planner: 'Sarah Barnes', status: 'Active', budget: 62,
-    dates: { confirmation: '10 Feb 2025', irResponse: '1 Apr 2025', referral: '8 Apr 2025', publicNoticeStart: '15 Apr 2025', publicNoticeEnd: '6 May 2025', decision: '1 Jun 2025' }
-  },
-  {
-    code: '2024-089', name: 'Riverfront Apartments MCU', address: '12 River Rd, Ipswich',
-    client: 'J. & K. Patel', type: 'MCU', planner: 'James Thompson', status: 'Complete', budget: 100,
-    dates: { confirmation: '1 Jun 2024', irResponse: '15 Jul 2024', referral: '22 Jul 2024', publicNoticeStart: '1 Aug 2024', publicNoticeEnd: '22 Aug 2024', decision: '15 Sep 2024' }
-  },
-  {
-    code: '2024-076', name: 'Lockyer Valley ROL', address: 'Lot 4 Valley Rd, Gatton',
-    client: 'T. Morrison', type: 'ROL', planner: 'Luke Rawlings', status: 'Complete', budget: 100,
-    dates: { confirmation: '1 Apr 2024', irResponse: '1 May 2024', referral: null, publicNoticeStart: null, publicNoticeEnd: null, decision: '1 Jun 2024' }
-  },
-  {
-    code: '2024-055', name: 'Toowoomba Industrial OW', address: '8 Industry Ave, Toowoomba',
-    client: 'Apex P/L', type: 'OW', planner: 'Sarah Barnes', status: 'Complete', budget: 100,
-    dates: { confirmation: '1 Jan 2024', irResponse: null, referral: null, publicNoticeStart: null, publicNoticeEnd: null, decision: '1 Mar 2024' }
-  },
-  {
-    code: '2024-041', name: 'Greenview Childcare MCU', address: '9 Park Ave, Gatton',
-    client: 'T. Nakamura', type: 'MCU', planner: 'Priya Mehta', status: 'Complete', budget: 100,
-    dates: { confirmation: '1 Nov 2023', irResponse: '1 Dec 2023', referral: null, publicNoticeStart: null, publicNoticeEnd: null, decision: '15 Jan 2024' }
-  },
-]
-
-const plannerBookings = {
-  'Sarah Barnes': [
-    { title: 'T. Nakamura — Initial consult', time: 'Today 9:00am', type: 'client' },
-    { title: 'Principal sign-off — 2025-031', time: 'Today 3:30pm', type: 'internal' },
-    { title: 'M. Patel — Site review', time: 'Wed 21 Mar 10:00am', type: 'client' },
-  ],
-  'Priya Mehta': [
-    { title: 'Team review — 2025-028', time: 'Today 11:00am', type: 'internal' },
-    { title: 'Client call — Greenfield Dev.', time: 'Thu 22 Mar 2:00pm', type: 'client' },
-  ],
-  'Luke Rawlings': [
-    { title: 'R. Okafor — New enquiry', time: 'Today 2:00pm', type: 'client' },
-  ],
-  'Amy Chen': [
-    { title: 'J. Singh — New enquiry', time: 'Fri 23 Mar 11:00am', type: 'client' },
-  ],
-}
-
 const typeBadge = {
   MCU: 'bg-blue-100 text-blue-700',
   ROL: 'bg-amber-100 text-amber-700',
@@ -101,20 +30,157 @@ function isPast(dateStr) {
   return new Date(dateStr) < new Date()
 }
 
-function JobSearchPanel({ onNavigate, isDirector }) {
+function daysUntil(dateStr) {
+  if (!dateStr) return null
+  const diff = new Date(dateStr) - new Date()
+  return Math.ceil(diff / (1000 * 60 * 60 * 24))
+}
+
+function formatDateShort(dateStr) {
+  if (!dateStr) return '—'
+  return new Date(dateStr).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+// Extract all upcoming due dates from a job (within 30 days)
+function extractDueDates(job, withinDays = 30) {
+  const dates = []
+  const now = new Date()
+
+  const checkDate = (label, dateStr) => {
+    if (!dateStr) return
+    const date = new Date(dateStr)
+    const diff = (date - now) / (1000 * 60 * 60 * 24)
+    if (diff >= -1 && diff <= withinDays) {
+      dates.push({
+        label,
+        date: dateStr,
+        daysUntil: Math.ceil(diff),
+        jobCode: job.code,
+        jobName: job.name,
+        planner: job.planner,
+        planners: job.planners || (job.planner ? [job.planner] : []),
+      })
+    }
+  }
+
+  // Key dates from job fields
+  checkDate('Lodgement', job.lodgement_date)
+  checkDate('Decision due', job.decision_due_date)
+  checkDate('Confirmation', job.date_confirmation)
+  checkDate('IR response', job.date_ir_response)
+  checkDate('Referral', job.date_referral)
+  checkDate('Public notice start', job.date_public_notice_start)
+  checkDate('Public notice end', job.date_public_notice_end)
+  checkDate('Decision', job.date_decision)
+
+  // DA stage end dates
+  if (job.da_stages) {
+    const stageLabels = {
+      application: 'Application stage',
+      referral: 'Referral stage',
+      information: 'Information request',
+      notification: 'Public notification',
+      decision: 'Decision stage',
+    }
+    for (const [key, label] of Object.entries(stageLabels)) {
+      const stage = job.da_stages[key]
+      if (stage?.status === 'active' && stage?.endDate) {
+        checkDate(label, stage.endDate)
+      }
+    }
+  }
+
+  return dates.sort((a, b) => a.daysUntil - b.daysUntil)
+}
+
+function DueDateBadge({ daysUntil }) {
+  if (daysUntil < 0) return <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">Overdue</span>
+  if (daysUntil <= 3) return <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">{daysUntil}d</span>
+  if (daysUntil <= 7) return <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">{daysUntil}d</span>
+  if (daysUntil <= 14) return <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 font-medium">{daysUntil}d</span>
+  return <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium">{daysUntil}d</span>
+}
+
+function KeyDatesPanel({ myJobs, allJobs, viewingAs }) {
+  // My jobs due dates — only jobs assigned to this user
+  const myDueDates = myJobs.flatMap(job => extractDueDates(job, 30))
+    .sort((a, b) => a.daysUntil - b.daysUntil)
+
+  // All firm due dates — every active job within 30 days
+  const allDueDates = allJobs.flatMap(job => extractDueDates(job, 30))
+    .sort((a, b) => a.daysUntil - b.daysUntil)
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+      {/* Left — my jobs */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">My upcoming deadlines</div>
+          <div className="text-xs text-gray-400 mt-0.5">Dates due within 30 days — {viewingAs}</div>
+        </div>
+        {myDueDates.length === 0 ? (
+          <div className="px-4 py-8 text-center text-xs text-gray-400">No deadlines in the next 30 days.</div>
+        ) : myDueDates.map((d, i) => (
+          <div key={i} className={`flex items-center gap-3 px-4 py-3 border-b border-gray-100 last:border-0 ${d.daysUntil <= 7 ? 'bg-amber-50/40' : ''}`}>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-xs font-semibold text-emerald-600">{d.jobCode}</span>
+                <span className="text-xs text-gray-500 truncate">{d.label}</span>
+              </div>
+              <div className="text-xs text-gray-400 truncate">{d.jobName}</div>
+              <div className="text-xs text-gray-400">{formatDateShort(d.date)}</div>
+            </div>
+            <DueDateBadge daysUntil={d.daysUntil} />
+          </div>
+        ))}
+      </div>
+
+      {/* Right — all firm jobs */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Firm-wide upcoming deadlines</div>
+          <div className="text-xs text-gray-400 mt-0.5">All active jobs due within 30 days</div>
+        </div>
+        {allDueDates.length === 0 ? (
+          <div className="px-4 py-8 text-center text-xs text-gray-400">No firm-wide deadlines in the next 30 days.</div>
+        ) : allDueDates.map((d, i) => (
+          <div key={i} className={`flex items-center gap-3 px-4 py-3 border-b border-gray-100 last:border-0 ${d.daysUntil <= 7 ? 'bg-amber-50/40' : ''}`}>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-xs font-semibold text-emerald-600">{d.jobCode}</span>
+                <span className="text-xs text-gray-500 truncate">{d.label}</span>
+              </div>
+              <div className="text-xs text-gray-400 truncate">{d.jobName}</div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-400">{formatDateShort(d.date)}</span>
+                <span className="text-xs text-gray-300">·</span>
+                <span className="text-xs text-gray-400">{d.planner}</span>
+              </div>
+            </div>
+            <DueDateBadge daysUntil={d.daysUntil} />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function JobSearchPanel({ onNavigate, isDirector, jobs }) {
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('All')
   const [statusFilter, setStatusFilter] = useState('All')
   const [plannerFilter, setPlannerFilter] = useState('All')
 
-  const filtered = allJobs.filter(j => {
+  const uniquePlanners = [...new Set(jobs.map(j => j.planner).filter(Boolean))].sort()
+
+  const filtered = jobs.filter(j => {
     const matchSearch = search === '' ||
-      j.name.toLowerCase().includes(search.toLowerCase()) ||
-      j.client.toLowerCase().includes(search.toLowerCase()) ||
-      j.address.toLowerCase().includes(search.toLowerCase()) ||
-      j.code.toLowerCase().includes(search.toLowerCase()) ||
-      j.planner.toLowerCase().includes(search.toLowerCase())
-    const matchType = typeFilter === 'All' || j.type === typeFilter
+      j.name?.toLowerCase().includes(search.toLowerCase()) ||
+      (j.client_first_name + ' ' + j.client_last_name).toLowerCase().includes(search.toLowerCase()) ||
+      j.address?.toLowerCase().includes(search.toLowerCase()) ||
+      j.code?.toLowerCase().includes(search.toLowerCase()) ||
+      j.planner?.toLowerCase().includes(search.toLowerCase())
+    const matchType = typeFilter === 'All' || j.app_type === typeFilter
     const matchStatus = statusFilter === 'All' || j.status === statusFilter
     const matchPlanner = plannerFilter === 'All' || j.planner === plannerFilter
     return matchSearch && matchType && matchStatus && matchPlanner
@@ -140,7 +206,8 @@ function JobSearchPanel({ onNavigate, isDirector }) {
           </select>
           {isDirector && (
             <select value={plannerFilter} onChange={e => setPlannerFilter(e.target.value)} className="flex-1 px-2 py-2 text-xs border border-gray-200 rounded-lg">
-              <option>All</option><option>Sarah Barnes</option><option>James Thompson</option><option>Priya Mehta</option><option>Luke Rawlings</option><option>Amy Chen</option>
+              <option>All</option>
+              {uniquePlanners.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           )}
         </div>
@@ -151,15 +218,15 @@ function JobSearchPanel({ onNavigate, isDirector }) {
           {filtered.length === 0 ? (
             <div className="text-xs text-gray-400 py-4 text-center">No jobs match your search.</div>
           ) : filtered.map(job => (
-            <div key={job.code} onClick={() => onNavigate('jobdetail')} className="flex items-center gap-2 py-2.5 border-b border-gray-100 last:border-0 cursor-pointer hover:bg-gray-50 rounded-lg px-2">
+            <div key={job.id || job.code} onClick={() => onNavigate('jobdetail', job)} className="flex items-center gap-2 py-2.5 border-b border-gray-100 last:border-0 cursor-pointer hover:bg-gray-50 rounded-lg px-2">
               <div className="text-xs font-medium text-emerald-600 w-16 flex-shrink-0">{job.code}</div>
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-medium truncate">{job.name}</div>
-                <div className="text-xs text-gray-400 truncate">{job.client} · {job.address}</div>
+                <div className="text-xs text-gray-400 truncate">{job.client_first_name} {job.client_last_name} · {job.address}</div>
               </div>
-              <div className="hidden sm:block text-xs text-gray-400 w-20 text-right flex-shrink-0">{job.planner.split(' ')[0]} {job.planner.split(' ')[1][0]}.</div>
-              <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${typeBadge[job.type]}`}>{job.type}</span>
-              <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${statusBadge[job.status]}`}>{job.status}</span>
+              <div className="hidden sm:block text-xs text-gray-400 w-20 text-right flex-shrink-0">{job.planner?.split(' ')[0]} {job.planner?.split(' ')[1]?.[0]}.</div>
+              <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${typeBadge[job.app_type] || 'bg-gray-100 text-gray-500'}`}>{job.app_type}</span>
+              <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${statusBadge[job.status] || 'bg-gray-100 text-gray-500'}`}>{job.status}</span>
             </div>
           ))}
         </div>
@@ -170,37 +237,43 @@ function JobSearchPanel({ onNavigate, isDirector }) {
   )
 }
 
-function PlannerView({ planner, onNavigate }) {
-  const myJobs = allJobs.filter(j => j.planner === planner && j.status !== 'Complete')
-  const myBookings = plannerBookings[planner] || []
-  const urgentDates = myJobs.flatMap(j =>
-    Object.entries(j.dates)
-      .filter(([, v]) => v && isUrgent(v))
-      .map(([k, v]) => ({ job: j.code, label: k, date: v, name: j.name }))
+function PlannerView({ planner, onNavigate, allJobs }) {
+  // My jobs — jobs where this planner is assigned
+  const myJobs = allJobs.filter(j =>
+    j.status !== 'Complete' &&
+    (j.planner === planner || j.planners?.includes(planner))
   )
 
-  const sendTestEmail = async () => {
-    const result = await sendIRDeadlineAlert({
-      plannerEmail: 'lachlanquinnmedia@outlook.com',
-      plannerName: planner.split(' ')[0],
-      jobCode: '2025-031',
-      jobName: 'Ridgeline Mixed-Use MCU',
-      irDeadline: '19 Mar 2025',
-      council: 'Toowoomba Regional',
-    })
-    if (result.success) {
-      alert('Test email sent! Check your inbox.')
-    } else {
-      alert('Email failed — Resend requires a verified domain for production.')
+  const urgentDates = myJobs.flatMap(j => {
+    const dates = []
+    const checkDate = (label, dateStr) => {
+      if (dateStr && isUrgent(dateStr)) dates.push({ job: j.code, label, date: dateStr, name: j.name })
     }
-  }
+    checkDate('IR response', j.date_ir_response)
+    checkDate('Decision', j.date_decision)
+    checkDate('Referral', j.date_referral)
+    checkDate('Public notice', j.date_public_notice_start)
+    if (j.da_stages) {
+      const stageLabels = { application: 'Application stage', referral: 'Referral stage', information: 'Information request', notification: 'Public notification', decision: 'Decision stage' }
+      for (const [key, label] of Object.entries(stageLabels)) {
+        const stage = j.da_stages[key]
+        if (stage?.status === 'active' && stage?.endDate && isUrgent(stage.endDate)) {
+          dates.push({ job: j.code, label, date: stage.endDate, name: j.name })
+        }
+      }
+    }
+    return dates
+  })
+
+  // Active jobs excluding complete
+  const activeAllJobs = allJobs.filter(j => j.status !== 'Complete')
 
   return (
     <div>
       <div className="mb-4">
         <div className="text-base font-semibold">Good morning, {planner.split(' ')[0]} 👋</div>
         <div className="text-xs text-gray-400 mt-0.5">
-          {myJobs.length} active jobs · {myBookings.length} bookings today · {urgentDates.length} dates due this week
+          {myJobs.length} active jobs · {urgentDates.length} dates due this week
         </div>
       </div>
 
@@ -210,15 +283,14 @@ function PlannerView({ planner, onNavigate }) {
           {urgentDates.map((d, i) => (
             <div key={i} className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs py-1 border-b border-amber-100 last:border-0 gap-0.5">
               <span className="text-amber-800 font-medium">{d.job} — {d.name}</span>
-              <span className="text-amber-600">{d.label.replace(/([A-Z])/g, ' $1').toLowerCase()} · {d.date}</span>
+              <span className="text-amber-600">{d.label} · {formatDateShort(d.date)}</span>
             </div>
           ))}
         </div>
       )}
 
-      <JobSearchPanel onNavigate={onNavigate} isDirector={false} />
+      <JobSearchPanel onNavigate={onNavigate} isDirector={false} jobs={allJobs} />
 
-      {/* Main grid — single col on mobile, two col on desktop */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-center justify-between mb-3">
@@ -228,21 +300,21 @@ function PlannerView({ planner, onNavigate }) {
           {myJobs.length === 0 ? (
             <div className="text-xs text-gray-400">No active jobs assigned.</div>
           ) : myJobs.map(job => (
-            <div key={job.code} onClick={() => onNavigate('jobdetail')} className="cursor-pointer hover:opacity-80 py-2 border-b border-gray-100 last:border-0">
+            <div key={job.id} onClick={() => onNavigate('jobdetail', job)} className="cursor-pointer hover:opacity-80 py-2 border-b border-gray-100 last:border-0">
               <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                 <div className="text-xs font-medium text-emerald-600 w-16 flex-shrink-0">{job.code}</div>
                 <div className="flex-1 text-xs font-medium truncate">{job.name}</div>
-                <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${typeBadge[job.type]}`}>{job.type}</span>
-                <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${statusBadge[job.status]}`}>{job.status}</span>
+                <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${typeBadge[job.app_type] || 'bg-gray-100 text-gray-500'}`}>{job.app_type}</span>
+                <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${statusBadge[job.status] || 'bg-gray-100 text-gray-500'}`}>{job.status}</span>
               </div>
               <div className="ml-0 sm:ml-16 flex flex-wrap gap-x-4">
-                {job.dates.irResponse && (
-                  <div className={`text-xs ${isUrgent(job.dates.irResponse) ? 'text-amber-600 font-medium' : 'text-gray-400'}`}>
-                    IR: {job.dates.irResponse}
+                {job.date_ir_response && (
+                  <div className={`text-xs ${isUrgent(job.date_ir_response) ? 'text-amber-600 font-medium' : 'text-gray-400'}`}>
+                    IR: {formatDateShort(job.date_ir_response)}
                   </div>
                 )}
-                {job.dates.decision && (
-                  <div className="text-xs text-gray-400">Decision: {job.dates.decision}</div>
+                {job.decision_due_date && (
+                  <div className="text-xs text-gray-400">Decision: {formatDateShort(job.decision_due_date)}</div>
                 )}
               </div>
             </div>
@@ -254,87 +326,51 @@ function PlannerView({ planner, onNavigate }) {
 
         <div className="flex flex-col gap-3">
           <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">My bookings</div>
-              <button onClick={() => onNavigate('calendly')} className="text-xs text-emerald-600 hover:underline">All →</button>
-            </div>
-            {myBookings.length === 0 ? (
-              <div className="text-xs text-gray-400">No bookings this week.</div>
-            ) : myBookings.map((b, i) => (
-              <div key={i} className="flex items-start gap-2 py-2 border-b border-gray-100 last:border-0">
-                <div className={`w-2 h-2 rounded-full mt-1 flex-shrink-0 ${b.type === 'client' ? 'bg-blue-500' : 'bg-purple-500'}`} />
-                <div>
-                  <div className="text-xs font-medium">{b.title}</div>
-                  <div className="text-xs text-gray-400">{b.time}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
             <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Quick actions</div>
             <div className="grid grid-cols-2 gap-2">
               <button onClick={() => onNavigate('newjob')} className="py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">+ New job</button>
               <button onClick={() => onNavigate('time')} className="py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Log time</button>
               <button onClick={() => onNavigate('docs')} className="py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Documents</button>
-              <button onClick={sendTestEmail} className="py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Test email alert</button>
+              <button onClick={() => onNavigate('calendar')} className="py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Calendar</button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Key dates table — hidden on mobile, shown on desktop */}
-      <div className="hidden md:block bg-white rounded-xl border border-gray-200 p-4">
-        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Key dates — my active jobs</div>
-        <div className="grid grid-cols-[80px_1fr_110px_110px_110px_110px_110px] gap-2 pb-2 mb-1 border-b border-gray-200">
-          {['Job', 'Name', 'Confirmation', 'IR Response', 'Referral', 'Public Notice', 'Decision'].map(h => (
-            <div key={h} className="text-xs text-gray-400">{h}</div>
-          ))}
-        </div>
-        {myJobs.map(job => (
-          <div key={job.code} className="grid grid-cols-[80px_1fr_110px_110px_110px_110px_110px] gap-2 py-2 border-b border-gray-100 last:border-0 items-center">
-            <div className="text-xs font-medium text-emerald-600">{job.code}</div>
-            <div className="text-xs font-medium truncate">{job.name}</div>
-            {[job.dates.confirmation, job.dates.irResponse, job.dates.referral, job.dates.publicNoticeStart, job.dates.decision].map((d, i) => (
-              <div key={i} className={`text-xs ${d && isUrgent(d) ? 'text-amber-600 font-semibold' : d && isPast(d) ? 'text-red-400' : 'text-gray-500'}`}>
-                {d || '—'}
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
-
-      {/* Mobile key dates — card per job */}
-      <div className="md:hidden space-y-2">
-        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Key dates</div>
-        {myJobs.map(job => (
-          <div key={job.code} className="bg-white rounded-xl border border-gray-200 p-3">
-            <div className="text-xs font-semibold text-emerald-600 mb-2">{job.code} — {job.name}</div>
-            {[
-              ['Confirmation', job.dates.confirmation],
-              ['IR Response', job.dates.irResponse],
-              ['Referral', job.dates.referral],
-              ['Public Notice', job.dates.publicNoticeStart],
-              ['Decision', job.dates.decision],
-            ].filter(([, v]) => v).map(([label, date]) => (
-              <div key={label} className="flex justify-between text-xs py-1 border-b border-gray-50 last:border-0">
-                <span className="text-gray-400">{label}</span>
-                <span className={`font-medium ${isUrgent(date) ? 'text-amber-600' : isPast(date) ? 'text-red-400' : 'text-gray-600'}`}>{date}</span>
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
+      {/* Key dates — two column panel */}
+      <KeyDatesPanel myJobs={myJobs} allJobs={activeAllJobs} viewingAs={planner} />
     </div>
   )
 }
 
-function DirectorView({ onNavigate }) {
-  const allPlanners = [...new Set(allJobs.map(j => j.planner))]
+function DirectorView({ onNavigate, allJobs, viewingAs }) {
   const activeJobs = allJobs.filter(j => j.status !== 'Complete')
-  const urgentAll = activeJobs.flatMap(j =>
-    Object.entries(j.dates)
-      .filter(([, v]) => v && isUrgent(v))
-      .map(([k, v]) => ({ job: j.code, planner: j.planner, label: k, date: v, name: j.name }))
+  const allPlanners = [...new Set(allJobs.map(j => j.planner).filter(Boolean))]
+
+  const urgentAll = activeJobs.flatMap(j => {
+    const dates = []
+    const checkDate = (label, dateStr) => {
+      if (dateStr && isUrgent(dateStr)) dates.push({ job: j.code, planner: j.planner, label, date: dateStr, name: j.name })
+    }
+    checkDate('IR response', j.date_ir_response)
+    checkDate('Decision', j.date_decision || j.decision_due_date)
+    checkDate('Referral', j.date_referral)
+    if (j.da_stages) {
+      const stageLabels = { application: 'Application stage', referral: 'Referral stage', information: 'Information request', notification: 'Public notification', decision: 'Decision stage' }
+      for (const [key, label] of Object.entries(stageLabels)) {
+        const stage = j.da_stages[key]
+        if (stage?.status === 'active' && stage?.endDate && isUrgent(stage.endDate)) {
+          dates.push({ job: j.code, planner: j.planner, label, date: stage.endDate, name: j.name })
+        }
+      }
+    }
+    return dates
+  })
+
+  // My jobs as director (for left column of key dates)
+  const myJobs = allJobs.filter(j =>
+    j.status !== 'Complete' &&
+    (j.planner === viewingAs || j.planners?.includes(viewingAs))
   )
 
   return (
@@ -344,16 +380,15 @@ function DirectorView({ onNavigate }) {
         <div className="text-xs text-gray-400 mt-0.5">{activeJobs.length} active jobs · {allPlanners.length} planners · {urgentAll.length} dates due this week</div>
       </div>
 
-      {/* Stats — 2 col on mobile, 5 col on desktop */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-4">
         <div className="bg-gray-50 rounded-lg p-3"><div className="text-xs text-gray-400 mb-1">Active jobs</div><div className="text-xl font-semibold">{activeJobs.length}</div></div>
         <div className="bg-gray-50 rounded-lg p-3"><div className="text-xs text-gray-400 mb-1">Total jobs</div><div className="text-xl font-semibold">{allJobs.length}</div></div>
-        <div className="bg-emerald-50 rounded-lg p-3"><div className="text-xs text-emerald-600 mb-1">Revenue MTD</div><div className="text-xl font-semibold text-emerald-600">$68,400</div></div>
-        <div className="bg-emerald-50 rounded-lg p-3"><div className="text-xs text-emerald-600 mb-1">Billable hrs MTD</div><div className="text-xl font-semibold text-emerald-600">412 hrs</div></div>
-        <div className="bg-red-50 rounded-lg p-3 col-span-2 sm:col-span-1"><div className="text-xs text-red-400 mb-1">Over budget</div><div className="text-xl font-semibold text-red-600">{activeJobs.filter(j => j.budget > 100).length}</div></div>
+        <div className="bg-emerald-50 rounded-lg p-3"><div className="text-xs text-emerald-600 mb-1">Planners</div><div className="text-xl font-semibold text-emerald-600">{allPlanners.length}</div></div>
+        <div className="bg-amber-50 rounded-lg p-3"><div className="text-xs text-amber-600 mb-1">Due this week</div><div className="text-xl font-semibold text-amber-600">{urgentAll.length}</div></div>
+        <div className="bg-red-50 rounded-lg p-3 col-span-2 sm:col-span-1"><div className="text-xs text-red-400 mb-1">Due in 30 days</div><div className="text-xl font-semibold text-red-600">{activeJobs.flatMap(j => extractDueDates(j, 30)).length}</div></div>
       </div>
 
-      <JobSearchPanel onNavigate={onNavigate} isDirector={true} />
+      <JobSearchPanel onNavigate={onNavigate} isDirector={true} jobs={allJobs} />
 
       {urgentAll.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
@@ -361,58 +396,13 @@ function DirectorView({ onNavigate }) {
           {urgentAll.map((d, i) => (
             <div key={i} className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs py-1 border-b border-amber-100 last:border-0 gap-0.5">
               <span className="text-amber-800 font-medium">{d.job} — {d.name}</span>
-              <span className="text-amber-600">{d.planner} · {d.label.replace(/([A-Z])/g, ' $1').toLowerCase()} · {d.date}</span>
+              <span className="text-amber-600">{d.planner} · {d.label} · {formatDateShort(d.date)}</span>
             </div>
           ))}
         </div>
       )}
 
-      {/* Revenue table — desktop only */}
-      <div className="hidden md:block bg-white rounded-xl border border-gray-200 p-4 mb-4">
-        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Revenue by planner — MTD</div>
-        <div className="grid grid-cols-[1fr_80px_80px_80px_80px] gap-3 pb-2 mb-1 border-b border-gray-200">
-          {['Planner', 'Active jobs', 'Hrs MTD', 'Rate', 'Revenue'].map(h => (
-            <div key={h} className="text-xs text-gray-400">{h}</div>
-          ))}
-        </div>
-        {[
-          { name: 'Sarah Barnes', jobs: 3, hrs: 62, rate: 185 },
-          { name: 'James Thompson', jobs: 2, hrs: 48, rate: 155 },
-          { name: 'Priya Mehta', jobs: 2, hrs: 40, rate: 160 },
-          { name: 'Luke Rawlings', jobs: 2, hrs: 28, rate: 135 },
-          { name: 'Amy Chen', jobs: 2, hrs: 36, rate: 140 },
-        ].map(p => (
-          <div key={p.name} className="grid grid-cols-[1fr_80px_80px_80px_80px] gap-3 py-2 border-b border-gray-100 last:border-0 items-center">
-            <div className="text-xs font-medium">{p.name}</div>
-            <div className="text-xs text-gray-500">{p.jobs}</div>
-            <div className="text-xs text-gray-500">{p.hrs} hrs</div>
-            <div className="text-xs text-gray-500">${p.rate}/hr</div>
-            <div className="text-xs font-semibold text-emerald-600">${(p.hrs * p.rate).toLocaleString()}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Mobile revenue — cards */}
-      <div className="md:hidden bg-white rounded-xl border border-gray-200 p-4 mb-4">
-        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Revenue by planner — MTD</div>
-        {[
-          { name: 'Sarah Barnes', jobs: 3, hrs: 62, rate: 185 },
-          { name: 'James Thompson', jobs: 2, hrs: 48, rate: 155 },
-          { name: 'Priya Mehta', jobs: 2, hrs: 40, rate: 160 },
-          { name: 'Luke Rawlings', jobs: 2, hrs: 28, rate: 135 },
-          { name: 'Amy Chen', jobs: 2, hrs: 36, rate: 140 },
-        ].map(p => (
-          <div key={p.name} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-            <div>
-              <div className="text-xs font-medium">{p.name}</div>
-              <div className="text-xs text-gray-400">{p.jobs} jobs · {p.hrs} hrs · ${p.rate}/hr</div>
-            </div>
-            <div className="text-xs font-semibold text-emerald-600">${(p.hrs * p.rate).toLocaleString()}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Active jobs table — desktop only */}
+      {/* Active jobs table */}
       <div className="hidden md:block bg-white rounded-xl border border-gray-200 p-4 mb-4">
         <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">All active jobs — allocated by planner</div>
         <div className="grid grid-cols-[80px_1fr_90px_55px_65px_70px_80px] gap-2 pb-2 mb-1 border-b border-gray-200">
@@ -421,56 +411,56 @@ function DirectorView({ onNavigate }) {
           ))}
         </div>
         {activeJobs.map(job => (
-          <div key={job.code} onClick={() => onNavigate('jobdetail')} className="grid grid-cols-[80px_1fr_90px_55px_65px_70px_80px] gap-2 py-2 border-b border-gray-100 last:border-0 items-center cursor-pointer hover:bg-gray-50 rounded-lg px-1">
+          <div key={job.id} onClick={() => onNavigate('jobdetail', job)} className="grid grid-cols-[80px_1fr_90px_55px_65px_70px_80px] gap-2 py-2 border-b border-gray-100 last:border-0 items-center cursor-pointer hover:bg-gray-50 rounded-lg px-1">
             <div className="text-xs font-medium text-emerald-600">{job.code}</div>
             <div className="text-xs font-medium truncate">{job.name}</div>
-            <div className="text-xs text-gray-500 truncate">{job.planner.split(' ')[0]} {job.planner.split(' ')[1][0]}.</div>
-            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${typeBadge[job.type]}`}>{job.type}</span>
-            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${statusBadge[job.status]}`}>{job.status}</span>
+            <div className="text-xs text-gray-500 truncate">{job.planner?.split(' ')[0]} {job.planner?.split(' ')[1]?.[0]}.</div>
+            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${typeBadge[job.app_type] || 'bg-gray-100 text-gray-500'}`}>{job.app_type}</span>
+            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${statusBadge[job.status] || 'bg-gray-100 text-gray-500'}`}>{job.status}</span>
             <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-              <div className={`h-full rounded-full ${job.budget > 100 ? 'bg-red-500' : job.budget > 75 ? 'bg-amber-400' : 'bg-emerald-500'}`} style={{ width: `${Math.min(job.budget, 100)}%` }} />
+              <div className="h-full rounded-full bg-emerald-500" style={{ width: '50%' }} />
             </div>
-            <div className="text-xs text-gray-500">{job.dates.decision || '—'}</div>
+            <div className="text-xs text-gray-500">{formatDateShort(job.decision_due_date || job.date_decision)}</div>
           </div>
         ))}
       </div>
 
-      {/* Mobile active jobs — cards */}
+      {/* Mobile active jobs */}
       <div className="md:hidden space-y-2 mb-4">
         <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Active jobs</div>
         {activeJobs.map(job => (
-          <div key={job.code} onClick={() => onNavigate('jobdetail')} className="bg-white rounded-xl border border-gray-200 p-3 cursor-pointer active:bg-gray-50">
+          <div key={job.id} onClick={() => onNavigate('jobdetail', job)} className="bg-white rounded-xl border border-gray-200 p-3 cursor-pointer active:bg-gray-50">
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs font-semibold text-emerald-600">{job.code}</span>
               <div className="flex gap-1.5">
-                <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${typeBadge[job.type]}`}>{job.type}</span>
-                <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${statusBadge[job.status]}`}>{job.status}</span>
+                <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${typeBadge[job.app_type] || 'bg-gray-100 text-gray-500'}`}>{job.app_type}</span>
+                <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${statusBadge[job.status] || 'bg-gray-100 text-gray-500'}`}>{job.status}</span>
               </div>
             </div>
             <div className="text-xs font-medium text-gray-800 mb-0.5">{job.name}</div>
             <div className="flex items-center justify-between mt-1.5">
-              <span className="text-xs text-gray-400">{job.planner.split(' ')[0]} {job.planner.split(' ')[1][0]}.</span>
-              <span className="text-xs text-gray-400">Decision: {job.dates.decision || '—'}</span>
-            </div>
-            <div className="mt-2 w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-              <div className={`h-full rounded-full ${job.budget > 100 ? 'bg-red-500' : job.budget > 75 ? 'bg-amber-400' : 'bg-emerald-500'}`} style={{ width: `${Math.min(job.budget, 100)}%` }} />
+              <span className="text-xs text-gray-400">{job.planner?.split(' ')[0]} {job.planner?.split(' ')[1]?.[0]}.</span>
+              <span className="text-xs text-gray-400">Decision: {formatDateShort(job.decision_due_date || job.date_decision)}</span>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Planner cards — 1 col mobile, 3 col desktop */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+      {/* Key dates — two column panel */}
+      <KeyDatesPanel myJobs={myJobs} allJobs={activeJobs} viewingAs={viewingAs} />
+
+      {/* Planner cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mt-4">
         {allPlanners.map(planner => {
           const pJobs = activeJobs.filter(j => j.planner === planner)
-          const pUrgent = pJobs.flatMap(j => Object.values(j.dates).filter(v => v && isUrgent(v)))
+          const pUrgent = pJobs.flatMap(j => extractDueDates(j, 7))
           return (
             <div key={planner} className="bg-white rounded-xl border border-gray-200 p-3">
               <div className="text-xs font-semibold mb-1">{planner}</div>
-              <div className="text-xs text-gray-400 mb-2">{pJobs.length} active jobs · {pUrgent.length} dates due</div>
+              <div className="text-xs text-gray-400 mb-2">{pJobs.length} active jobs · {pUrgent.length} dates due this week</div>
               {pJobs.map(j => (
-                <div key={j.code} className="flex items-center gap-1.5 py-1 border-b border-gray-50 last:border-0">
-                  <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${typeBadge[j.type]}`}>{j.type}</span>
+                <div key={j.id} className="flex items-center gap-1.5 py-1 border-b border-gray-50 last:border-0">
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${typeBadge[j.app_type] || 'bg-gray-100 text-gray-500'}`}>{j.app_type}</span>
                   <div className="text-xs truncate">{j.code}</div>
                 </div>
               ))}
@@ -487,6 +477,21 @@ export default function Dashboard({ onNavigate, currentUser }) {
   const [view, setView] = useState('planner')
   const [viewingAs, setViewingAs] = useState(currentUser?.username || '')
   const [staffList, setStaffList] = useState([])
+  const [allJobs, setAllJobs] = useState([])
+  const [loadingJobs, setLoadingJobs] = useState(true)
+
+  useEffect(() => {
+    const fetchJobs = async () => {
+      setLoadingJobs(true)
+      const { data } = await supabase
+        .from('jobs')
+        .select('*')
+        .order('created_at', { ascending: false })
+      if (data) setAllJobs(data)
+      setLoadingJobs(false)
+    }
+    fetchJobs()
+  }, [])
 
   useEffect(() => {
     if (!isDirector || !currentUser?.company_id) return
@@ -537,9 +542,11 @@ export default function Dashboard({ onNavigate, currentUser }) {
         )}
       </div>
 
-      {view === 'planner'
-        ? <PlannerView planner={viewingAs} onNavigate={onNavigate} />
-        : <DirectorView onNavigate={onNavigate} />
+      {loadingJobs ? (
+        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-xs text-gray-400">Loading dashboard...</div>
+      ) : view === 'planner'
+        ? <PlannerView planner={viewingAs} onNavigate={onNavigate} allJobs={allJobs} />
+        : <DirectorView onNavigate={onNavigate} allJobs={allJobs} viewingAs={viewingAs} />
       }
     </div>
   )
