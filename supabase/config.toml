@@ -422,3 +422,36 @@ entrypoint = "./functions/xero-auth/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/xero-auth/*.html" ]
+
+[functions.calendar-google]
+enabled = true
+verify_jwt = false
+import_map = "./functions/calendar-google/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/calendar-google/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/calendar-google/*.html" ]
+
+[functions.calendar-outlook]
+enabled = true
+verify_jwt = false
+import_map = "./functions/calendar-outlook/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/calendar-outlook/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/calendar-outlook/*.html" ]
+
+[functions.calendar-calendly]
+enabled = true
+verify_jwt = false
+import_map = "./functions/calendar-calendly/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/calendar-calendly/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/calendar-calendly/*.html" ]
