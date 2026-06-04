@@ -4,6 +4,8 @@ import { supabase } from './supabase'
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
+const SUPABASE_URL = 'https://sltaaiumviyzgdsdkkbe.supabase.co'
+
 const typeColors = {
   client: 'bg-emerald-100 border-emerald-300 text-emerald-800',
   internal: 'bg-purple-100 border-purple-300 text-purple-800',
@@ -54,7 +56,7 @@ function formatWeekRange(weekDates) {
 
 const SLOT_HEIGHT = 64
 
-// ── DATE PICKER MODAL ────────────────────────────────────────────
+// ── DATE PICKER ───────────────────────────────────────────────────
 function DatePickerModal({ currentDate, onSelect, onClose }) {
   const [viewMonth, setViewMonth] = useState(currentDate.getMonth())
   const [viewYear, setViewYear] = useState(currentDate.getFullYear())
@@ -67,15 +69,13 @@ function DatePickerModal({ currentDate, onSelect, onClose }) {
     if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1) }
     else setViewMonth(m => m - 1)
   }
-
   const nextMonth = () => {
     if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1) }
     else setViewMonth(m => m + 1)
   }
 
   const handleSelect = (day) => {
-    const selected = new Date(viewYear, viewMonth, day)
-    onSelect(selected)
+    onSelect(new Date(viewYear, viewMonth, day))
     onClose()
   }
 
@@ -84,69 +84,179 @@ function DatePickerModal({ currentDate, onSelect, onClose }) {
   for (let d = 1; d <= daysInMonth; d++) cells.push(d)
   while (cells.length % 7 !== 0) cells.push(null)
 
-  const isToday = (day) => {
-    return day && today.getDate() === day && today.getMonth() === viewMonth && today.getFullYear() === viewYear
-  }
-
-  const isCurrent = (day) => {
-    return day && currentDate.getDate() === day && currentDate.getMonth() === viewMonth && currentDate.getFullYear() === viewYear
-  }
+  const isToday = (day) => day && today.getDate() === day && today.getMonth() === viewMonth && today.getFullYear() === viewYear
+  const isCurrent = (day) => day && currentDate.getDate() === day && currentDate.getMonth() === viewMonth && currentDate.getFullYear() === viewYear
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-32" onClick={onClose}>
       <div className="bg-white rounded-2xl border border-gray-200 shadow-xl p-4 w-72" onClick={e => e.stopPropagation()}>
-        {/* Month navigation */}
         <div className="flex items-center justify-between mb-3">
           <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">‹</button>
           <div className="text-sm font-semibold">{MONTHS[viewMonth]} {viewYear}</div>
           <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">›</button>
         </div>
-
-        {/* Day headers */}
         <div className="grid grid-cols-7 mb-1">
           {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
             <div key={d} className="text-center text-xs text-gray-400 py-1 font-medium">{d}</div>
           ))}
         </div>
-
-        {/* Calendar grid */}
         <div className="grid grid-cols-7 gap-0.5">
           {cells.map((day, i) => (
-            <button key={i} onClick={() => day && handleSelect(day)}
-              disabled={!day}
-              className={`
-                h-8 w-full rounded-lg text-xs font-medium transition-colors
+            <button key={i} onClick={() => day && handleSelect(day)} disabled={!day}
+              className={`h-8 w-full rounded-lg text-xs font-medium transition-colors
                 ${!day ? 'invisible' : ''}
                 ${isCurrent(day) ? 'bg-emerald-600 text-white' : ''}
                 ${isToday(day) && !isCurrent(day) ? 'bg-emerald-100 text-emerald-700' : ''}
                 ${day && !isCurrent(day) && !isToday(day) ? 'hover:bg-gray-100 text-gray-700' : ''}
-              `}>
-              {day}
-            </button>
+              `}>{day}</button>
           ))}
         </div>
-
-        {/* Quick jumps */}
         <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
           <button onClick={() => { onSelect(new Date()); onClose() }}
-            className="flex-1 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium">
-            Today
-          </button>
-          <button onClick={() => {
-            const next = new Date()
-            next.setMonth(next.getMonth() + 1)
-            onSelect(next)
-            onClose()
-          }} className="flex-1 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium">
-            Next month
-          </button>
+            className="flex-1 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium">Today</button>
+          <button onClick={() => { const n = new Date(); n.setMonth(n.getMonth() + 1); onSelect(n); onClose() }}
+            className="flex-1 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium">Next month</button>
         </div>
       </div>
     </div>
   )
 }
 
-// ── EDIT MEETING MODAL ───────────────────────────────────────────
+// ── CONNECT CALENDAR MODAL ────────────────────────────────────────
+function ConnectCalendarModal({ onClose, currentUser, onConnectionChange }) {
+  const [connections, setConnections] = useState({ google: null, outlook: null, calendly: null })
+  const [loading, setLoading] = useState(true)
+  const [calendlyUrl, setCalendlyUrl] = useState('')
+  const [savingCalendly, setSavingCalendly] = useState(false)
+
+  useEffect(() => { checkConnections() }, [])
+
+  const checkConnections = async () => {
+    setLoading(true)
+    const providers = ['google', 'outlook', 'calendly']
+    const results = {}
+    for (const provider of providers) {
+      const fnName = provider === 'google' ? 'calendar-google' : provider === 'outlook' ? 'calendar-outlook' : 'calendar-calendly'
+      try {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/${fnName}?action=status`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+          body: JSON.stringify({ company_id: currentUser.company_id, username: currentUser.username }),
+        })
+        const data = await res.json()
+        results[provider] = data.connected ? data.email : null
+      } catch { results[provider] = null }
+    }
+    setConnections(results)
+    setLoading(false)
+  }
+
+  const handleConnectGoogle = () => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
+    if (!clientId) { alert('Google Calendar not configured yet.'); return }
+    const params = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: 'https://planflow-beige.vercel.app/calendar/google/callback',
+      response_type: 'code',
+      scope: 'https://www.googleapis.com/auth/calendar',
+      access_type: 'offline',
+      prompt: 'consent',
+      state: btoa(JSON.stringify({ company_id: currentUser.company_id, username: currentUser.username })),
+    })
+    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params}`
+  }
+
+  const handleConnectOutlook = () => {
+    const clientId = import.meta.env.VITE_OUTLOOK_CLIENT_ID
+    if (!clientId) { alert('Outlook not configured yet.'); return }
+    const params = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: 'https://planflow-beige.vercel.app/calendar/outlook/callback',
+      response_type: 'code',
+      scope: 'Calendars.ReadWrite offline_access',
+      state: btoa(JSON.stringify({ company_id: currentUser.company_id, username: currentUser.username })),
+    })
+    window.location.href = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params}`
+  }
+
+  const handleConnectCalendly = () => {
+    const clientId = import.meta.env.VITE_CALENDLY_CLIENT_ID
+    if (!clientId) { alert('Calendly not configured yet.'); return }
+    const params = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: 'https://planflow-beige.vercel.app/calendar/calendly/callback',
+      response_type: 'code',
+    })
+    window.location.href = `https://auth.calendly.com/oauth/authorize?${params}`
+  }
+
+  const handleDisconnect = async (provider) => {
+    if (!window.confirm(`Disconnect ${provider}?`)) return
+    const fnName = provider === 'google' ? 'calendar-google' : provider === 'outlook' ? 'calendar-outlook' : 'calendar-calendly'
+    await fetch(`${SUPABASE_URL}/functions/v1/${fnName}?action=disconnect`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+      body: JSON.stringify({ company_id: currentUser.company_id, username: currentUser.username }),
+    })
+    checkConnections()
+    onConnectionChange?.()
+  }
+
+  const providers = [
+    { id: 'google', label: 'Google Calendar', sub: 'Gmail / Google Workspace', color: 'bg-blue-500', letter: 'G', connect: handleConnectGoogle },
+    { id: 'outlook', label: 'Microsoft Outlook', sub: 'Office 365 / Microsoft 365', color: 'bg-blue-700', letter: 'O', connect: handleConnectOutlook },
+    { id: 'calendly', label: 'Calendly', sub: 'Booking page sync', color: 'bg-emerald-500', letter: 'C', connect: handleConnectCalendly },
+  ]
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
+      <div className="bg-white rounded-2xl border border-gray-200 w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div className="text-sm font-semibold">Connect Calendar</div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
+        </div>
+        <div className="px-6 py-4 space-y-3">
+          <div className="text-xs text-gray-400 mb-2">Connect your calendar so meetings created in QPlan sync automatically — and bookings from your external calendar appear here.</div>
+          {loading ? (
+            <div className="text-xs text-gray-400 text-center py-4">Checking connections...</div>
+          ) : providers.map(p => (
+            <div key={p.id} className="border border-gray-200 rounded-xl p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 ${p.color} rounded-lg flex items-center justify-center text-white text-sm font-bold`}>{p.letter}</div>
+                  <div>
+                    <div className="text-xs font-semibold">{p.label}</div>
+                    <div className="text-xs text-gray-400">
+                      {connections[p.id] ? (
+                        <span className="text-emerald-600">● Connected — {connections[p.id]}</span>
+                      ) : p.sub}
+                    </div>
+                  </div>
+                </div>
+                {connections[p.id] ? (
+                  <button onClick={() => handleDisconnect(p.id)}
+                    className="px-3 py-1.5 text-xs text-red-500 border border-red-100 rounded-lg hover:bg-red-50 font-medium">
+                    Disconnect
+                  </button>
+                ) : (
+                  <button onClick={p.connect}
+                    className={`px-3 py-1.5 text-xs ${p.color} text-white rounded-lg hover:opacity-90 font-medium`}>
+                    Connect
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="px-6 py-4 border-t border-gray-100">
+          <button onClick={onClose} className="w-full py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium">Done</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── EDIT MEETING MODAL ────────────────────────────────────────────
 function EditMeetingModal({ booking, onClose, onSave, staffList, jobs }) {
   const [title, setTitle] = useState(booking.title || '')
   const [date, setDate] = useState(booking.date || '')
@@ -165,33 +275,24 @@ function EditMeetingModal({ booking, onClose, onSave, staffList, jobs }) {
   const [agenda, setAgenda] = useState(noteLines.find(l => l.startsWith('Agenda:'))?.replace('Agenda:', '').trim() || '')
   const [internalNotes, setInternalNotes] = useState(booking.type === 'internal' ? booking.notes || '' : '')
 
-  const toggleAttendee = (username) => {
-    setSelectedAttendees(prev =>
-      prev.includes(username) ? prev.filter(u => u !== username) : [...prev, username]
-    )
-  }
+  const toggleAttendee = (username) => setSelectedAttendees(prev =>
+    prev.includes(username) ? prev.filter(u => u !== username) : [...prev, username]
+  )
 
   const handleSave = async () => {
     if (!title.trim()) { alert('Please enter a title.'); return }
     setSaving(true)
     const selectedJob = jobs.find(j => j.id === jobId)
     const { error } = await supabase.from('bookings').update({
-      title: title.trim(),
-      date,
-      start_time: startTime,
-      duration_minutes: duration,
-      attendees: selectedAttendees,
-      job_id: jobId || null,
-      job_code: selectedJob?.code || null,
+      title: title.trim(), date, start_time: startTime, duration_minutes: duration,
+      attendees: selectedAttendees, job_id: jobId || null, job_code: selectedJob?.code || null,
       client_name: clientName || null,
       notes: booking.type === 'client'
         ? `Email: ${clientEmail}\nPhone: ${clientPhone}\nAddress: ${clientAddress}\nAgenda: ${agenda}`
         : internalNotes,
     }).eq('id', booking.id)
     if (error) { alert('Failed to update.'); setSaving(false); return }
-    setSaving(false)
-    onSave()
-    onClose()
+    setSaving(false); onSave(); onClose()
   }
 
   return (
@@ -222,18 +323,12 @@ function EditMeetingModal({ booking, onClose, onSave, staffList, jobs }) {
               <label className="block text-xs font-medium text-gray-600 mb-1">Duration</label>
               <select value={duration} onChange={e => setDuration(Number(e.target.value))}
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
-                <option value={15}>15 min</option>
-                <option value={30}>30 min</option>
-                <option value={45}>45 min</option>
-                <option value={60}>1 hour</option>
-                <option value={90}>1.5 hrs</option>
-                <option value={120}>2 hours</option>
-                <option value={150}>2.5 hrs</option>
-                <option value={180}>3 hours</option>
-                <option value={210}>3.5 hrs</option>
-                <option value={240}>4 hours</option>
-                <option value={270}>4.5 hrs</option>
-                <option value={300}>5 hours</option>
+                <option value={15}>15 min</option><option value={30}>30 min</option>
+                <option value={45}>45 min</option><option value={60}>1 hour</option>
+                <option value={90}>1.5 hrs</option><option value={120}>2 hours</option>
+                <option value={150}>2.5 hrs</option><option value={180}>3 hours</option>
+                <option value={210}>3.5 hrs</option><option value={240}>4 hours</option>
+                <option value={270}>4.5 hrs</option><option value={300}>5 hours</option>
               </select>
             </div>
           </div>
@@ -242,13 +337,13 @@ function EditMeetingModal({ booking, onClose, onSave, staffList, jobs }) {
               <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Client details</div>
               <input value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Client name"
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
-              <input value={clientEmail} onChange={e => setClientEmail(e.target.value)} placeholder="Email address"
+              <input value={clientEmail} onChange={e => setClientEmail(e.target.value)} placeholder="Email"
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
-              <input value={clientPhone} onChange={e => setClientPhone(e.target.value)} placeholder="Phone number"
+              <input value={clientPhone} onChange={e => setClientPhone(e.target.value)} placeholder="Phone"
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
-              <input value={clientAddress} onChange={e => setClientAddress(e.target.value)} placeholder="Address / site address"
+              <input value={clientAddress} onChange={e => setClientAddress(e.target.value)} placeholder="Address"
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
-              <textarea value={agenda} onChange={e => setAgenda(e.target.value)} placeholder="Agenda / meeting notes" rows={3}
+              <textarea value={agenda} onChange={e => setAgenda(e.target.value)} placeholder="Agenda" rows={3}
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400 resize-none" />
             </div>
           )}
@@ -293,7 +388,7 @@ function EditMeetingModal({ booking, onClose, onSave, staffList, jobs }) {
   )
 }
 
-// ── MEETING REVIEW MODAL ─────────────────────────────────────────
+// ── MEETING REVIEW MODAL ──────────────────────────────────────────
 function MeetingReviewModal({ booking, onClose, onDelete, onEdit }) {
   const [deleting, setDeleting] = useState(false)
 
@@ -301,9 +396,7 @@ function MeetingReviewModal({ booking, onClose, onDelete, onEdit }) {
     if (!window.confirm('Delete this meeting?')) return
     setDeleting(true)
     await supabase.from('bookings').delete().eq('id', booking.id)
-    setDeleting(false)
-    onDelete()
-    onClose()
+    setDeleting(false); onDelete(); onClose()
   }
 
   const notes = booking.notes || ''
@@ -348,39 +441,20 @@ function MeetingReviewModal({ booking, onClose, onDelete, onEdit }) {
               <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">{booking.job_code}</span>
             </div>
           )}
+          {booking.external_source && (
+            <div className="flex items-start gap-3">
+              <span className="text-gray-400 mt-0.5">🔗</span>
+              <span className="text-xs text-gray-500 capitalize">Synced from {booking.external_source}</span>
+            </div>
+          )}
           {booking.type === 'client' && (booking.client_name || clientEmail || clientPhone || clientAddress || agenda) && (
             <div className="border border-gray-100 rounded-xl p-3 space-y-2">
               <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Client details</div>
-              {booking.client_name && (
-                <div className="flex justify-between text-xs">
-                  <span className="text-gray-400">Name</span>
-                  <span className="font-medium text-gray-700">{booking.client_name}</span>
-                </div>
-              )}
-              {clientEmail && (
-                <div className="flex justify-between text-xs">
-                  <span className="text-gray-400">Email</span>
-                  <span className="font-medium text-gray-700">{clientEmail}</span>
-                </div>
-              )}
-              {clientPhone && (
-                <div className="flex justify-between text-xs">
-                  <span className="text-gray-400">Phone</span>
-                  <span className="font-medium text-gray-700">{clientPhone}</span>
-                </div>
-              )}
-              {clientAddress && (
-                <div className="flex justify-between text-xs">
-                  <span className="text-gray-400">Address</span>
-                  <span className="font-medium text-gray-700 text-right max-w-[200px]">{clientAddress}</span>
-                </div>
-              )}
-              {agenda && (
-                <div className="pt-1 border-t border-gray-50">
-                  <div className="text-xs text-gray-400 mb-1">Agenda</div>
-                  <div className="text-xs text-gray-700">{agenda}</div>
-                </div>
-              )}
+              {booking.client_name && <div className="flex justify-between text-xs"><span className="text-gray-400">Name</span><span className="font-medium text-gray-700">{booking.client_name}</span></div>}
+              {clientEmail && <div className="flex justify-between text-xs"><span className="text-gray-400">Email</span><span className="font-medium text-gray-700">{clientEmail}</span></div>}
+              {clientPhone && <div className="flex justify-between text-xs"><span className="text-gray-400">Phone</span><span className="font-medium text-gray-700">{clientPhone}</span></div>}
+              {clientAddress && <div className="flex justify-between text-xs"><span className="text-gray-400">Address</span><span className="font-medium text-gray-700 text-right max-w-[200px]">{clientAddress}</span></div>}
+              {agenda && <div className="pt-1 border-t border-gray-50"><div className="text-xs text-gray-400 mb-1">Agenda</div><div className="text-xs text-gray-700">{agenda}</div></div>}
             </div>
           )}
           {booking.type === 'internal' && booking.notes && (
@@ -428,7 +502,7 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
     if (!title.trim()) { alert('Please enter a title.'); return }
     setSaving(true)
     const selectedJob = jobs.find(j => j.id === jobId)
-    const { error } = await supabase.from('bookings').insert({
+    const { data: newBooking, error } = await supabase.from('bookings').insert({
       company_id: currentUser.company_id, title: title.trim(), type, date,
       start_time: startTime, duration_minutes: duration, attendees: selectedAttendees,
       job_id: jobId || null, job_code: selectedJob?.code || null, client_name: clientName || null,
@@ -436,8 +510,25 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
         ? `Email: ${clientEmail}\nPhone: ${clientPhone}\nAddress: ${clientAddress}\nAgenda: ${agenda}`
         : notes,
       created_by: currentUser.username,
-    })
+    }).select().single()
+
     if (error) { alert('Failed to save.'); setSaving(false); return }
+
+    // Sync to connected calendars
+    if (newBooking) {
+      const providers = ['google', 'outlook']
+      for (const provider of providers) {
+        const fnName = `calendar-${provider}`
+        try {
+          await fetch(`${SUPABASE_URL}/functions/v1/${fnName}?action=sync_booking`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+            body: JSON.stringify({ company_id: currentUser.company_id, username: currentUser.username, booking: newBooking }),
+          })
+        } catch (e) { console.log(`${provider} sync skipped — not connected`) }
+      }
+    }
+
     setSaving(false); onSave(); onClose()
   }
 
@@ -553,91 +644,6 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
   )
 }
 
-function ConnectCalendarModal({ onClose, currentUser }) {
-  const [calendlyUrl, setCalendlyUrl] = useState('')
-  const [savingCalendly, setSavingCalendly] = useState(false)
-
-  const handleConnectGoogle = () => {
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
-    if (!clientId) { alert('Google Calendar not configured yet.'); return }
-    const params = new URLSearchParams({
-      client_id: clientId, redirect_uri: `${window.location.origin}/calendar/google/callback`,
-      response_type: 'code', scope: 'https://www.googleapis.com/auth/calendar',
-      access_type: 'offline', state: btoa(JSON.stringify({ company_id: currentUser.company_id, username: currentUser.username })),
-    })
-    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params}`
-  }
-
-  const handleConnectOutlook = () => {
-    const clientId = import.meta.env.VITE_OUTLOOK_CLIENT_ID
-    if (!clientId) { alert('Outlook not configured yet.'); return }
-    const params = new URLSearchParams({
-      client_id: clientId, redirect_uri: `${window.location.origin}/calendar/outlook/callback`,
-      response_type: 'code', scope: 'Calendars.ReadWrite offline_access',
-      state: btoa(JSON.stringify({ company_id: currentUser.company_id, username: currentUser.username })),
-    })
-    window.location.href = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params}`
-  }
-
-  const handleSaveCalendly = async () => {
-    if (!calendlyUrl.trim()) { alert('Please enter your Calendly URL.'); return }
-    setSavingCalendly(true)
-    await supabase.from('app_users').update({ calendly_url: calendlyUrl.trim() })
-      .eq('username', currentUser.username).eq('company_id', currentUser.company_id)
-    setSavingCalendly(false)
-    alert('Calendly URL saved.')
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
-      <div className="bg-white rounded-2xl border border-gray-200 w-full max-w-md">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <div className="text-sm font-semibold">Connect Calendar</div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
-        </div>
-        <div className="px-6 py-4 space-y-3">
-          <div className="text-xs text-gray-400 mb-2">Connect your calendar so meetings sync automatically.</div>
-          {[
-            { label: 'Google Calendar', sub: 'Gmail / Google Workspace', color: 'bg-blue-500', letter: 'G', action: handleConnectGoogle, btnColor: 'bg-blue-500 hover:bg-blue-600' },
-            { label: 'Microsoft Outlook', sub: 'Office 365 / Microsoft 365', color: 'bg-blue-700', letter: 'O', action: handleConnectOutlook, btnColor: 'bg-blue-700 hover:bg-blue-800' },
-          ].map(item => (
-            <div key={item.label} className="border border-gray-200 rounded-xl p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 ${item.color} rounded-lg flex items-center justify-center text-white text-sm font-bold`}>{item.letter}</div>
-                <div>
-                  <div className="text-xs font-semibold">{item.label}</div>
-                  <div className="text-xs text-gray-400">{item.sub}</div>
-                </div>
-              </div>
-              <button onClick={item.action} className={`px-3 py-1.5 text-xs ${item.btnColor} text-white rounded-lg font-medium`}>Connect</button>
-            </div>
-          ))}
-          <div className="border border-gray-200 rounded-xl p-4">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-white text-sm font-bold">C</div>
-              <div>
-                <div className="text-xs font-semibold">Calendly</div>
-                <div className="text-xs text-gray-400">Paste your Calendly booking URL</div>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <input value={calendlyUrl} onChange={e => setCalendlyUrl(e.target.value)} placeholder="https://calendly.com/your-link"
-                className="flex-1 px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
-              <button onClick={handleSaveCalendly} disabled={savingCalendly}
-                className="px-3 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium disabled:opacity-50">
-                {savingCalendly ? '...' : 'Save'}
-              </button>
-            </div>
-          </div>
-        </div>
-        <div className="px-6 py-4 border-t border-gray-100">
-          <button onClick={onClose} className="w-full py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium">Done</button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ── MAIN CALENDAR ─────────────────────────────────────────────────
 export default function Calendar({ currentUser }) {
   const [currentWeek, setCurrentWeek] = useState(new Date())
@@ -661,6 +667,35 @@ export default function Calendar({ currentUser }) {
     fetchStaff()
     fetchJobs()
   }, [currentWeek, viewingAs])
+
+  // Handle OAuth callbacks
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const code = params.get('code')
+    const state = params.get('state')
+    const path = window.location.pathname
+
+    if (code && path.includes('/calendar/')) {
+      let provider = ''
+      if (path.includes('/google/')) provider = 'google'
+      else if (path.includes('/outlook/')) provider = 'outlook'
+      else if (path.includes('/calendly/')) provider = 'calendly'
+
+      if (provider) {
+        const stateData = state ? JSON.parse(atob(state)) : { company_id: currentUser.company_id, username: currentUser.username }
+        const fnName = `calendar-${provider}`
+
+        fetch(`${SUPABASE_URL}/functions/v1/${fnName}?action=callback`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+          body: JSON.stringify({ code, company_id: stateData.company_id, username: stateData.username }),
+        }).then(() => {
+          window.history.replaceState({}, '', '/')
+          setShowConnect(true)
+        })
+      }
+    }
+  }, [])
 
   const fetchBookings = async () => {
     setLoading(true)
@@ -692,10 +727,6 @@ export default function Calendar({ currentUser }) {
   const goForward = () => { const d = new Date(currentWeek); d.setDate(d.getDate() + 7); setCurrentWeek(d) }
   const goToday = () => setCurrentWeek(new Date())
 
-  const handleDatePickerSelect = (date) => {
-    setCurrentWeek(date)
-  }
-
   const getBookingsForDayAndHour = (date, hour) => {
     const dateStr = date.toISOString().split('T')[0]
     return bookings.filter(b => {
@@ -717,13 +748,11 @@ export default function Calendar({ currentUser }) {
         <NewMeetingModal onClose={() => setShowNewMeeting(false)} onSave={fetchBookings}
           currentUser={currentUser} staffList={staffList} jobs={jobs} defaultDate={selectedDate} />
       )}
-      {showConnect && <ConnectCalendarModal onClose={() => setShowConnect(false)} currentUser={currentUser} />}
+      {showConnect && (
+        <ConnectCalendarModal onClose={() => setShowConnect(false)} currentUser={currentUser} onConnectionChange={fetchBookings} />
+      )}
       {showDatePicker && (
-        <DatePickerModal
-          currentDate={currentWeek}
-          onSelect={handleDatePickerSelect}
-          onClose={() => setShowDatePicker(false)}
-        />
+        <DatePickerModal currentDate={currentWeek} onSelect={setCurrentWeek} onClose={() => setShowDatePicker(false)} />
       )}
       {selectedBooking && !editingBooking && (
         <MeetingReviewModal booking={selectedBooking} onClose={() => setSelectedBooking(null)}
@@ -740,15 +769,10 @@ export default function Calendar({ currentUser }) {
           <button onClick={goBack} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 text-lg">‹</button>
           <button onClick={goToday} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Today</button>
           <button onClick={goForward} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 text-lg">›</button>
-
-          {/* Week range + calendar icon */}
           <div className="flex items-center gap-1.5 ml-2">
             <span className="text-sm font-semibold">{formatWeekRange(weekDates)}</span>
-            <button
-              onClick={() => setShowDatePicker(true)}
-              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
-              title="Jump to date"
-            >
+            <button onClick={() => setShowDatePicker(true)}
+              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors" title="Jump to date">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                 <rect x="1" y="2" width="12" height="11" rx="2" stroke="currentColor" strokeWidth="1.2"/>
                 <line x1="1" y1="5.5" x2="13" y2="5.5" stroke="currentColor" strokeWidth="1.2"/>
@@ -875,6 +899,7 @@ export default function Calendar({ currentUser }) {
               <div className="text-xs text-gray-400">
                 {new Date(b.date).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })} · {b.start_time?.slice(0, 5)} · {formatDuration(b.duration_minutes)}
                 {b.attendees?.length > 1 && ` · ${b.attendees.length} attendees`}
+                {b.external_source && ` · via ${b.external_source}`}
               </div>
             </div>
             {b.job_code && <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">{b.job_code}</span>}
