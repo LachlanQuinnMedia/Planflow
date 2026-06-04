@@ -127,12 +127,10 @@ function ConnectCalendarModal({ onClose, currentUser, onConnectionChange }) {
 
   const checkConnections = async () => {
     setLoading(true)
-    const providers = ['google', 'outlook', 'calendly']
     const results = {}
-    for (const provider of providers) {
-      const fnName = `calendar-${provider}`
+    for (const provider of ['google', 'outlook', 'calendly']) {
       try {
-        const res = await fetch(`${SUPABASE_URL}/functions/v1/${fnName}?action=status`, {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/calendar-${provider}?action=status`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ANON_KEY}` },
           body: JSON.stringify({ company_id: currentUser.company_id, username: currentUser.username }),
@@ -168,6 +166,7 @@ function ConnectCalendarModal({ onClose, currentUser, onConnectionChange }) {
       redirect_uri: 'https://planflow-beige.vercel.app/calendar/outlook/callback',
       response_type: 'code',
       scope: 'Calendars.ReadWrite offline_access',
+      prompt: 'select_account',
       state: btoa(JSON.stringify({ company_id: currentUser.company_id, username: currentUser.username })),
     })
     window.location.href = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params}`
@@ -187,8 +186,7 @@ function ConnectCalendarModal({ onClose, currentUser, onConnectionChange }) {
 
   const handleDisconnect = async (provider) => {
     if (!window.confirm(`Disconnect ${provider}?`)) return
-    const fnName = `calendar-${provider}`
-    await fetch(`${SUPABASE_URL}/functions/v1/${fnName}?action=disconnect`, {
+    await fetch(`${SUPABASE_URL}/functions/v1/calendar-${provider}?action=disconnect`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ANON_KEY}` },
       body: JSON.stringify({ company_id: currentUser.company_id, username: currentUser.username }),
