@@ -8,10 +8,6 @@ const formatDate = (date) => {
   return new Date(date).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
-// ─── TEMPLATE-BASED HPC LETTER GENERATORS ────────────────────────────────────
-// These use the original HPC .docx files as templates, preserving all formatting.
-// Templates live in /public/templates/ and are served statically.
-
 const generateFromTemplate = async (templateFilename, data, outputFilename) => {
   const response = await fetch(`/templates/${templateFilename}`)
   if (!response.ok) throw new Error(`Could not load template: ${templateFilename}`)
@@ -130,8 +126,6 @@ export const generateWithdrawApplication = async (job) => {
   )
 }
 
-// ─── EXISTING REPORT / INVOICE GENERATORS ────────────────────────────────────
-
 const heading = (text) => new Paragraph({
   text, heading: HeadingLevel.HEADING_1, spacing: { before: 400, after: 200 },
 })
@@ -147,6 +141,171 @@ const boldPara = (label, value) => new Paragraph({
     new TextRun({ text: value || 'Not specified', size: 24 }),
   ], spacing: { after: 150 },
 })
+
+const bullet = (text) => new Paragraph({
+  children: [new TextRun({ text: `\u2022  ${text}`, size: 22 })],
+  spacing: { before: 60, after: 60 },
+  indent: { left: 360 },
+})
+
+const stageHeading = (label, fee) => new Paragraph({
+  children: [
+    new TextRun({ text: label, bold: true, size: 24 }),
+    new TextRun({ text: `    $${fee.toLocaleString()} + GST`, bold: true, size: 24, color: '16a34a' }),
+  ],
+  spacing: { before: 300, after: 120 },
+})
+
+const feeRow = (label, payableTo, amount) => new TableRow({
+  children: [
+    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: label, size: 22 })] })], width: { size: 40, type: WidthType.PERCENTAGE } }),
+    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: payableTo, size: 22 })] })], width: { size: 30, type: WidthType.PERCENTAGE } }),
+    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: amount ? `$${amount.toLocaleString()}` : '', size: 22 })] })], width: { size: 30, type: WidthType.PERCENTAGE } }),
+  ],
+})
+
+const feeTableHeader = (stageLabel) => new TableRow({
+  children: [
+    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: stageLabel, bold: true, size: 22 })] })], width: { size: 40, type: WidthType.PERCENTAGE } }),
+    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Payable to:', size: 22 })] })], width: { size: 30, type: WidthType.PERCENTAGE } }),
+    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: '$ (+ GST)', size: 22 })] })], width: { size: 30, type: WidthType.PERCENTAGE } }),
+  ],
+})
+
+export const generateFeeProposal = async (job) => {
+  const stage1Fee = parseFloat(job.hpc_stages?.stage1?.fee || 500)
+  const stage2Fee = parseFloat(job.hpc_stages?.stage2?.fee || 3000)
+  const stage3Fee = parseFloat(job.hpc_stages?.stage3?.fee || 2000)
+  const subtotal = stage1Fee + stage2Fee + stage3Fee
+  const gst = subtotal * 0.1
+  const total = subtotal + gst
+
+  const doc = new Document({
+    sections: [{
+      properties: {},
+      children: [
+        // Header
+        new Paragraph({
+          children: [new TextRun({ text: 'CODE ASSESSABLE DEVELOPMENT APPLICATION', bold: true, size: 36 })],
+          spacing: { after: 200 },
+        }),
+        new Paragraph({
+          children: [new TextRun({ text: 'Fee Proposal', size: 28, color: '374151' })],
+          spacing: { after: 100 },
+        }),
+        new Paragraph({
+          children: [new TextRun({ text: formatDate(new Date()), size: 22, color: '6b7280' })],
+          spacing: { after: 100 },
+        }),
+        new Paragraph({
+          children: [new TextRun({ text: `${job.client_first_name || ''} ${job.client_last_name || ''}`.trim(), size: 22 })],
+          spacing: { after: 60 },
+        }),
+        new Paragraph({
+          children: [new TextRun({ text: `Re: ${job.proposed_use || job.app_type || 'Development Application'} — ${job.address || ''}`, size: 22 })],
+          spacing: { after: 400 },
+        }),
+
+        // Stage 1
+        stageHeading('Stage 1 – Preliminary Planning Investigations', stage1Fee),
+        bullet('Attend one (1) pre-start meeting with client and any other relevant consultants'),
+        bullet('Desktop analysis of site and surrounding uses'),
+        bullet('Assess proposed development against local and state government legislation'),
+        bullet('Identify zone, overlays and local plan requirements'),
+        bullet('Advise on the site\'s development potential and constraints'),
+        bullet('Identify and review relevant adjoining / nearby development approvals'),
+        bullet('Advise client of necessary external consultants for supporting information to accompany development application'),
+        bullet('Determine application type/s and council lodgement fees'),
+        bullet('Provide advice to client on development potential and progressing with a development application'),
+        new Paragraph({ spacing: { after: 200 } }),
+        new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          rows: [
+            feeTableHeader('Stage 1'),
+            feeRow('Preliminary Planning Investigations', 'HPC Planning', stage1Fee),
+            feeRow('Sub-total', '', stage1Fee),
+          ],
+        }),
+        new Paragraph({ spacing: { after: 400 } }),
+
+        // Stage 2
+        stageHeading('Stage 2 – Prepare and Lodge a Code Assessable Development Application', stage2Fee),
+        bullet('Prepare design brief for the architect/draftsman - including details on built form (setbacks and site cover) / landscaping / vehicle access for the proposed development'),
+        bullet('Obtain quote/s, engage and co-ordinate external consultants for supporting information to accompany development application (if required)'),
+        bullet('Review draft architectural plans and provide advice on any changes required to architect/draftsman'),
+        bullet('Review external consultant\'s reports and coordinate information'),
+        bullet('Prepare land owner\'s consent form for signing'),
+        bullet('Prepare Town Planning Report and Code Compliance Statements, including assessment of the proposal / final plans against Planning Scheme Strategic Framework and local legislation/development codes'),
+        bullet('Complete statutory application forms'),
+        bullet(`Collate and lodge application with ${job.council || 'Council'} in compliance with the requirements of the Planning Act 2016 and Development Assessment Rules`),
+        bullet('Ensure application has been \'properly made\' in accordance with the Planning Act 2016 and Development Assessment Rules'),
+        new Paragraph({ spacing: { after: 200 } }),
+        new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          rows: [
+            feeTableHeader('Stage 2'),
+            feeRow('Code Development Application', 'HPC Planning', stage2Fee),
+            feeRow('Sub-total', '', stage2Fee),
+          ],
+        }),
+        new Paragraph({ spacing: { after: 400 } }),
+
+        // Stage 3
+        stageHeading('Stage 3 – Manage and Coordinate Post Lodgement Services up to the Decision Notice', stage3Fee),
+        bullet('Project manage the development application with regards to the confirmation notice and information requests'),
+        bullet('Obtain quotes, engage and co-ordinate external consultants for amended or additional supporting information to respond to information requests'),
+        bullet('Review and provide written responses to Council information request'),
+        bullet('Review and provide written responses to Council\'s further advice notice(s)'),
+        bullet('Ensure application is managed in accordance with the requirements of the Planning Act 2016 and Development Assessment Rules'),
+        bullet('Attend one (1) meeting with consultants (if required) in relation to issues associated with the application, and attend one (1) meeting with council (if required)'),
+        bullet('Respond to Assessment Manager queries'),
+        bullet('Review and negotiate draft conditions'),
+        bullet('Provide client with digital copy of the Decision Notice'),
+        bullet('Advise client on approval conditions and/or appeal rights'),
+        new Paragraph({ spacing: { after: 200 } }),
+        new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          rows: [
+            feeTableHeader('Stage 3'),
+            feeRow('Project Manage Application', 'HPC Planning', stage3Fee),
+            feeRow('Sub-total', '', stage3Fee),
+          ],
+        }),
+        new Paragraph({ spacing: { after: 400 } }),
+
+        // Total
+        new Paragraph({
+          children: [
+            new TextRun({ text: `Total across all three stages: $${subtotal.toLocaleString()} + GST`, bold: true, size: 26 }),
+          ],
+          spacing: { before: 200, after: 100 },
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({ text: `GST: $${gst.toLocaleString()}`, size: 24 }),
+          ],
+          spacing: { after: 100 },
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({ text: `Total (inc GST): $${total.toLocaleString()}`, bold: true, size: 26, color: '16a34a' }),
+          ],
+          spacing: { after: 400 },
+        }),
+
+        // Signature
+        new Paragraph({ children: [new TextRun({ text: 'Yours sincerely,', size: 22 })], spacing: { before: 400, after: 300 } }),
+        new Paragraph({ children: [new TextRun({ text: job.planner || 'HPC Planning', bold: true, size: 22 })], spacing: { after: 100 } }),
+        new Paragraph({ children: [new TextRun({ text: 'Town Planner', size: 22 })], spacing: { after: 100 } }),
+        new Paragraph({ children: [new TextRun({ text: 'HPC Planning', size: 22 })], spacing: { after: 100 } }),
+        new Paragraph({ children: [new TextRun({ text: formatDate(new Date()), size: 22 }) ] }),
+      ],
+    }],
+  })
+
+  const blob = await Packer.toBlob(doc)
+  saveAs(blob, `Fee_Proposal_${job.code || 'draft'}.docx`)
+}
 
 export const generatePlanningReport = async (job) => {
   const doc = new Document({

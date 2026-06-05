@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabase'
-import { generatePlanningReport, generateIRResponse, generateEngagementLetter, generateInvoice } from './docGenerator'
+import { generatePlanningReport, generateIRResponse, generateEngagementLetter, generateInvoice, generateFeeProposal } from './docGenerator'
 
 const COUNCILS = [
   'Balina Shire Council', 'Banana Shire Council', 'Brisbane City Council',
@@ -26,6 +26,73 @@ const DA_STAGES = [
   { id: 'decision', label: 'Decision stage', description: 'Assessment and decision by Council', statutory_days: 20, hpc_stage: 'Stage 3', color: 'bg-emerald-100 text-emerald-700' },
 ]
 
+const HPC_STAGES = [
+  {
+    id: 'stage1',
+    label: 'Stage 1 — Preliminary Planning Investigations',
+    shortLabel: 'Stage 1',
+    color: 'bg-blue-100 text-blue-700',
+    defaultFee: 500,
+    description: 'Pre-start meeting, desktop analysis, legislative assessment, development potential advice.',
+    items: [
+      'Attend one (1) pre-start meeting with client and any other relevant consultants',
+      'Desktop analysis of site and surrounding uses',
+      'Assess proposed development against local and state government legislation',
+      'Identify zone, overlays and local plan requirements',
+      'Advise on the site\'s development potential and constraints',
+      'Identify and review relevant adjoining / nearby development approvals',
+      'Advise client of necessary external consultants for supporting information',
+      'Determine application type/s and council lodgement fees',
+      'Provide advice to client on development potential and progressing with a development application',
+    ],
+  },
+  {
+    id: 'stage2',
+    label: 'Stage 2 — Prepare and Lodge Development Application',
+    shortLabel: 'Stage 2',
+    color: 'bg-purple-100 text-purple-700',
+    defaultFee: 3000,
+    description: 'Prepare design brief, engage consultants, prepare planning report, lodge with council.',
+    items: [
+      'Prepare design brief for the architect/draftsman',
+      'Obtain quote/s, engage and co-ordinate external consultants (if required)',
+      'Review draft architectural plans and provide advice on any changes required',
+      'Review external consultant\'s reports and coordinate information',
+      'Prepare land owner\'s consent form for signing',
+      'Prepare Town Planning Report and Code Compliance Statements',
+      'Complete statutory application forms',
+      'Collate and lodge application with Council in compliance with the Planning Act 2016',
+      'Ensure application has been \'properly made\' in accordance with the Planning Act 2016',
+    ],
+  },
+  {
+    id: 'stage3',
+    label: 'Stage 3 — Manage and Coordinate Post Lodgement Services',
+    shortLabel: 'Stage 3',
+    color: 'bg-emerald-100 text-emerald-700',
+    defaultFee: 2000,
+    description: 'Project manage application through to decision notice.',
+    items: [
+      'Project manage the development application with regards to the confirmation notice and information requests',
+      'Obtain quotes, engage and co-ordinate external consultants for amended or additional supporting information',
+      'Review and provide written responses to Council information request',
+      'Review and provide written responses to Council\'s further advice notice(s)',
+      'Ensure application is managed in accordance with the Planning Act 2016 and Development Assessment Rules',
+      'Attend one (1) meeting with consultants (if required) and one (1) meeting with council (if required)',
+      'Respond to Assessment Manager queries',
+      'Review and negotiate draft conditions',
+      'Provide client with digital copy of the Decision Notice',
+      'Advise client on approval conditions and/or appeal rights',
+    ],
+  },
+]
+
+const initialHPCStages = {
+  stage1: { status: 'pending', fee: 500, notes: '', completedDate: '' },
+  stage2: { status: 'pending', fee: 3000, notes: '', completedDate: '' },
+  stage3: { status: 'pending', fee: 2000, notes: '', completedDate: '' },
+}
+
 const initialStageData = {
   application: { status: 'pending', startDate: '', endDate: '', stoppedDays: 0, stopReason: '', isStopped: false },
   referral:    { status: 'pending', startDate: '', endDate: '', stoppedDays: 0, stopReason: '', isStopped: false },
@@ -36,6 +103,7 @@ const initialStageData = {
 
 const TABS = [
   { id: 'overview', label: 'Overview' },
+  { id: 'hpc stages', label: 'HPC Stages' },
   { id: 'da stages', label: 'DA Stages' },
   { id: 'documents', label: 'Documents' },
   { id: 'time & budget', label: 'Time & Budget' },
@@ -92,42 +160,231 @@ function parseHHMMSS(str) {
   return 0
 }
 
-// Send DA stage notifications to all planners and directors on the job
 async function sendStageNotifications(job, stageId, stageLabel, daysLeft, companyId) {
   try {
     const notifType = daysLeft < 0 ? 'overdue' : daysLeft <= 3 ? 'due_soon_3' : 'due_soon_7'
     const message = daysLeft < 0
       ? `⚠️ OVERDUE: ${job.code} — ${stageLabel} is ${Math.abs(daysLeft)} day${Math.abs(daysLeft) !== 1 ? 's' : ''} overdue.`
       : `⏰ ${job.code} — ${stageLabel} is due in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}.`
+    const { data: existing } = await supabase.from('stage_notifications').select('id').eq('job_id', job.id).eq('stage_id', stageId).eq('notification_type', notifType).single()
+    if (existing) return
+    await supabase.from('stage_notifications').insert({ job_id: job.id, stage_id: stageId, notification_type: notifType })
+    await supabase.from('notifications').insert({ company_id: companyId, type: 'da_stage_deadline', message, is_read: false })
+  } catch (e) {}
+}
 
-    // Check if this notification was already sent recently
-    const { data: existing } = await supabase
-      .from('stage_notifications')
-      .select('id')
-      .eq('job_id', job.id)
-      .eq('stage_id', stageId)
-      .eq('notification_type', notifType)
-      .single()
+// ── HPC STAGES TAB ─────────────────────────────────────────────────────────────
+function HPCStagesTab({ job, onHistoryAdd }) {
+  const [stages, setStages] = useState(initialHPCStages)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [expandedStage, setExpandedStage] = useState(null)
 
-    if (existing) return // Already notified
+  useEffect(() => {
+    const load = async () => {
+      const { data } = await supabase.from('jobs').select('hpc_stages').eq('id', job.id).single()
+      if (data?.hpc_stages && Object.keys(data.hpc_stages).length > 0) {
+        setStages({ ...initialHPCStages, ...data.hpc_stages })
+      }
+    }
+    load()
+  }, [job.id])
 
-    // Insert notification record
-    await supabase.from('stage_notifications').insert({
-      job_id: job.id,
-      stage_id: stageId,
-      notification_type: notifType,
-    })
-
-    // Create in-app notification for the company
-    await supabase.from('notifications').insert({
-      company_id: companyId,
-      type: 'da_stage_deadline',
-      message,
-      is_read: false,
-    })
-  } catch (e) {
-    // Fail silently
+  const updateStage = (id, updates) => {
+    setStages(prev => ({ ...prev, [id]: { ...prev[id], ...updates } }))
+    setSaved(false)
   }
+
+  const saveStages = async () => {
+    setSaving(true)
+    await supabase.from('jobs').update({ hpc_stages: stages }).eq('id', job.id)
+    setSaving(false)
+    setSaved(true)
+    onHistoryAdd('HPC stages updated')
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  const totalFees = Object.values(stages).reduce((sum, s) => sum + (parseFloat(s.fee) || 0), 0)
+  const completedFees = HPC_STAGES.filter(s => stages[s.id]?.status === 'complete')
+    .reduce((sum, s) => sum + (parseFloat(stages[s.id]?.fee) || 0), 0)
+  const gst = totalFees * 0.1
+  const totalWithGST = totalFees + gst
+
+  const statusColors = {
+    pending: 'bg-gray-100 text-gray-500',
+    active: 'bg-amber-100 text-amber-700',
+    complete: 'bg-emerald-100 text-emerald-700',
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Summary */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="text-xs text-gray-400 mb-1">Total fees (ex GST)</div>
+          <div className="text-xl font-semibold">${totalFees.toLocaleString()}</div>
+          <div className="text-xs text-gray-400 mt-0.5">+ GST ${gst.toLocaleString()} = ${totalWithGST.toLocaleString()}</div>
+        </div>
+        <div className="bg-emerald-50 rounded-xl border border-emerald-100 p-4">
+          <div className="text-xs text-emerald-600 mb-1">Invoiced / complete</div>
+          <div className="text-xl font-semibold text-emerald-700">${completedFees.toLocaleString()}</div>
+          <div className="text-xs text-emerald-500 mt-0.5">{HPC_STAGES.filter(s => stages[s.id]?.status === 'complete').length} of 3 stages complete</div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="text-xs text-gray-400 mb-1">Remaining</div>
+          <div className="text-xl font-semibold text-amber-600">${(totalFees - completedFees).toLocaleString()}</div>
+          <div className="text-xs text-gray-400 mt-0.5">Pending stages</div>
+        </div>
+      </div>
+
+      {/* Progress bar */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">HPC stage progress</div>
+          <button onClick={saveStages} disabled={saving} className="px-3 py-1 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+            {saving ? 'Saving...' : saved ? '✓ Saved' : 'Save stages'}
+          </button>
+        </div>
+        <div className="flex gap-2">
+          {HPC_STAGES.map(stage => {
+            const data = stages[stage.id]
+            return (
+              <div key={stage.id} className="flex-1">
+                <div className={`h-2 rounded-full ${data.status === 'complete' ? 'bg-emerald-500' : data.status === 'active' ? 'bg-amber-400' : 'bg-gray-200'}`} />
+                <div className="text-center mt-1">
+                  <span className="text-xs text-gray-400">{stage.shortLabel}</span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Stage cards */}
+      {HPC_STAGES.map((stage, index) => {
+        const data = stages[stage.id]
+        const isExpanded = expandedStage === stage.id
+        const isComplete = data.status === 'complete'
+        const isActive = data.status === 'active'
+
+        return (
+          <div key={stage.id} className={`bg-white rounded-xl border transition-all ${isActive ? 'border-amber-300 shadow-sm' : isComplete ? 'border-emerald-200' : 'border-gray-100'}`}>
+            <div className="flex items-center gap-3 px-4 py-3 cursor-pointer" onClick={() => setExpandedStage(isExpanded ? null : stage.id)}>
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 ${isComplete ? 'bg-emerald-100 text-emerald-700' : isActive ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-400'}`}>
+                {isComplete ? '✓' : index + 1}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-semibold text-gray-800">{stage.label}</div>
+                <div className="text-xs text-gray-400 truncate">{stage.description}</div>
+              </div>
+              <div className="text-right flex-shrink-0">
+                <div className="text-xs font-semibold">${parseFloat(data.fee || 0).toLocaleString()} + GST</div>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[data.status]}`}>
+                  {data.status === 'pending' ? 'Not started' : data.status === 'active' ? 'In progress' : 'Complete'}
+                </span>
+              </div>
+              <div className="text-xs text-gray-300">{isExpanded ? '▲' : '▼'}</div>
+            </div>
+
+            {isExpanded && (
+              <div className="px-4 pb-4 border-t border-gray-100">
+                <div className="grid grid-cols-2 gap-4 mt-3">
+                  <div>
+                    <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Scope of works</div>
+                    <div className="space-y-1.5">
+                      {stage.items.map((item, i) => (
+                        <div key={i} className="flex items-start gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-gray-300 flex-shrink-0 mt-1.5" />
+                          <div className="text-xs text-gray-600">{item}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Stage fee (ex GST)</label>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-400">$</span>
+                        <input
+                          type="number"
+                          value={data.fee}
+                          onChange={e => updateStage(stage.id, { fee: e.target.value })}
+                          className="flex-1 px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400"
+                        />
+                        <span className="text-xs text-gray-400">+ GST</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Status</label>
+                      <select
+                        value={data.status}
+                        onChange={e => updateStage(stage.id, { status: e.target.value, completedDate: e.target.value === 'complete' ? new Date().toISOString().split('T')[0] : data.completedDate })}
+                        className="w-full px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400"
+                      >
+                        <option value="pending">Not started</option>
+                        <option value="active">In progress</option>
+                        <option value="complete">Complete</option>
+                      </select>
+                    </div>
+                    {data.completedDate && (
+                      <div className="text-xs text-emerald-600">✓ Completed {formatDateShort(data.completedDate)}</div>
+                    )}
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Notes</label>
+                      <textarea
+                        value={data.notes}
+                        onChange={e => updateStage(stage.id, { notes: e.target.value })}
+                        placeholder="Add notes for this stage..."
+                        rows={3}
+                        className="w-full px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400 resize-none"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      {data.status === 'pending' && (
+                        <button onClick={() => updateStage(stage.id, { status: 'active' })}
+                          className="flex-1 py-1.5 text-xs bg-amber-500 text-white rounded-lg hover:bg-amber-600">
+                          Start stage
+                        </button>
+                      )}
+                      {data.status === 'active' && (
+                        <button onClick={() => updateStage(stage.id, { status: 'complete', completedDate: new Date().toISOString().split('T')[0] })}
+                          className="flex-1 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
+                          Mark complete
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })}
+
+      {/* Fee summary table */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Fee summary</div>
+        {HPC_STAGES.map(stage => (
+          <div key={stage.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+            <div className="text-xs text-gray-600">{stage.shortLabel} — {stage.label.split(' — ')[1]}</div>
+            <div className="text-xs font-medium">${parseFloat(stages[stage.id]?.fee || 0).toLocaleString()} + GST</div>
+          </div>
+        ))}
+        <div className="flex items-center justify-between py-2 border-t border-gray-200 mt-1">
+          <div className="text-xs font-semibold">Subtotal</div>
+          <div className="text-xs font-semibold">${totalFees.toLocaleString()}</div>
+        </div>
+        <div className="flex items-center justify-between py-1">
+          <div className="text-xs text-gray-400">GST (10%)</div>
+          <div className="text-xs text-gray-400">${gst.toLocaleString()}</div>
+        </div>
+        <div className="flex items-center justify-between py-2 border-t border-gray-200 mt-1">
+          <div className="text-xs font-semibold text-emerald-700">Total (inc GST)</div>
+          <div className="text-sm font-bold text-emerald-700">${totalWithGST.toLocaleString()}</div>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function EditJobModal({ job, currentUser, onClose, onSaved }) {
@@ -154,12 +411,7 @@ function EditJobModal({ job, currentUser, onClose, onSaved }) {
   const [saving, setSaving] = useState(false)
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
-
-  const togglePlanner = (name) => {
-    setSelectedPlanners(prev =>
-      prev.includes(name) ? prev.filter(p => p !== name) : [...prev, name]
-    )
-  }
+  const togglePlanner = (name) => setSelectedPlanners(prev => prev.includes(name) ? prev.filter(p => p !== name) : [...prev, name])
 
   useEffect(() => {
     const fetchStaff = async () => {
@@ -181,20 +433,13 @@ function EditJobModal({ job, currentUser, onClose, onSaved }) {
     setSaving(true)
     const leadPlanner = selectedPlanners[0]
     await supabase.from('jobs').update({
-      client_first_name: form.firstName,
-      client_last_name: form.lastName,
-      client_email: form.email,
-      client_phone: form.phone,
-      address: form.address,
-      lot_reference: form.lot,
-      council: form.council,
-      zone: form.zone,
-      app_type: form.appType,
-      assessment_level: form.assessment,
-      proposed_use: form.proposedUse,
-      referral_agencies: form.referrals,
-      planner: leadPlanner,
-      planners: selectedPlanners,
+      client_first_name: form.firstName, client_last_name: form.lastName,
+      client_email: form.email, client_phone: form.phone,
+      address: form.address, lot_reference: form.lot,
+      council: form.council, zone: form.zone,
+      app_type: form.appType, assessment_level: form.assessment,
+      proposed_use: form.proposedUse, referral_agencies: form.referrals,
+      planner: leadPlanner, planners: selectedPlanners,
       planner_rate: parseFloat(form.plannerRate) || 150,
       budget_hours: parseFloat(form.budget) || 0,
       lodgement_date: form.lodgement || null,
@@ -216,7 +461,6 @@ function EditJobModal({ job, currentUser, onClose, onSaved }) {
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
         </div>
-
         <div className="px-6 py-5 space-y-5 max-h-[75vh] overflow-y-auto">
           <div>
             <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Client details</div>
@@ -231,20 +475,17 @@ function EditJobModal({ job, currentUser, onClose, onSaved }) {
                 <input value={form.phone} onChange={e => set('phone', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
             </div>
           </div>
-
           <div>
             <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Application details</div>
             <div className="grid grid-cols-2 gap-3">
               <div><label className="text-xs text-gray-500 mb-1 block">Application type</label>
                 <select value={form.appType} onChange={e => set('appType', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
                   <option>MCU</option><option>ROL</option><option>RAA</option><option>OW</option><option>SPS</option><option>PE</option><option>PDA</option>
-                </select>
-              </div>
+                </select></div>
               <div><label className="text-xs text-gray-500 mb-1 block">Assessment level</label>
                 <select value={form.assessment} onChange={e => set('assessment', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
                   <option>Code Assessable</option><option>Impact Assessable</option><option>Accepted Development</option><option>Exempt</option>
-                </select>
-              </div>
+                </select></div>
               <div className="col-span-2"><label className="text-xs text-gray-500 mb-1 block">Site address</label>
                 <input value={form.address} onChange={e => set('address', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
               <div><label className="text-xs text-gray-500 mb-1 block">Lot / RP reference</label>
@@ -252,8 +493,7 @@ function EditJobModal({ job, currentUser, onClose, onSaved }) {
               <div><label className="text-xs text-gray-500 mb-1 block">Council / LGA</label>
                 <select value={form.council} onChange={e => set('council', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
                   {COUNCILS.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
+                </select></div>
               <div><label className="text-xs text-gray-500 mb-1 block">Planning zone</label>
                 <input value={form.zone} onChange={e => set('zone', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
               <div><label className="text-xs text-gray-500 mb-1 block">Proposed use</label>
@@ -262,13 +502,10 @@ function EditJobModal({ job, currentUser, onClose, onSaved }) {
                 <input value={form.referrals} onChange={e => set('referrals', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
             </div>
           </div>
-
           <div>
             <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Assign & budget</div>
             <div className="mb-3">
-              <label className="text-xs text-gray-500 mb-2 block">
-                Assigned planners <span className="text-gray-400 font-normal">(first selected is lead)</span>
-              </label>
+              <label className="text-xs text-gray-500 mb-2 block">Assigned planners <span className="text-gray-400 font-normal">(first selected is lead)</span></label>
               <div className="flex flex-wrap gap-2">
                 {staffList.map(s => (
                   <button key={s.id} type="button" onClick={() => togglePlanner(s.displayName)}
@@ -279,10 +516,7 @@ function EditJobModal({ job, currentUser, onClose, onSaved }) {
                 ))}
               </div>
               {selectedPlanners.length > 0 && (
-                <div className="text-xs text-gray-400 mt-1.5">
-                  Lead: <span className="font-medium text-gray-600">{selectedPlanners[0]}</span>
-                  {selectedPlanners.length > 1 && ` · Also: ${selectedPlanners.slice(1).join(', ')}`}
-                </div>
+                <div className="text-xs text-gray-400 mt-1.5">Lead: <span className="font-medium text-gray-600">{selectedPlanners[0]}</span>{selectedPlanners.length > 1 && ` · Also: ${selectedPlanners.slice(1).join(', ')}`}</div>
               )}
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -297,7 +531,6 @@ function EditJobModal({ job, currentUser, onClose, onSaved }) {
             </div>
           </div>
         </div>
-
         <div className="px-6 py-4 border-t border-gray-100 flex gap-2 justify-end">
           <button onClick={onClose} className="px-4 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
           <button onClick={handleSave} disabled={saving} className="px-4 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 font-medium">
@@ -315,12 +548,8 @@ function DeleteTimeLogModal({ log, onConfirm, onCancel }) {
       <div className="bg-white rounded-xl border border-gray-200 p-6 w-full max-w-sm">
         <div className="text-sm font-semibold mb-1">Delete time entry</div>
         <div className="text-xs text-gray-500 mb-1">Are you sure you want to delete this time entry?</div>
-        <div className="text-xs font-medium text-gray-800 mb-4">
-          "{log.task}" — {formatDuration(log.duration_seconds || 0)}
-        </div>
-        <div className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2 mb-4">
-          This will permanently delete this time log entry. This cannot be undone.
-        </div>
+        <div className="text-xs font-medium text-gray-800 mb-4">"{log.task}" — {formatDuration(log.duration_seconds || 0)}</div>
+        <div className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2 mb-4">This will permanently delete this time log entry. This cannot be undone.</div>
         <div className="flex gap-2">
           <button onClick={onCancel} className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium">No, keep it</button>
           <button onClick={onConfirm} className="flex-1 py-2 text-xs bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium">Yes, delete</button>
@@ -365,11 +594,7 @@ function DAStageTracker({ job, currentUser, onHistoryAdd }) {
   useEffect(() => {
     const load = async () => {
       const { data } = await supabase.from('jobs').select('da_stages').eq('id', job.id).single()
-      if (data?.da_stages) {
-        setStages(data.da_stages)
-        // Check for approaching deadlines on load
-        checkDeadlines(data.da_stages)
-      }
+      if (data?.da_stages) { setStages(data.da_stages); checkDeadlines(data.da_stages) }
     }
     load()
   }, [job.id])
@@ -380,25 +605,18 @@ function DAStageTracker({ job, currentUser, onHistoryAdd }) {
       const data = stageData[stage.id]
       if (data.status !== 'active' || !data.endDate || data.isStopped) continue
       const days = Math.ceil((new Date(data.endDate) - new Date()) / (1000 * 60 * 60 * 24))
-      if (days <= 7) {
-        await sendStageNotifications(job, stage.id, stage.label, days, currentUser.company_id)
-      }
+      if (days <= 7) await sendStageNotifications(job, stage.id, stage.label, days, currentUser.company_id)
     }
   }
 
-  const updateStage = (id, updates) => {
-    setStages(prev => ({ ...prev, [id]: { ...prev[id], ...updates } }))
-    setSaved(false)
-  }
-
+  const updateStage = (id, updates) => { setStages(prev => ({ ...prev, [id]: { ...prev[id], ...updates } })); setSaved(false) }
   const resumeClock = (id) => updateStage(id, { isStopped: false })
 
   const saveStages = async () => {
     setSaving(true)
     await supabase.from('jobs').update({ da_stages: stages }).eq('id', job.id)
     await checkDeadlines(stages)
-    setSaving(false)
-    setSaved(true)
+    setSaving(false); setSaved(true)
     onHistoryAdd('DA stages updated')
     setTimeout(() => setSaved(false), 2000)
   }
@@ -668,10 +886,7 @@ function TimeBudgetTab({ job, currentUser, onHistoryAdd }) {
     fetchLogs()
   }
 
-  const handleSaved = async (historyText) => {
-    await onHistoryAdd(historyText)
-    fetchLogs()
-  }
+  const handleSaved = async (historyText) => { await onHistoryAdd(historyText); fetchLogs() }
 
   const totalSeconds = timeLogs.reduce((sum, l) => sum + (l.duration_seconds || Math.round((l.hours || 0) * 3600)), 0)
   const totalAmount = timeLogs.reduce((sum, l) => sum + calcAmount(l.duration_seconds || Math.round((l.hours || 0) * 3600), l.rate), 0)
@@ -683,13 +898,7 @@ function TimeBudgetTab({ job, currentUser, onHistoryAdd }) {
     <div className="space-y-4">
       {showAddModal && <AddTimeLogModal job={job} currentUser={currentUser} onClose={() => setShowAddModal(false)} onSaved={handleSaved} />}
       {editingLog && <EditTimeLogModal log={editingLog} onClose={() => setEditingLog(null)} onSaved={handleSaved} />}
-      {deletingLog && (
-        <DeleteTimeLogModal
-          log={deletingLog}
-          onConfirm={handleDelete}
-          onCancel={() => setDeletingLog(null)}
-        />
-      )}
+      {deletingLog && <DeleteTimeLogModal log={deletingLog} onConfirm={handleDelete} onCancel={() => setDeletingLog(null)} />}
 
       <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-xs text-emerald-700">
         Use the <span className="font-semibold">Time Tracker</span> in the sidebar to log time against this job.
@@ -855,11 +1064,11 @@ function DocumentsTab({ job, currentUser, onHistoryAdd }) {
 }
 
 const templatesByType = {
-  MCU: ['MCU Planning Report', 'MCU IR Response', 'MCU Client Engagement Letter', 'Tax Invoice'],
-  ROL: ['ROL Planning Report', 'ROL IR Response', 'ROL Engagement Letter', 'Tax Invoice'],
-  RAA: ['RAA Response Report', 'Referral Agency Submission', 'Tax Invoice'],
-  OW: ['OW Planning Report', 'OW Compliance Report', 'Tax Invoice'],
-  SPS: ['SPS Request Report', 'SPS Supporting Statement', 'Tax Invoice'],
+  MCU: ['Fee Proposal', 'MCU Planning Report', 'MCU IR Response', 'MCU Client Engagement Letter', 'Tax Invoice'],
+  ROL: ['Fee Proposal', 'ROL Planning Report', 'ROL IR Response', 'ROL Engagement Letter', 'Tax Invoice'],
+  RAA: ['Fee Proposal', 'RAA Response Report', 'Referral Agency Submission', 'Tax Invoice'],
+  OW: ['Fee Proposal', 'OW Planning Report', 'OW Compliance Report', 'Tax Invoice'],
+  SPS: ['Fee Proposal', 'SPS Request Report', 'SPS Supporting Statement', 'Tax Invoice'],
 }
 
 const statusColors = {
@@ -891,6 +1100,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
   const [notesSaved, setNotesSaved] = useState(false)
   const [history, setHistory] = useState([])
   const [jobData, setJobData] = useState(job)
+  const [hpcStages, setHpcStages] = useState(initialHPCStages)
   const [dates, setDates] = useState({
     confirmation: job?.date_confirmation || '',
     irResponse: job?.date_ir_response || '',
@@ -902,12 +1112,10 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
 
   useEffect(() => {
     const loadHistory = async () => {
-      const { data } = await supabase.from('jobs').select('job_history').eq('id', job.id).single()
-      if (data?.job_history && data.job_history.length > 0) {
-        setHistory(data.job_history)
-      } else {
-        setHistory([{ text: 'Job created', time: job.created_at }])
-      }
+      const { data } = await supabase.from('jobs').select('job_history, hpc_stages').eq('id', job.id).single()
+      if (data?.job_history && data.job_history.length > 0) setHistory(data.job_history)
+      else setHistory([{ text: 'Job created', time: job.created_at }])
+      if (data?.hpc_stages && Object.keys(data.hpc_stages).length > 0) setHpcStages({ ...initialHPCStages, ...data.hpc_stages })
     }
     loadHistory()
   }, [job.id])
@@ -934,8 +1142,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
   const saveNotes = async () => {
     setNotesSaving(true)
     await supabase.from('jobs').update({ notes }).eq('id', job.id)
-    setNotesSaving(false)
-    setNotesSaved(true)
+    setNotesSaving(false); setNotesSaved(true)
     await addHistory('Notes updated')
     setTimeout(() => setNotesSaved(false), 2000)
   }
@@ -952,6 +1159,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
     app_type: jobData.app_type, assessment_level: jobData.assessment_level,
     proposed_use: jobData.proposed_use, referral_agencies: jobData.referral_agencies,
     planner: jobData.planner, planner_rate: jobData.planner_rate, budget_hours: jobData.budget_hours,
+    hpc_stages: hpcStages,
   }
 
   const toggleTemplate = (t) => setSelectedTemplates(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])
@@ -961,17 +1169,17 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
     setGenerating(true)
     setShowGenerate(false)
     for (const template of selectedTemplates) {
-      if (template.includes('Planning Report')) await generatePlanningReport(jobForDocs)
-      if (template.includes('IR Response')) await generateIRResponse(jobForDocs, 1)
-      if (template.includes('Engagement Letter')) await generateEngagementLetter(jobForDocs)
-      if (template.includes('Invoice')) await generateInvoice(jobForDocs)
+      if (template === 'Fee Proposal') await generateFeeProposal(jobForDocs)
+      else if (template.includes('Planning Report')) await generatePlanningReport(jobForDocs)
+      else if (template.includes('IR Response')) await generateIRResponse(jobForDocs, 1)
+      else if (template.includes('Engagement Letter')) await generateEngagementLetter(jobForDocs)
+      else if (template.includes('Invoice')) await generateInvoice(jobForDocs)
     }
     for (const t of selectedTemplates) await addHistory(`Document generated: ${t}`)
     setSelectedTemplates([])
     setGenerating(false)
   }
 
-  // Display planners list
   const plannersList = jobData.planners?.length > 0 ? jobData.planners : (jobData.planner ? [jobData.planner] : [])
 
   return (
@@ -1007,6 +1215,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
                 <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${selectedTemplates.includes(t) ? 'bg-emerald-600 border-emerald-600' : 'border-gray-300'}`}>
                   {selectedTemplates.includes(t) && <span className="text-white text-xs">✓</span>}
                 </div>
+                {t === 'Fee Proposal' && <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-medium ml-1">HPC</span>}
                 {t}
               </div>
             ))}
@@ -1018,11 +1227,10 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
         </div>
       )}
 
-      {/* Tabs with proper capitalisation */}
-      <div className="flex gap-1 border-b border-gray-200 mb-4">
+      <div className="flex gap-1 border-b border-gray-200 mb-4 overflow-x-auto">
         {TABS.map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2 text-xs border-b-2 transition-colors ${activeTab === tab.id ? 'border-emerald-500 text-emerald-600 font-medium' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+            className={`px-4 py-2 text-xs border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id ? 'border-emerald-500 text-emerald-600 font-medium' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
             {tab.label}
           </button>
         ))}
@@ -1093,6 +1301,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
         </div>
       )}
 
+      {activeTab === 'hpc stages' && <HPCStagesTab job={jobData} onHistoryAdd={addHistory} />}
       {activeTab === 'da stages' && <DAStageTracker job={jobData} currentUser={currentUser} onHistoryAdd={addHistory} />}
       {activeTab === 'documents' && <DocumentsTab job={jobData} currentUser={currentUser} onHistoryAdd={addHistory} />}
       {activeTab === 'time & budget' && <TimeBudgetTab job={jobData} currentUser={currentUser} onHistoryAdd={addHistory} />}
@@ -1122,6 +1331,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
                   h.text.includes('generated') ? 'bg-purple-500' :
                   h.text.includes('uploaded') ? 'bg-blue-500' :
                   h.text.includes('Notes') ? 'bg-amber-500' :
+                  h.text.includes('HPC stages') ? 'bg-blue-500' :
                   h.text.includes('DA stages') ? 'bg-pink-500' :
                   h.text.includes('Time log') ? 'bg-teal-500' :
                   h.text.includes('details updated') ? 'bg-emerald-500' : 'bg-gray-300'
