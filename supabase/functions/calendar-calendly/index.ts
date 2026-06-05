@@ -24,6 +24,8 @@ serve(async (req) => {
       const body = await req.json()
       const { code, company_id, username } = body
 
+      console.log('Calendly callback received for:', username)
+
       const tokenRes = await fetch('https://auth.calendly.com/oauth/token', {
         method: 'POST',
         headers: {
@@ -38,6 +40,8 @@ serve(async (req) => {
       })
 
       const tokens = await tokenRes.json()
+      console.log('Token response:', JSON.stringify(tokens))
+
       if (!tokens.access_token) {
         return new Response(JSON.stringify({ success: false, error: 'No access token', detail: tokens }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -48,8 +52,14 @@ serve(async (req) => {
         headers: { Authorization: `Bearer ${tokens.access_token}` }
       })
       const userData = await userRes.json()
+      console.log('User data:', JSON.stringify(userData))
+
       const userUri = userData.resource?.uri
       const email = userData.resource?.email
+      const orgUri = userData.resource?.current_organization
+
+      console.log('User URI:', userUri)
+      console.log('Org URI:', orgUri)
 
       await supabase.from('calendar_connections').upsert({
         company_id,
@@ -62,22 +72,34 @@ serve(async (req) => {
         expires_at: new Date(Date.now() + (tokens.expires_in || 3600) * 1000).toISOString(),
       }, { onConflict: 'company_id,username,provider' })
 
-      await fetch('https://api.calendly.com/webhook_subscriptions', {
+      console.log('Saved connection, registering webhook...')
+
+      // Register webhook
+      const webhookUrl = `${SUPABASE_URL}/functions/v1/calendar-calendly?action=webhook&company_id=${company_id}&username=${encodeURIComponent(username)}`
+      console.log('Webhook URL:', webhookUrl)
+
+      const webhookBody = {
+        url: webhookUrl,
+        events: ['invitee.created', 'invitee.canceled'],
+        organization: orgUri,
+        user: userUri,
+        scope: 'user',
+      }
+      console.log('Webhook body:', JSON.stringify(webhookBody))
+
+      const webhookRes = await fetch('https://api.calendly.com/webhook_subscriptions', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${tokens.access_token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          url: `${SUPABASE_URL}/functions/v1/calendar-calendly?action=webhook&company_id=${company_id}&username=${username}`,
-          events: ['invitee.created', 'invitee.canceled'],
-          organization: userData.resource?.current_organization,
-          user: userUri,
-          scope: 'user',
-        }),
+        body: JSON.stringify(webhookBody),
       })
 
-      return new Response(JSON.stringify({ success: true, email }), {
+      const webhookData = await webhookRes.json()
+      console.log('Webhook registration response:', JSON.stringify(webhookData))
+
+      return new Response(JSON.stringify({ success: true, email, webhook: webhookData }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
@@ -85,7 +107,10 @@ serve(async (req) => {
     if (action === 'webhook') {
       const company_id = url.searchParams.get('company_id')
       const username = url.searchParams.get('username')
+      console.log('Webhook received for:', company_id, username)
+
       const rawBody = await req.text()
+      console.log('Webhook payload:', rawBody)
       const payload = JSON.parse(rawBody)
 
       if (payload.event === 'invitee.created') {
@@ -94,7 +119,9 @@ serve(async (req) => {
         const endTime = new Date(event.scheduled_event?.end_time)
         const durationMinutes = Math.round((endTime.getTime() - startTime.getTime()) / 60000)
 
-        await supabase.from('bookings').insert({
+        console.log('Creating booking for:', event.name, 'at', startTime)
+
+        const { data, error } = await supabase.from('bookings').insert({
           company_id,
           title: event.scheduled_event?.name || 'Calendly booking',
           type: 'client',
@@ -108,6 +135,9 @@ serve(async (req) => {
           external_id: event.uri,
           external_source: 'calendly',
         })
+
+        if (error) console.log('Booking insert error:', JSON.stringify(error))
+        else console.log('Booking created:', JSON.stringify(data))
       }
 
       if (payload.event === 'invitee.canceled') {
@@ -155,6 +185,7 @@ serve(async (req) => {
     })
 
   } catch (e) {
+    console.log('Error:', e.message)
     return new Response(JSON.stringify({ error: e.message }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
