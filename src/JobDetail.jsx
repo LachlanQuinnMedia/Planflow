@@ -88,9 +88,9 @@ const HPC_STAGES = [
 ]
 
 const initialHPCStages = {
-  stage1: { status: 'pending', fee: 500, notes: '', completedDate: '' },
-  stage2: { status: 'pending', fee: 3000, notes: '', completedDate: '' },
-  stage3: { status: 'pending', fee: 2000, notes: '', completedDate: '' },
+  stage1: { status: 'pending', fee: 500, notes: '', completedDate: '', checkedItems: [] },
+  stage2: { status: 'pending', fee: 3000, notes: '', completedDate: '', checkedItems: [] },
+  stage3: { status: 'pending', fee: 2000, notes: '', completedDate: '', checkedItems: [] },
 }
 
 const initialStageData = {
@@ -184,7 +184,15 @@ function HPCStagesTab({ job, onHistoryAdd }) {
     const load = async () => {
       const { data } = await supabase.from('jobs').select('hpc_stages').eq('id', job.id).single()
       if (data?.hpc_stages && Object.keys(data.hpc_stages).length > 0) {
-        setStages({ ...initialHPCStages, ...data.hpc_stages })
+        const merged = {}
+        for (const s of HPC_STAGES) {
+          merged[s.id] = {
+            ...initialHPCStages[s.id],
+            ...data.hpc_stages[s.id],
+            checkedItems: data.hpc_stages[s.id]?.checkedItems || [],
+          }
+        }
+        setStages(merged)
       }
     }
     load()
@@ -192,6 +200,17 @@ function HPCStagesTab({ job, onHistoryAdd }) {
 
   const updateStage = (id, updates) => {
     setStages(prev => ({ ...prev, [id]: { ...prev[id], ...updates } }))
+    setSaved(false)
+  }
+
+  const toggleItem = (stageId, itemIndex) => {
+    setStages(prev => {
+      const checked = prev[stageId].checkedItems || []
+      const next = checked.includes(itemIndex)
+        ? checked.filter(i => i !== itemIndex)
+        : [...checked, itemIndex]
+      return { ...prev, [stageId]: { ...prev[stageId], checkedItems: next } }
+    })
     setSaved(false)
   }
 
@@ -248,11 +267,20 @@ function HPCStagesTab({ job, onHistoryAdd }) {
         <div className="flex gap-2">
           {HPC_STAGES.map(stage => {
             const data = stages[stage.id]
+            const checkedCount = (data.checkedItems || []).length
+            const totalItems = stage.items.length
+            const pct = Math.round((checkedCount / totalItems) * 100)
             return (
               <div key={stage.id} className="flex-1">
-                <div className={`h-2 rounded-full ${data.status === 'complete' ? 'bg-emerald-500' : data.status === 'active' ? 'bg-amber-400' : 'bg-gray-200'}`} />
-                <div className="text-center mt-1">
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${data.status === 'complete' ? 'bg-emerald-500' : data.status === 'active' ? 'bg-amber-400' : checkedCount > 0 ? 'bg-blue-400' : 'bg-gray-200'}`}
+                    style={{ width: data.status === 'complete' ? '100%' : `${pct}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between mt-1">
                   <span className="text-xs text-gray-400">{stage.shortLabel}</span>
+                  <span className="text-xs text-gray-400">{checkedCount}/{totalItems}</span>
                 </div>
               </div>
             )
@@ -266,6 +294,9 @@ function HPCStagesTab({ job, onHistoryAdd }) {
         const isExpanded = expandedStage === stage.id
         const isComplete = data.status === 'complete'
         const isActive = data.status === 'active'
+        const checkedItems = data.checkedItems || []
+        const checkedCount = checkedItems.length
+        const totalItems = stage.items.length
 
         return (
           <div key={stage.id} className={`bg-white rounded-xl border transition-all ${isActive ? 'border-amber-300 shadow-sm' : isComplete ? 'border-emerald-200' : 'border-gray-100'}`}>
@@ -277,11 +308,14 @@ function HPCStagesTab({ job, onHistoryAdd }) {
                 <div className="text-xs font-semibold text-gray-800">{stage.label}</div>
                 <div className="text-xs text-gray-400 truncate">{stage.description}</div>
               </div>
-              <div className="text-right flex-shrink-0">
+              <div className="text-right flex-shrink-0 mr-2">
                 <div className="text-xs font-semibold">${parseFloat(data.fee || 0).toLocaleString()} + GST</div>
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[data.status]}`}>
-                  {data.status === 'pending' ? 'Not started' : data.status === 'active' ? 'In progress' : 'Complete'}
-                </span>
+                <div className="flex items-center gap-2 justify-end mt-0.5">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[data.status]}`}>
+                    {data.status === 'pending' ? 'Not started' : data.status === 'active' ? 'In progress' : 'Complete'}
+                  </span>
+                  <span className="text-xs text-gray-400">{checkedCount}/{totalItems} tasks</span>
+                </div>
               </div>
               <div className="text-xs text-gray-300">{isExpanded ? '▲' : '▼'}</div>
             </div>
@@ -289,17 +323,38 @@ function HPCStagesTab({ job, onHistoryAdd }) {
             {isExpanded && (
               <div className="px-4 pb-4 border-t border-gray-100">
                 <div className="grid grid-cols-2 gap-4 mt-3">
+                  {/* Scope of works — clickable checklist */}
                   <div>
-                    <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Scope of works</div>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Scope of works</div>
+                      <span className="text-xs text-gray-400">{checkedCount} of {totalItems} complete</span>
+                    </div>
                     <div className="space-y-1.5">
-                      {stage.items.map((item, i) => (
-                        <div key={i} className="flex items-start gap-2">
-                          <div className="w-1.5 h-1.5 rounded-full bg-gray-300 flex-shrink-0 mt-1.5" />
-                          <div className="text-xs text-gray-600">{item}</div>
-                        </div>
-                      ))}
+                      {stage.items.map((item, i) => {
+                        const isDone = checkedItems.includes(i)
+                        return (
+                          <button
+                            key={i}
+                            onClick={() => toggleItem(stage.id, i)}
+                            className={`w-full flex items-start gap-2.5 px-3 py-2 rounded-lg text-left transition-colors ${isDone ? 'bg-emerald-50 border border-emerald-200' : 'bg-gray-50 border border-gray-100 hover:bg-gray-100'}`}
+                          >
+                            <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors ${isDone ? 'bg-emerald-500 border-emerald-500' : 'border border-gray-300 bg-white'}`}>
+                              {isDone && (
+                                <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                                  <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                              )}
+                            </div>
+                            <span className={`text-xs leading-relaxed ${isDone ? 'text-emerald-700 line-through opacity-70' : 'text-gray-600'}`}>
+                              {item}
+                            </span>
+                          </button>
+                        )
+                      })}
                     </div>
                   </div>
+
+                  {/* Stage settings */}
                   <div className="space-y-3">
                     <div>
                       <label className="block text-xs text-gray-500 mb-1">Stage fee (ex GST)</label>
@@ -318,7 +373,10 @@ function HPCStagesTab({ job, onHistoryAdd }) {
                       <label className="block text-xs text-gray-500 mb-1">Status</label>
                       <select
                         value={data.status}
-                        onChange={e => updateStage(stage.id, { status: e.target.value, completedDate: e.target.value === 'complete' ? new Date().toISOString().split('T')[0] : data.completedDate })}
+                        onChange={e => updateStage(stage.id, {
+                          status: e.target.value,
+                          completedDate: e.target.value === 'complete' ? new Date().toISOString().split('T')[0] : data.completedDate
+                        })}
                         className="w-full px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400"
                       >
                         <option value="pending">Not started</option>
@@ -353,6 +411,22 @@ function HPCStagesTab({ job, onHistoryAdd }) {
                         </button>
                       )}
                     </div>
+
+                    {/* Mini progress */}
+                    {checkedCount > 0 && (
+                      <div>
+                        <div className="flex justify-between text-xs text-gray-400 mb-1">
+                          <span>Tasks completed</span>
+                          <span>{checkedCount}/{totalItems}</span>
+                        </div>
+                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-emerald-500 rounded-full transition-all"
+                            style={{ width: `${Math.round((checkedCount / totalItems) * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -366,7 +440,10 @@ function HPCStagesTab({ job, onHistoryAdd }) {
         <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Fee summary</div>
         {HPC_STAGES.map(stage => (
           <div key={stage.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-            <div className="text-xs text-gray-600">{stage.shortLabel} — {stage.label.split(' — ')[1]}</div>
+            <div className="flex items-center gap-2">
+              <div className="text-xs text-gray-600">{stage.shortLabel} — {stage.label.split(' — ')[1]}</div>
+              <span className="text-xs text-gray-400">({(stages[stage.id]?.checkedItems || []).length}/{stage.items.length} tasks)</span>
+            </div>
             <div className="text-xs font-medium">${parseFloat(stages[stage.id]?.fee || 0).toLocaleString()} + GST</div>
           </div>
         ))}
@@ -1115,7 +1192,17 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
       const { data } = await supabase.from('jobs').select('job_history, hpc_stages').eq('id', job.id).single()
       if (data?.job_history && data.job_history.length > 0) setHistory(data.job_history)
       else setHistory([{ text: 'Job created', time: job.created_at }])
-      if (data?.hpc_stages && Object.keys(data.hpc_stages).length > 0) setHpcStages({ ...initialHPCStages, ...data.hpc_stages })
+      if (data?.hpc_stages && Object.keys(data.hpc_stages).length > 0) {
+        const merged = {}
+        for (const s of HPC_STAGES) {
+          merged[s.id] = {
+            ...initialHPCStages[s.id],
+            ...data.hpc_stages[s.id],
+            checkedItems: data.hpc_stages[s.id]?.checkedItems || [],
+          }
+        }
+        setHpcStages(merged)
+      }
     }
     loadHistory()
   }, [job.id])
