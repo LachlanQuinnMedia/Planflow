@@ -443,7 +443,7 @@ export default function App() {
       case 'jobs': return <Jobs onNavigate={handleNavigate} onJobCountChange={setJobCount} />
       case 'newjob': return <NewJob onNavigate={handleNavigate} currentUser={currentUser} />
       case 'jobdetail': return <JobDetail job={selectedJob} onNavigate={handleNavigate} currentUser={currentUser} />
-      case 'workload': return isDirector ? <Workload /> : <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-sm text-gray-400">Access restricted to directors.</div>
+      case 'workload': return isDirector ? <Workload currentUser={currentUser} /> : <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-sm text-gray-400">Access restricted to directors.</div>
       case 'xero': return <Xero currentUser={currentUser} />
       case 'calendly': return <Bookings onNavigate={handleNavigate} currentUser={currentUser} />
       case 'calendar': return (
