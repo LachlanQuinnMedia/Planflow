@@ -185,11 +185,13 @@ function GlobalTimer({ jobs }) {
   )
 }
 
-function NotificationPanel({ notifications, onClose, onApprove, onReject, processingId }) {
+function NotificationPanel({ notifications, lastSeenAt, onClose, onApprove, onReject, processingId }) {
   const extractUsername = (message) => {
     const match = message.match(/created:\s*(.+?)\.\s*Awaiting/)
     return match ? match[1].trim() : null
   }
+
+  const lastSeenDate = new Date(lastSeenAt)
 
   return (
     <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-80 overflow-y-auto">
@@ -204,8 +206,15 @@ function NotificationPanel({ notifications, onClose, onApprove, onReject, proces
           const username = extractUsername(n.message)
           const isNewUser = n.type === 'new_user'
           const isProcessing = processingId === n.id
+          const isNew = new Date(n.created_at) > lastSeenDate
           return (
-            <div key={n.id} className="px-3 py-3 border-b border-gray-100 last:border-0">
+            <div key={n.id} className={`px-3 py-3 border-b border-gray-100 last:border-0 ${isNew ? 'bg-blue-50' : ''}`}>
+              {isNew && (
+                <div className="flex items-center gap-1 mb-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
+                  <span className="text-xs text-blue-600 font-medium">New</span>
+                </div>
+              )}
               <div className="text-xs font-medium text-gray-700 mb-1">{n.message}</div>
               <div className="text-xs text-gray-400 mb-2">
                 {new Date(n.created_at).toLocaleString('en-AU', {
@@ -250,6 +259,9 @@ export default function App() {
   const [notifications, setNotifications] = useState([])
   const [showNotifications, setShowNotifications] = useState(false)
   const [processingNotificationId, setProcessingNotificationId] = useState(null)
+  const [lastSeenAt, setLastSeenAt] = useState(() => {
+    return localStorage.getItem('qplanLastSeenNotifications') || '1970-01-01T00:00:00.000Z'
+  })
   const [history, setHistory] = useState(['dashboard'])
   const [historyIndex, setHistoryIndex] = useState(0)
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -350,20 +362,27 @@ export default function App() {
     if (data) setNotifications(data)
   }
 
-  const unreadCount = notifications.filter(n => !n.is_read).length
+  // Unread = anything created after the last time the panel was opened.
+  // Doesn't depend on the is_read column behaving correctly.
+  const unreadCount = notifications.filter(n => new Date(n.created_at) > new Date(lastSeenAt)).length
 
   const handleOpenNotifications = async () => {
     const opening = !showNotifications
     setShowNotifications(opening)
     if (opening && currentUser?.company_id) {
-      // Optimistically mark all as read in local state so the badge updates immediately
-      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
-      const { error } = await supabase
+      // Refresh notifications immediately so the panel shows the latest
+      fetchNotifications()
+      // Mark "last seen" to now — clears the badge
+      const now = new Date().toISOString()
+      setLastSeenAt(now)
+      localStorage.setItem('qplanLastSeenNotifications', now)
+      // Best-effort mark as read in DB (don't block on it)
+      supabase
         .from('notifications')
         .update({ is_read: true })
         .eq('company_id', currentUser.company_id)
         .eq('is_read', false)
-      if (error) console.error('Could not mark notifications as read:', error)
+        .then(() => {})
     }
   }
 
@@ -555,6 +574,7 @@ export default function App() {
               {showNotifications && (
                 <NotificationPanel
                   notifications={notifications}
+                  lastSeenAt={lastSeenAt}
                   onClose={() => setShowNotifications(false)}
                   onApprove={handleApprove}
                   onReject={handleReject}
