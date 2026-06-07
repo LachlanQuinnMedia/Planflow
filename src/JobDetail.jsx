@@ -136,8 +136,6 @@ const templatesByType = {
   SPS: ['Fee Proposal', 'SPS Request Report', 'SPS Supporting Statement', 'Tax Invoice'],
 }
 
-// Storage-based .docx templates (cleaned + placeholder-filled), grouped by stage.
-// More categories (Stage 2, Stage 3, Miscellaneous) get added as their templates arrive.
 const STAGE1_TEMPLATES = [
   {
     group: 'Fee Proposals',
@@ -156,7 +154,49 @@ const STAGE1_TEMPLATES = [
     ],
   },
 ]
-const ALL_DOCX_ITEMS = STAGE1_TEMPLATES.flatMap(g => g.items)
+
+const STAGE2_TEMPLATES = [
+  {
+    group: 'Action Notice',
+    items: [
+      { file: 'Action_Notice_Response.docx', label: 'Action Notice Response' },
+    ],
+  },
+  {
+    group: 'Planning Reports',
+    items: [
+      { file: 'Town_Planning_Assessment.docx',         label: 'Town Planning Assessment (generic)' },
+      { file: 'DA_Report_Brisbane.docx',               label: 'DA Report — Brisbane' },
+      { file: 'DA_Report_Brisbane_RiskSmart.docx',     label: 'DA Report — Brisbane RiskSmart' },
+      { file: 'DA_Report_Express_Code.docx',           label: 'DA Report — Express DA (Code)' },
+      { file: 'DA_Report_Express_Accepted.docx',       label: 'DA Report — Express DA (Accepted to Code)' },
+      { file: 'DA_Report_Gold_Coast.docx',             label: 'DA Report — Gold Coast' },
+      { file: 'DA_Report_Gold_Coast_RAA.docx',         label: 'DA Report — Gold Coast RAA' },
+      { file: 'DA_Report_Gold_Coast_Sch6_RAA.docx',    label: 'DA Report — Gold Coast Sch6 RAA' },
+      { file: 'DA_Report_OPW.docx',                    label: 'DA Report — Operational Works' },
+    ],
+  },
+  {
+    group: 'Referrals',
+    items: [
+      { file: 'Referral_Cover_Letter.docx',      label: 'Referral Cover Letter' },
+      { file: 'Missed_Referral_Letter.docx',     label: 'Missed Referral Letter' },
+      { file: 'Referral_Compliance_Letter.docx', label: 'Referral Compliance Letter' },
+      { file: 'Early_Concurrence_Request.docx',  label: 'Early Concurrence Request' },
+      { file: 'RAA_Application.docx',            label: 'RAA Application' },
+    ],
+  },
+  {
+    group: 'Change Applications',
+    items: [
+      { file: 'Minor_Change_Application.docx',                 label: 'Minor Change Application' },
+      { file: 'Minor_Change_Application_Affected_Entity.docx', label: 'Minor Change — Affected Entity Notice' },
+      { file: 'Other_Change_Application.docx',                 label: 'Other Change Application' },
+    ],
+  },
+]
+
+const ALL_DOCX_ITEMS = [...STAGE1_TEMPLATES, ...STAGE2_TEMPLATES].flatMap(g => g.items)
 
 function daysUntil(dateStr) {
   if (!dateStr) return null
@@ -220,7 +260,6 @@ async function sendStageNotifications(job, stageId, stageLabel, daysLeft, compan
   } catch (e) {}
 }
 
-// ── HPC STAGES TAB ─────────────────────────────────────────────────────────────
 function HPCStagesTab({ job, onHistoryAdd }) {
   const [stages, setStages] = useState(initialHPCStages)
   const [saving, setSaving] = useState(false)
@@ -1200,7 +1239,6 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
     loadHistory()
   }, [job.id])
 
-  // Load the logged-in planner's profile so their name/position/email fill their own documents.
   useEffect(() => {
     const loadPlanner = async () => {
       if (!currentUser?.id) return
@@ -1264,12 +1302,8 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
     hpc_stages: hpcStages,
   }
 
-  // Code-built docs still available for app types we haven't converted to .docx templates yet.
-  // The old code-built "Fee Proposal" is dropped — the four .docx fee proposals replace it.
   const otherDocs = (templatesByType[jobData.app_type] || []).filter(t => t !== 'Fee Proposal')
-
   const labelFor = (id) => ALL_DOCX_ITEMS.find(i => i.file === id)?.label || id
-
   const toggleTemplate = (t) => setSelectedTemplates(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])
 
   const handleGenerate = async () => {
@@ -1345,6 +1379,21 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
 
             <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Stage 1</div>
             {STAGE1_TEMPLATES.map(group => (
+              <div key={group.group} className="mb-3">
+                <div className="text-xs font-medium text-gray-600 mb-1">{group.group}</div>
+                {group.items.map(item => (
+                  <div key={item.file} onClick={() => toggleTemplate(item.file)} className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-1 cursor-pointer text-xs transition-colors ${selectedTemplates.includes(item.file) ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-50 hover:bg-gray-100'}`}>
+                    <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${selectedTemplates.includes(item.file) ? 'bg-emerald-600 border-emerald-600' : 'border-gray-300'}`}>
+                      {selectedTemplates.includes(item.file) && <span className="text-white text-xs">✓</span>}
+                    </div>
+                    {item.label}
+                  </div>
+                ))}
+              </div>
+            ))}
+
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-4">Stage 2</div>
+            {STAGE2_TEMPLATES.map(group => (
               <div key={group.group} className="mb-3">
                 <div className="text-xs font-medium text-gray-600 mb-1">{group.group}</div>
                 {group.items.map(item => (

@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
 
-// Stage-based template catalogue. As Word docs for Stage 2/3/Misc get uploaded
-// to Supabase Storage, add them to the matching `items` arrays below.
 const STAGE_CATEGORIES = [
   {
     stage: 'Stage 1',
@@ -30,9 +28,44 @@ const STAGE_CATEGORIES = [
     stage: 'Stage 2',
     color: 'bg-purple-100 text-purple-700',
     groups: [
-      { name: 'Action Notice',    items: [] },
-      { name: 'Planning Reports', items: [] },
-      { name: 'Referrals',        items: [] },
+      {
+        name: 'Action Notice',
+        items: [
+          { file: 'Action_Notice_Response.docx', label: 'Action Notice Response' },
+        ],
+      },
+      {
+        name: 'Planning Reports',
+        items: [
+          { file: 'Town_Planning_Assessment.docx',         label: 'Town Planning Assessment (generic)' },
+          { file: 'DA_Report_Brisbane.docx',               label: 'DA Report — Brisbane' },
+          { file: 'DA_Report_Brisbane_RiskSmart.docx',     label: 'DA Report — Brisbane RiskSmart' },
+          { file: 'DA_Report_Express_Code.docx',           label: 'DA Report — Express DA (Code)' },
+          { file: 'DA_Report_Express_Accepted.docx',       label: 'DA Report — Express DA (Accepted to Code)' },
+          { file: 'DA_Report_Gold_Coast.docx',             label: 'DA Report — Gold Coast' },
+          { file: 'DA_Report_Gold_Coast_RAA.docx',         label: 'DA Report — Gold Coast RAA' },
+          { file: 'DA_Report_Gold_Coast_Sch6_RAA.docx',    label: 'DA Report — Gold Coast Sch6 RAA' },
+          { file: 'DA_Report_OPW.docx',                    label: 'DA Report — Operational Works' },
+        ],
+      },
+      {
+        name: 'Referrals',
+        items: [
+          { file: 'Referral_Cover_Letter.docx',      label: 'Referral Cover Letter' },
+          { file: 'Missed_Referral_Letter.docx',     label: 'Missed Referral Letter' },
+          { file: 'Referral_Compliance_Letter.docx', label: 'Referral Compliance Letter' },
+          { file: 'Early_Concurrence_Request.docx',  label: 'Early Concurrence Request' },
+          { file: 'RAA_Application.docx',            label: 'RAA Application' },
+        ],
+      },
+      {
+        name: 'Change Applications',
+        items: [
+          { file: 'Minor_Change_Application.docx',                 label: 'Minor Change Application' },
+          { file: 'Minor_Change_Application_Affected_Entity.docx', label: 'Minor Change — Affected Entity Notice' },
+          { file: 'Other_Change_Application.docx',                 label: 'Other Change Application' },
+        ],
+      },
     ],
   },
   {

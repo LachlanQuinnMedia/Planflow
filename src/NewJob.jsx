@@ -9,7 +9,6 @@ import {
 } from './docGenerator'
 import { generateFromTemplate } from './templateFiller'
 
-// Code-built HPC docs (existing).
 const HPC_TEMPLATES = [
   { id: 'cover', label: 'Lodgement cover letter', fn: generateLodgementCoverLetter },
   { id: 'withdraw', label: 'Withdraw application', fn: generateWithdrawApplication },
@@ -18,7 +17,6 @@ const HPC_TEMPLATES = [
   { id: 'quote', label: 'Quote request', fn: generateQuoteRequest },
 ]
 
-// Stage 1 .docx templates (Supabase Storage, filled via templateFiller).
 const STAGE1_TEMPLATES = [
   {
     group: 'Fee Proposals',
@@ -34,6 +32,47 @@ const STAGE1_TEMPLATES = [
     items: [
       { file: 'Consent_Individual.docx', label: "Owner's Consent — Individual" },
       { file: 'Consent_Company.docx',    label: "Owner's Consent — Company" },
+    ],
+  },
+]
+
+const STAGE2_TEMPLATES = [
+  {
+    group: 'Action Notice',
+    items: [
+      { file: 'Action_Notice_Response.docx', label: 'Action Notice Response' },
+    ],
+  },
+  {
+    group: 'Planning Reports',
+    items: [
+      { file: 'Town_Planning_Assessment.docx',         label: 'Town Planning Assessment (generic)' },
+      { file: 'DA_Report_Brisbane.docx',               label: 'DA Report — Brisbane' },
+      { file: 'DA_Report_Brisbane_RiskSmart.docx',     label: 'DA Report — Brisbane RiskSmart' },
+      { file: 'DA_Report_Express_Code.docx',           label: 'DA Report — Express DA (Code)' },
+      { file: 'DA_Report_Express_Accepted.docx',       label: 'DA Report — Express DA (Accepted to Code)' },
+      { file: 'DA_Report_Gold_Coast.docx',             label: 'DA Report — Gold Coast' },
+      { file: 'DA_Report_Gold_Coast_RAA.docx',         label: 'DA Report — Gold Coast RAA' },
+      { file: 'DA_Report_Gold_Coast_Sch6_RAA.docx',    label: 'DA Report — Gold Coast Sch6 RAA' },
+      { file: 'DA_Report_OPW.docx',                    label: 'DA Report — Operational Works' },
+    ],
+  },
+  {
+    group: 'Referrals',
+    items: [
+      { file: 'Referral_Cover_Letter.docx',      label: 'Referral Cover Letter' },
+      { file: 'Missed_Referral_Letter.docx',     label: 'Missed Referral Letter' },
+      { file: 'Referral_Compliance_Letter.docx', label: 'Referral Compliance Letter' },
+      { file: 'Early_Concurrence_Request.docx',  label: 'Early Concurrence Request' },
+      { file: 'RAA_Application.docx',            label: 'RAA Application' },
+    ],
+  },
+  {
+    group: 'Change Applications',
+    items: [
+      { file: 'Minor_Change_Application.docx',                 label: 'Minor Change Application' },
+      { file: 'Minor_Change_Application_Affected_Entity.docx', label: 'Minor Change — Affected Entity Notice' },
+      { file: 'Other_Change_Application.docx',                 label: 'Other Change Application' },
     ],
   },
 ]
@@ -122,6 +161,24 @@ function DocGenerateModal({ job, planner, onClose, onNavigate }) {
             </div>
           ))}
 
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-4">Stage 2</div>
+          {STAGE2_TEMPLATES.map(group => (
+            <div key={group.group} className="mb-3">
+              <div className="text-xs font-medium text-gray-600 mb-1">{group.group}</div>
+              {group.items.map(item => (
+                <button key={item.file} onClick={() => toggle(item.file)}
+                  className={`w-full text-left px-3 py-2 rounded-lg border text-xs transition-colors mb-1 ${selected.has(item.file) ? 'border-emerald-500 bg-emerald-50 text-emerald-700 font-medium' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${selected.has(item.file) ? 'bg-emerald-600 border-emerald-600' : 'border-gray-300'}`}>
+                      {selected.has(item.file) && <span className="text-white text-xs leading-none">✓</span>}
+                    </div>
+                    {item.label}
+                  </div>
+                </button>
+              ))}
+            </div>
+          ))}
+
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-4">Other documents</div>
           <div className="space-y-1">
             {HPC_TEMPLATES.map(t => (
@@ -194,7 +251,6 @@ export default function NewJob({ onNavigate, currentUser }) {
     fetchStaff()
   }, [currentUser])
 
-  // Logged-in planner's profile — fills planner_name / planner_position / planner_email in generated docs.
   useEffect(() => {
     const loadPlanner = async () => {
       if (!currentUser?.id) return
@@ -209,18 +265,8 @@ export default function NewJob({ onNavigate, currentUser }) {
   }, [currentUser])
 
   const update = (field, value) => setForm(f => ({ ...f, [field]: value }))
-
-  const togglePlanner = (name) => {
-    setSelectedPlanners(prev =>
-      prev.includes(name) ? prev.filter(p => p !== name) : [...prev, name]
-    )
-  }
-
-  const generateJobCode = () => {
-    const year = new Date().getFullYear()
-    const num = Math.floor(Math.random() * 900) + 100
-    return `${year}-${num}`
-  }
+  const togglePlanner = (name) => setSelectedPlanners(prev => prev.includes(name) ? prev.filter(p => p !== name) : [...prev, name])
+  const generateJobCode = () => `${new Date().getFullYear()}-${Math.floor(Math.random() * 900) + 100}`
 
   const handleSubmit = async () => {
     if (!form.firstName || !form.address) { setError('Please fill in client name and address.'); return }
@@ -232,26 +278,17 @@ export default function NewJob({ onNavigate, currentUser }) {
     const leadPlanner = selectedPlanners[0]
 
     const { error: dbError } = await supabase.from('jobs').insert({
-      code,
-      name: jobName,
-      address: form.address,
-      lot_reference: form.lot,
-      client_first_name: form.firstName,
-      client_last_name: form.lastName,
-      client_email: form.email,
-      client_phone: form.phone,
-      council: form.council,
-      zone: form.zone,
+      code, name: jobName,
+      address: form.address, lot_reference: form.lot,
+      client_first_name: form.firstName, client_last_name: form.lastName,
+      client_email: form.email, client_phone: form.phone,
+      council: form.council, zone: form.zone,
       app_type: form.appType.split('—')[0].trim(),
       assessment_level: form.assessment,
-      proposed_use: form.proposedUse,
-      referral_agencies: form.referrals,
-      planner: leadPlanner,
-      planners: selectedPlanners,
-      planner_rate: 150,
-      budget_hours: parseFloat(form.budget) || 0,
-      status: 'Draft',
-      complexity: form.complexity,
+      proposed_use: form.proposedUse, referral_agencies: form.referrals,
+      planner: leadPlanner, planners: selectedPlanners,
+      planner_rate: 150, budget_hours: parseFloat(form.budget) || 0,
+      status: 'Draft', complexity: form.complexity,
       lodgement_date: form.lodgement || null,
       decision_due_date: form.decisionDue || null,
     })
@@ -267,8 +304,7 @@ export default function NewJob({ onNavigate, currentUser }) {
       app_type: form.appType.split('—')[0].trim(),
       assessment_level: form.assessment, proposed_use: form.proposedUse,
       referral_agencies: form.referrals, planner: leadPlanner,
-      budget_hours: parseFloat(form.budget) || 0,
-      complexity: form.complexity,
+      budget_hours: parseFloat(form.budget) || 0, complexity: form.complexity,
     })
     setShowDocModal(true)
   }
@@ -345,12 +381,8 @@ export default function NewJob({ onNavigate, currentUser }) {
             {COMPLEXITY_OPTIONS.map(opt => {
               const isSelected = form.complexity === opt.value
               return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => update('complexity', opt.value)}
-                  className={`px-3 py-2.5 rounded-lg border text-left transition-all ${isSelected ? opt.activeColor + ' border-2' : opt.color + ' hover:opacity-80'}`}
-                >
+                <button key={opt.value} type="button" onClick={() => update('complexity', opt.value)}
+                  className={`px-3 py-2.5 rounded-lg border text-left transition-all ${isSelected ? opt.activeColor + ' border-2' : opt.color + ' hover:opacity-80'}`}>
                   <div className="text-xs font-semibold">{opt.value}</div>
                   <div className="text-xs opacity-75 mt-0.5 leading-tight">{opt.label.split('—')[1].trim()}</div>
                 </button>
@@ -373,16 +405,12 @@ export default function NewJob({ onNavigate, currentUser }) {
           </label>
           <div className="flex flex-wrap gap-2">
             {staffList.map(s => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => togglePlanner(s.displayName)}
+              <button key={s.id} type="button" onClick={() => togglePlanner(s.displayName)}
                 className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
                   selectedPlanners.includes(s.displayName)
                     ? 'bg-emerald-600 text-white border-emerald-600 font-medium'
                     : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                }`}
-              >
+                }`}>
                 {selectedPlanners.includes(s.displayName) && selectedPlanners[0] === s.displayName && '★ '}
                 {s.displayName}
                 {s.role === 'director' ? ' (Director)' : ''}
@@ -408,9 +436,9 @@ export default function NewJob({ onNavigate, currentUser }) {
 
         <div className="border-t border-gray-100 mb-5" />
         <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Documents available to generate</div>
-        <div className="text-xs text-gray-400 mb-3">After creating the job you'll be prompted to generate fee proposals, consents, and other documents — all pre-filled with job and planner details.</div>
+        <div className="text-xs text-gray-400 mb-3">After creating the job you'll be prompted to generate fee proposals, consents, planning reports and other documents — all pre-filled with job and planner details.</div>
         <div className="flex flex-wrap gap-2 mb-6">
-          {STAGE1_TEMPLATES.flatMap(g => g.items).map(t => (
+          {[...STAGE1_TEMPLATES, ...STAGE2_TEMPLATES].flatMap(g => g.items).map(t => (
             <span key={t.file} className="px-3 py-1 bg-emerald-50 text-emerald-700 text-xs rounded-full border border-emerald-200">{t.label}</span>
           ))}
           {HPC_TEMPLATES.map(t => (
