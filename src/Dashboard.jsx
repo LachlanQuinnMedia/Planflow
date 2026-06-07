@@ -41,6 +41,39 @@ function formatDateShort(dateStr) {
   return new Date(dateStr).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
+// Time-aware greeting based on Brisbane local time (UTC+10, no DST)
+function getTimeGreeting() {
+  try {
+    const hourStr = new Date().toLocaleString('en-AU', {
+      timeZone: 'Australia/Brisbane',
+      hour: 'numeric',
+      hour12: false,
+    })
+    const h = parseInt(hourStr, 10)
+    if (h >= 5 && h < 12) return 'Good morning'
+    if (h >= 12 && h < 17) return 'Good afternoon'
+    return 'Good evening'
+  } catch {
+    return 'Hello'
+  }
+}
+
+// Start of current week (Monday 00:00 local time)
+function getStartOfWeek() {
+  const d = new Date()
+  const day = d.getDay() // 0 = Sun, 1 = Mon, ... 6 = Sat
+  const diff = day === 0 ? -6 : 1 - day
+  d.setDate(d.getDate() + diff)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+function formatHours(h) {
+  if (!h || h === 0) return '0h'
+  if (h % 1 === 0) return `${h}h`
+  return `${h.toFixed(1)}h`
+}
+
 // Extract all upcoming due dates from a job (within 30 days)
 function extractDueDates(job, withinDays = 30) {
   const dates = []
@@ -99,6 +132,101 @@ function DueDateBadge({ daysUntil }) {
   if (daysUntil <= 7) return <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">{daysUntil}d</span>
   if (daysUntil <= 14) return <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 font-medium">{daysUntil}d</span>
   return <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium">{daysUntil}d</span>
+}
+
+function StatStrip({ myJobs, planner, onNavigate }) {
+  const [weekStats, setWeekStats] = useState({ hours: 0, jobsTouched: 0, loading: true })
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      if (!planner) { setWeekStats({ hours: 0, jobsTouched: 0, loading: false }); return }
+      const monday = getStartOfWeek()
+      const { data } = await supabase
+        .from('time_logs')
+        .select('duration_seconds, job_id, hours')
+        .eq('planner', planner)
+        .gte('created_at', monday.toISOString())
+      if (!data) { setWeekStats({ hours: 0, jobsTouched: 0, loading: false }); return }
+      const totalSecs = data.reduce(
+        (sum, l) => sum + (l.duration_seconds || Math.round((l.hours || 0) * 3600)),
+        0
+      )
+      const uniqueJobs = new Set(data.map(l => l.job_id).filter(Boolean)).size
+      setWeekStats({ hours: totalSecs / 3600, jobsTouched: uniqueJobs, loading: false })
+    }
+    fetchStats()
+  }, [planner])
+
+  const activeJobs = myJobs.length
+  const dueIn30 = myJobs.flatMap(j => extractDueDates(j, 30)).length
+  const dueIn7 = myJobs.flatMap(j => extractDueDates(j, 7)).length
+  const weeklyBudget = 40
+  const hoursPct = Math.min(100, (weekStats.hours / weeklyBudget) * 100)
+  const overBudget = weekStats.hours > weeklyBudget
+  const nearBudget = !overBudget && weekStats.hours > weeklyBudget * 0.85
+
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+      {/* Active jobs */}
+      <button
+        onClick={() => onNavigate('jobs')}
+        className="bg-emerald-50 rounded-xl p-3 text-left hover:bg-emerald-100/70 transition-colors group"
+      >
+        <div className="text-xs text-emerald-700 mb-1">Active jobs</div>
+        <div className="text-2xl font-semibold text-emerald-700">{activeJobs}</div>
+        <div className="text-xs text-emerald-600/70 mt-0.5 group-hover:underline">View all →</div>
+      </button>
+
+      {/* Hours this week */}
+      <button
+        onClick={() => onNavigate('time')}
+        className="bg-blue-50 rounded-xl p-3 text-left hover:bg-blue-100/70 transition-colors"
+      >
+        <div className="text-xs text-blue-700 mb-1">Hours this week</div>
+        <div className="flex items-baseline gap-1">
+          <div className="text-2xl font-semibold text-blue-700">{formatHours(weekStats.hours)}</div>
+          <div className="text-xs text-blue-600/70">/ {weeklyBudget}h</div>
+        </div>
+        <div className="h-1.5 bg-blue-100 rounded-full overflow-hidden mt-1.5">
+          <div
+            className={`h-full rounded-full transition-all ${
+              overBudget ? 'bg-red-500' : nearBudget ? 'bg-amber-400' : 'bg-blue-500'
+            }`}
+            style={{ width: `${hoursPct}%` }}
+          />
+        </div>
+      </button>
+
+      {/* Jobs touched this week */}
+      <div className="bg-gray-50 rounded-xl p-3">
+        <div className="text-xs text-gray-500 mb-1">Jobs touched</div>
+        <div className="text-2xl font-semibold">{weekStats.jobsTouched}</div>
+        <div className="text-xs text-gray-400 mt-0.5">This week</div>
+      </div>
+
+      {/* Due in 30 days */}
+      <button
+        onClick={() => onNavigate('jobs')}
+        className={`rounded-xl p-3 text-left transition-colors group ${
+          dueIn7 > 0
+            ? 'bg-red-50 hover:bg-red-100/70'
+            : dueIn30 > 0
+              ? 'bg-amber-50 hover:bg-amber-100/70'
+              : 'bg-gray-50 hover:bg-gray-100'
+        }`}
+      >
+        <div className={`text-xs mb-1 ${dueIn7 > 0 ? 'text-red-700' : dueIn30 > 0 ? 'text-amber-700' : 'text-gray-500'}`}>
+          Due in 30 days
+        </div>
+        <div className={`text-2xl font-semibold ${dueIn7 > 0 ? 'text-red-700' : dueIn30 > 0 ? 'text-amber-700' : ''}`}>
+          {dueIn30}
+        </div>
+        <div className={`text-xs mt-0.5 ${dueIn7 > 0 ? 'text-red-600/70' : dueIn30 > 0 ? 'text-amber-600/70' : 'text-gray-400'} group-hover:underline`}>
+          {dueIn7 > 0 ? `${dueIn7} this week →` : dueIn30 > 0 ? 'View →' : 'All clear'}
+        </div>
+      </button>
+    </div>
+  )
 }
 
 function KeyDatesPanel({ myJobs, allJobs, viewingAs }) {
@@ -271,11 +399,10 @@ function PlannerView({ planner, onNavigate, allJobs }) {
   return (
     <div>
       <div className="mb-4">
-        <div className="text-base font-semibold">Good morning, {planner.split(' ')[0]} 👋</div>
-        <div className="text-xs text-gray-400 mt-0.5">
-          {myJobs.length} active jobs · {urgentDates.length} dates due this week
-        </div>
+        <div className="text-base font-semibold">{getTimeGreeting()}, {planner.split(' ')[0]} 👋</div>
       </div>
+
+      <StatStrip myJobs={myJobs} planner={planner} onNavigate={onNavigate} />
 
       {urgentDates.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
