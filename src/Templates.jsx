@@ -120,135 +120,131 @@ async function downloadRawTemplate(filename) {
   setTimeout(() => URL.revokeObjectURL(link.href), 1000)
 }
 
-function GenerateModal({ template, currentUser, planner, onClose }) {
+function GenerateModal({ items, currentUser, planner, onClose, onDone }) {
   const [jobs, setJobs] = useState([])
   const [loadingJobs, setLoadingJobs] = useState(true)
   const [selectedJobId, setSelectedJobId] = useState('')
-  const [search, setSearch] = useState('')
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState('')
+  const [done, setDone] = useState(false)
 
   useEffect(() => {
     const load = async () => {
       if (!currentUser?.company_id) { setLoadingJobs(false); return }
       const { data } = await supabase.from('jobs')
-        .select('id, code, name, client_first_name, client_last_name, app_type, status, address')
+        .select('id, code, name, client_first_name, client_last_name, app_type, address, status')
         .eq('company_id', currentUser.company_id)
         .order('created_at', { ascending: false })
-        .limit(200)
+        .limit(500)
       if (data) setJobs(data)
       setLoadingJobs(false)
     }
     load()
   }, [currentUser])
 
-  const filtered = search.trim()
-    ? jobs.filter(j => {
-        const q = search.toLowerCase()
-        return (j.code || '').toLowerCase().includes(q)
-          || (j.name || '').toLowerCase().includes(q)
-          || (j.address || '').toLowerCase().includes(q)
-          || (`${j.client_first_name || ''} ${j.client_last_name || ''}`).toLowerCase().includes(q)
-      })
-    : jobs
-
   const handleGenerate = async () => {
     setGenerating(true)
     setError('')
-    try {
-      let jobForDocs = {}
-      if (selectedJobId) {
-        const { data } = await supabase.from('jobs').select('*').eq('id', selectedJobId).single()
-        if (data) jobForDocs = data
-      }
-      await generateFromTemplate(template.file, jobForDocs, planner || {})
-      onClose()
-    } catch (e) {
-      setError(e.message)
-      setGenerating(false)
+
+    let jobForDocs = {}
+    if (selectedJobId) {
+      const { data } = await supabase.from('jobs').select('*').eq('id', selectedJobId).single()
+      if (data) jobForDocs = data
     }
+
+    const failures = []
+    for (const item of items) {
+      try {
+        if (item.file.endsWith('.docx')) {
+          await generateFromTemplate(item.file, jobForDocs, planner || {})
+        } else if (item.file.endsWith('.xlsx') || item.file.endsWith('.ai')) {
+          await downloadRawTemplate(item.file)
+        }
+      } catch (e) {
+        failures.push(`${item.label}: ${e.message}`)
+      }
+    }
+
+    setGenerating(false)
+    if (failures.length) setError('Some documents failed:\n' + failures.join('\n'))
+    else setDone(true)
   }
 
-  const selectedJob = jobs.find(j => j.id === selectedJobId)
+  const docxCount = items.filter(i => i.file.endsWith('.docx')).length
+  const rawCount = items.length - docxCount
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
-      <div className="bg-white rounded-xl border border-gray-200 w-full max-w-lg max-h-[90vh] flex flex-col">
-        <div className="flex items-start justify-between px-5 py-4 border-b border-gray-100">
-          <div className="flex-1 min-w-0 pr-3">
-            <div className="text-sm font-semibold">Generate {template.label}</div>
-            <div className="text-xs text-gray-400 mt-0.5 truncate">{template.file}</div>
+      <div className="bg-white rounded-xl border border-gray-200 w-full max-w-md max-h-[90vh] flex flex-col">
+        <div className="px-5 py-4 border-b border-gray-100">
+          <div className="text-sm font-semibold">Generate {items.length} document{items.length !== 1 ? 's' : ''}</div>
+          <div className="text-xs text-gray-400 mt-0.5">
+            {docxCount > 0 && `${docxCount} Word doc${docxCount !== 1 ? 's' : ''}`}
+            {docxCount > 0 && rawCount > 0 && ' + '}
+            {rawCount > 0 && `${rawCount} raw file${rawCount !== 1 ? 's' : ''}`}
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
         </div>
 
         <div className="px-5 py-4 overflow-y-auto flex-1">
-          <div className="text-xs font-medium text-gray-600 mb-1">Select a job <span className="text-gray-400 font-normal">(optional)</span></div>
-          <div className="text-xs text-gray-400 mb-3">
+          <label className="text-xs font-medium text-gray-600 mb-1.5 block">
+            Job to fill from <span className="text-gray-400 font-normal">(optional)</span>
+          </label>
+
+          {loadingJobs ? (
+            <div className="text-xs text-gray-400 py-2">Loading jobs...</div>
+          ) : (
+            <select
+              value={selectedJobId}
+              onChange={e => setSelectedJobId(e.target.value)}
+              className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400 bg-white"
+            >
+              <option value="">No job — planner details only</option>
+              {jobs.map(j => {
+                const client = `${j.client_first_name || ''} ${j.client_last_name || ''}`.trim()
+                const parts = [j.code, client || j.name || 'Untitled']
+                if (j.app_type) parts.push(`(${j.app_type})`)
+                return <option key={j.id} value={j.id}>{parts.join(' — ')}</option>
+              })}
+            </select>
+          )}
+
+          <div className="text-xs text-gray-400 mt-2 mb-4">
             {selectedJobId
-              ? 'Job details + your planner details will fill the document.'
-              : 'No job selected — only your planner details will fill. Other placeholders will stay as editable text in the Word file.'}
+              ? 'Job details + your planner details will fill the Word docs. Excel and Illustrator files download blank.'
+              : 'Only your planner details will fill the Word docs. Other placeholders stay as editable text. Excel and Illustrator files download blank.'}
           </div>
 
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search by code, client, or address..."
-            className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400 mb-2"
-          />
-
-          <button
-            onClick={() => setSelectedJobId('')}
-            className={`w-full text-left px-3 py-2 rounded-lg border text-xs mb-2 transition-colors ${selectedJobId === '' ? 'border-emerald-500 bg-emerald-50 text-emerald-700 font-medium' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}
-          >
-            <div className="flex items-center gap-2">
-              <div className={`w-3.5 h-3.5 rounded-full border flex-shrink-0 ${selectedJobId === '' ? 'border-emerald-600 bg-emerald-600' : 'border-gray-300'}`}>
-                {selectedJobId === '' && <div className="w-1.5 h-1.5 rounded-full bg-white m-auto mt-[3px]" />}
-              </div>
-              <span>No job — planner details only</span>
-            </div>
-          </button>
-
-          <div className="space-y-1 max-h-[40vh] overflow-y-auto">
-            {loadingJobs ? (
-              <div className="text-xs text-gray-400 text-center py-4">Loading jobs...</div>
-            ) : filtered.length === 0 ? (
-              <div className="text-xs text-gray-400 text-center py-4">{search ? 'No matching jobs.' : 'No jobs yet.'}</div>
-            ) : (
-              filtered.map(j => {
-                const isSelected = selectedJobId === j.id
-                const client = `${j.client_first_name || ''} ${j.client_last_name || ''}`.trim() || '—'
+          <div className="border-t border-gray-100 pt-3">
+            <div className="text-xs font-medium text-gray-600 mb-2">Selected templates ({items.length})</div>
+            <div className="space-y-1 max-h-[30vh] overflow-y-auto">
+              {items.map(item => {
+                const ext = fileExt(item.file)
+                const icon = fileIcon(ext)
                 return (
-                  <button key={j.id} onClick={() => setSelectedJobId(j.id)}
-                    className={`w-full text-left px-3 py-2 rounded-lg border text-xs transition-colors ${isSelected ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}>
-                    <div className="flex items-start gap-2">
-                      <div className={`w-3.5 h-3.5 rounded-full border flex-shrink-0 mt-0.5 ${isSelected ? 'border-emerald-600 bg-emerald-600' : 'border-gray-300'}`}>
-                        {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white m-auto mt-[3px]" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{j.code}</span>
-                          <span className="text-gray-500">·</span>
-                          <span className="truncate">{client}</span>
-                          {j.app_type && <span className="text-gray-400 text-xs">({j.app_type})</span>}
-                        </div>
-                        {j.address && <div className="text-xs text-gray-400 truncate">{j.address}</div>}
-                      </div>
-                    </div>
-                  </button>
+                  <div key={item.file} className="flex items-center gap-2 px-2 py-1.5 bg-gray-50 rounded-lg">
+                    <div className={`w-6 h-6 rounded flex items-center justify-center text-xs font-semibold flex-shrink-0 ${icon.bg}`}>{icon.label}</div>
+                    <div className="text-xs flex-1 truncate">{item.label}</div>
+                  </div>
                 )
-              })
-            )}
+              })}
+            </div>
           </div>
 
-          {error && <div className="mt-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700">{error}</div>}
+          {error && <div className="mt-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700 whitespace-pre-line">{error}</div>}
+          {done && (
+            <div className="mt-3 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-xs text-emerald-700">
+              ✓ {items.length} document{items.length !== 1 ? 's' : ''} downloaded — check your downloads folder.
+            </div>
+          )}
         </div>
 
         <div className="px-5 py-4 border-t border-gray-100 flex gap-2">
-          <button onClick={onClose} className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
-          <button onClick={handleGenerate} disabled={generating}
+          <button onClick={onClose} className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">
+            {done ? 'Close' : 'Cancel'}
+          </button>
+          <button onClick={done ? onDone : handleGenerate} disabled={generating}
             className="flex-1 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 font-medium">
-            {generating ? 'Generating...' : selectedJob ? `Generate for ${selectedJob.code}` : 'Generate (no job)'}
+            {generating ? 'Generating...' : done ? 'Done' : `Generate ${items.length}`}
           </button>
         </div>
       </div>
@@ -346,9 +342,9 @@ function MyDetailsModal({ currentUser, onClose, onSaved }) {
 
 export default function Templates({ currentUser }) {
   const [showMyDetails, setShowMyDetails] = useState(false)
-  const [generateTarget, setGenerateTarget] = useState(null)
+  const [showGenerate, setShowGenerate] = useState(false)
+  const [selected, setSelected] = useState(new Set())
   const [planner, setPlanner] = useState(null)
-  const [rawError, setRawError] = useState('')
 
   useEffect(() => {
     const load = async () => {
@@ -363,50 +359,83 @@ export default function Templates({ currentUser }) {
     load()
   }, [currentUser])
 
-  const handleTemplateClick = async (item) => {
-    setRawError('')
-    if (item.file.endsWith('.xlsx') || item.file.endsWith('.ai')) {
-      try {
-        await downloadRawTemplate(item.file)
-      } catch (e) {
-        setRawError(e.message)
+  const toggle = (file) => {
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.has(file) ? next.delete(file) : next.add(file)
+      return next
+    })
+  }
+
+  const clearSelection = () => setSelected(new Set())
+
+  // Build the ordered list of selected items by walking through categories
+  // (preserves the user's visual order in the modal preview)
+  const selectedItems = []
+  for (const cat of STAGE_CATEGORIES) {
+    for (const group of cat.groups) {
+      for (const item of group.items) {
+        if (selected.has(item.file)) selectedItems.push(item)
       }
-    } else {
-      setGenerateTarget(item)
     }
   }
 
   return (
     <div>
       {showMyDetails && <MyDetailsModal currentUser={currentUser} onClose={() => setShowMyDetails(false)} onSaved={setPlanner} />}
-      {generateTarget && (
+      {showGenerate && (
         <GenerateModal
-          template={generateTarget}
+          items={selectedItems}
           currentUser={currentUser}
           planner={planner}
-          onClose={() => setGenerateTarget(null)}
+          onClose={() => setShowGenerate(false)}
+          onDone={() => { setShowGenerate(false); clearSelection() }}
         />
       )}
 
       <div className="flex items-start justify-between mb-4 gap-3">
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 flex-1">
           <div className="text-xs font-medium text-emerald-700 mb-0.5">Generate documents</div>
-          <div className="text-xs text-emerald-600">Click any template to generate. You can pick a job to auto-fill all placeholders, or skip the job picker and just fill your planner details — the rest stays as editable text in the Word file. Excel and Illustrator files in <span className="font-medium">Tools & Forms</span> download blank.</div>
+          <div className="text-xs text-emerald-600">Tick the templates you want, then click <span className="font-medium">Generate</span> at the top. A modal lets you pick a job to auto-fill — or skip the job and just fill your planner details. Excel and Illustrator files download blank.</div>
         </div>
-        <button onClick={() => setShowMyDetails(true)} className="px-4 py-3 text-xs bg-[#1B2A4A] text-white rounded-xl hover:bg-[#16223c] font-medium whitespace-nowrap">
-          My details
-        </button>
+        <div className="flex flex-col gap-2 flex-shrink-0">
+          <button
+            onClick={() => setShowGenerate(true)}
+            disabled={selected.size === 0}
+            className="px-4 py-2.5 text-xs bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed font-medium whitespace-nowrap min-w-[140px]"
+          >
+            {selected.size === 0 ? 'Generate' : `Generate (${selected.size}) →`}
+          </button>
+          <button onClick={() => setShowMyDetails(true)} className="px-4 py-2.5 text-xs bg-[#1B2A4A] text-white rounded-xl hover:bg-[#16223c] font-medium whitespace-nowrap min-w-[140px]">
+            My details
+          </button>
+        </div>
       </div>
 
-      {rawError && <div className="bg-red-50 border border-red-200 text-red-700 text-xs px-4 py-2 rounded-lg mb-4">{rawError}</div>}
+      {selected.size > 0 && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2.5 mb-4 flex items-center gap-3">
+          <div className="text-xs font-medium text-emerald-700 flex-1">
+            <span className="font-semibold">{selected.size}</span> template{selected.size !== 1 ? 's' : ''} selected
+          </div>
+          <button onClick={clearSelection} className="text-xs text-gray-600 hover:text-gray-800 hover:underline">Clear selection</button>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4">
         {STAGE_CATEGORIES.map(cat => {
           const totalItems = cat.groups.reduce((n, g) => n + g.items.length, 0)
+          const selectedCount = cat.groups.reduce(
+            (n, g) => n + g.items.filter(i => selected.has(i.file)).length, 0
+          )
           return (
             <div key={cat.stage} className="bg-white rounded-xl border border-gray-200 p-4">
               <div className="flex items-center justify-between mb-3">
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cat.color}`}>{cat.stage}</span>
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cat.color}`}>{cat.stage}</span>
+                  {selectedCount > 0 && (
+                    <span className="text-xs text-emerald-600 font-medium">{selectedCount} selected</span>
+                  )}
+                </div>
                 <span className="text-xs text-gray-400">{totalItems} template{totalItems !== 1 ? 's' : ''}</span>
               </div>
 
@@ -419,20 +448,24 @@ export default function Templates({ currentUser }) {
                     group.items.map(item => {
                       const ext = fileExt(item.file)
                       const icon = fileIcon(ext)
-                      const isRaw = ext === 'xlsx' || ext === 'xls' || ext === 'ai'
+                      const isSelected = selected.has(item.file)
                       return (
                         <button
                           key={item.file}
-                          onClick={() => handleTemplateClick(item)}
-                          className="w-full flex items-center gap-3 py-2 px-2 -mx-2 rounded-lg hover:bg-emerald-50 transition-colors text-left group"
+                          onClick={() => toggle(item.file)}
+                          className={`w-full flex items-center gap-3 py-2 px-2 -mx-2 rounded-lg transition-colors text-left ${isSelected ? 'bg-emerald-50 hover:bg-emerald-100' : 'hover:bg-gray-50'}`}
                         >
+                          <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${isSelected ? 'bg-emerald-600 border-emerald-600' : 'border-gray-300 bg-white'}`}>
+                            {isSelected && (
+                              <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                                <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            )}
+                          </div>
                           <div className={`w-7 h-7 rounded-md flex items-center justify-center text-xs font-semibold flex-shrink-0 ${icon.bg}`}>{icon.label}</div>
                           <div className="flex-1 min-w-0">
-                            <div className="text-xs font-medium truncate">{item.label}</div>
+                            <div className={`text-xs font-medium truncate ${isSelected ? 'text-emerald-700' : ''}`}>{item.label}</div>
                             <div className="text-xs text-gray-400 truncate">{item.file}</div>
-                          </div>
-                          <div className="text-xs text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 font-medium">
-                            {isRaw ? 'Download →' : 'Generate →'}
                           </div>
                         </button>
                       )
@@ -443,10 +476,6 @@ export default function Templates({ currentUser }) {
             </div>
           )
         })}
-      </div>
-
-      <div className="text-xs text-gray-400 mt-4 text-center">
-        Click any template above to generate, or use the <span className="font-medium text-gray-600">Generate docs</span> button from inside a job for bulk generation.
       </div>
     </div>
   )
