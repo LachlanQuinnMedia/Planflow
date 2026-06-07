@@ -41,7 +41,6 @@ function formatDuration(mins) {
 }
 
 function formatDateFull(dateStr) {
-  // Parse YYYY-MM-DD as a LOCAL date to avoid timezone shift
   const [y, m, d] = dateStr.split('-').map(Number)
   return new Date(y, m - 1, d).toLocaleDateString('en-AU', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
@@ -511,7 +510,6 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
 
     if (error) { alert('Failed to save.'); setSaving(false); return }
 
-    // Notify on new staff meeting
     if (newBooking && type === 'internal') {
       try {
         const [y, m, d] = date.split('-').map(Number)
@@ -697,7 +695,12 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
       .gte('date', startDate).lte('date', endDate)
       .order('start_time', { ascending: true })
     if (data) {
-      setBookings(data.filter(b => b.attendees?.includes(viewingAs) || b.created_by === viewingAs))
+      const lc = (viewingAs || '').toLowerCase()
+      setBookings(data.filter(b => {
+        const attendees = (b.attendees || []).map(a => (a || '').toLowerCase())
+        const createdBy = (b.created_by || '').toLowerCase()
+        return attendees.includes(lc) || createdBy === lc
+      }))
     }
     setLoading(false)
   }
