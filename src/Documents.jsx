@@ -1,144 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabase'
-import {
-  generateLodgementCoverLetter,
-  generateWithdrawApplication,
-  generateNoticeToRevive,
-  generateNoticeToStop,
-  generateQuoteRequest,
-} from './docGenerator'
-
-const HPC_TEMPLATES = [
-  { id: 'cover', label: 'Lodgement cover letter', fn: generateLodgementCoverLetter },
-  { id: 'withdraw', label: 'Withdraw application', fn: generateWithdrawApplication },
-  { id: 'revive', label: 'Notice to revive', fn: generateNoticeToRevive },
-  { id: 'stop', label: 'Notice to stop clock', fn: generateNoticeToStop },
-  { id: 'quote', label: 'Quote request', fn: generateQuoteRequest },
-]
-
-const FIELD_GROUPS = [
-  {
-    title: 'Project & site',
-    fields: [
-      { key: 'address', label: 'Site address', placeholder: '12 Smith Street, Brisbane QLD 4000' },
-      { key: 'lot_reference', label: 'Lot / plan reference', placeholder: 'Lot 14 on RP123456' },
-      { key: 'proposed_use', label: 'Proposed use', placeholder: 'Material Change of Use — Dwelling House' },
-      { key: 'site_area', label: 'Site area', placeholder: '1,200m²' },
-    ],
-  },
-  {
-    title: 'References',
-    fields: [
-      { key: 'code', label: 'HPC reference', placeholder: '2025-031' },
-      { key: 'council_ref', label: 'Council reference', placeholder: 'DA-2024-00123' },
-      { key: 'sara_ref', label: 'SARA reference', placeholder: 'SRA-2024-001' },
-    ],
-  },
-  {
-    title: 'Council',
-    fields: [
-      { key: 'council', label: 'Council name', placeholder: 'Brisbane City Council' },
-      { key: 'council_address', label: 'Council address', placeholder: '1 Nicholas Street, Ipswich QLD 4305' },
-      { key: 'council_email', label: 'Council email', placeholder: 'development@council.qld.gov.au' },
-      { key: 'attn', label: 'Attention (assessment manager)', placeholder: 'Jane Doe' },
-    ],
-  },
-  {
-    title: 'Client',
-    fields: [
-      { key: 'client_first_name', label: 'Client first name', placeholder: 'John' },
-      { key: 'client_last_name', label: 'Client last name', placeholder: 'Smith' },
-    ],
-  },
-  {
-    title: 'Planner signing off',
-    fields: [
-      { key: 'planner', label: 'Planner name', placeholder: 'Tom Hughes' },
-      { key: 'position', label: 'Position', placeholder: 'Senior Urban Planner' },
-      { key: 'planner_email', label: 'Planner email', placeholder: 'tom@hpcplanning.com.au' },
-    ],
-  },
-]
 
 const DOCS_PER_PAGE = 100
-
-function AutofillModal({ onClose }) {
-  const [fields, setFields] = useState({})
-  const [selectedTemplates, setSelectedTemplates] = useState(new Set())
-  const [generating, setGenerating] = useState(false)
-  const [done, setDone] = useState(false)
-
-  const set = (key, value) => setFields(f => ({ ...f, [key]: value }))
-  const toggleTemplate = (id) => setSelectedTemplates(prev => {
-    const next = new Set(prev)
-    next.has(id) ? next.delete(id) : next.add(id)
-    return next
-  })
-
-  const handleGenerate = async () => {
-    if (selectedTemplates.size === 0) return
-    setGenerating(true)
-    for (const tmpl of HPC_TEMPLATES) {
-      if (selectedTemplates.has(tmpl.id)) await tmpl.fn(fields)
-    }
-    setGenerating(false)
-    setDone(true)
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center pt-10 px-4 overflow-y-auto">
-      <div className="bg-white rounded-xl border border-gray-200 w-full max-w-2xl mb-10">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <div>
-            <div className="text-sm font-semibold">Autofill & generate</div>
-            <div className="text-xs text-gray-400 mt-0.5">Fill in once — download all selected letters as .docx</div>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
-        </div>
-        <div className="px-5 py-4 space-y-5">
-          <div>
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Select documents to generate</div>
-            <div className="grid grid-cols-2 gap-2">
-              {HPC_TEMPLATES.map(t => (
-                <button key={t.id} onClick={() => toggleTemplate(t.id)}
-                  className={`text-left px-3 py-2 rounded-lg border text-xs transition-colors ${selectedTemplates.has(t.id) ? 'border-emerald-500 bg-emerald-50 text-emerald-700 font-medium' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}>
-                  {selectedTemplates.has(t.id) ? '✓ ' : ''}{t.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          {FIELD_GROUPS.map(group => (
-            <div key={group.title}>
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{group.title}</div>
-              <div className="grid grid-cols-2 gap-3">
-                {group.fields.map(f => (
-                  <div key={f.key} className={f.key === 'address' || f.key === 'proposed_use' ? 'col-span-2' : ''}>
-                    <label className="block text-xs text-gray-500 mb-1">{f.label}</label>
-                    <input type="text" value={fields[f.key] || ''} onChange={e => set(f.key, e.target.value)}
-                      placeholder={f.placeholder}
-                      className="w-full px-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-emerald-400" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="px-5 py-4 border-t border-gray-100 flex items-center justify-between">
-          {done
-            ? <span className="text-xs text-emerald-600 font-medium">✓ {selectedTemplates.size} document{selectedTemplates.size !== 1 ? 's' : ''} downloaded</span>
-            : <span className="text-xs text-gray-400">{selectedTemplates.size} selected</span>}
-          <div className="flex gap-2">
-            <button onClick={onClose} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
-            <button onClick={handleGenerate} disabled={generating || selectedTemplates.size === 0}
-              className="px-4 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50">
-              {generating ? 'Generating…' : done ? 'Generate again' : `Generate ${selectedTemplates.size > 0 ? selectedTemplates.size : ''}`}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 function RenameModal({ doc, onClose, onRename }) {
   const [name, setName] = useState(doc.name)
@@ -182,6 +45,40 @@ function RenameModal({ doc, onClose, onRename }) {
   )
 }
 
+function DeleteConfirmModal({ doc, onConfirm, onCancel }) {
+  const [deleting, setDeleting] = useState(false)
+
+  const handleConfirm = async () => {
+    setDeleting(true)
+    await onConfirm()
+    setDeleting(false)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
+      <div className="bg-white rounded-2xl border border-gray-200 w-full max-w-sm">
+        <div className="px-5 py-4 border-b border-gray-100">
+          <div className="text-sm font-semibold">Delete document</div>
+        </div>
+        <div className="px-5 py-4">
+          <div className="text-xs text-gray-600 mb-2">Are you sure you want to delete this document?</div>
+          <div className="text-xs font-medium text-gray-800 bg-gray-50 rounded-lg px-3 py-2 mb-3 break-all">{doc.name}</div>
+          <div className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">This will permanently delete the file. This cannot be undone.</div>
+        </div>
+        <div className="px-5 py-4 border-t border-gray-100 flex gap-2">
+          <button onClick={onCancel} disabled={deleting} className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium disabled:opacity-50">
+            Cancel
+          </button>
+          <button onClick={handleConfirm} disabled={deleting}
+            className="flex-1 py-2 text-xs bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium disabled:opacity-50">
+            {deleting ? 'Deleting...' : 'Delete'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function Pagination({ currentPage, totalPages, onPageChange }) {
   if (totalPages <= 1) return null
 
@@ -198,7 +95,6 @@ function Pagination({ currentPage, totalPages, onPageChange }) {
     }
   }
 
-  // Add ellipsis markers
   const withEllipsis = []
   for (let i = 0; i < pages.length; i++) {
     if (i > 0 && pages[i] - pages[i - 1] > 1) {
@@ -242,14 +138,14 @@ function Pagination({ currentPage, totalPages, onPageChange }) {
 export default function Documents({ currentUser }) {
   const [docs, setDocs] = useState([])
   const [loading, setLoading] = useState(true)
-  const [uploadProgress, setUploadProgress] = useState(null) // null = not uploading, 0-100 = progress
+  const [uploadProgress, setUploadProgress] = useState(null)
   const [dragOver, setDragOver] = useState(false)
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('All')
   const [jobFilter, setJobFilter] = useState('All')
   const [selectedDoc, setSelectedDoc] = useState(null)
-  const [showAutofill, setShowAutofill] = useState(false)
   const [renamingDoc, setRenamingDoc] = useState(null)
+  const [deletingDoc, setDeletingDoc] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
   const fileRef = useRef(null)
 
@@ -307,11 +203,11 @@ export default function Documents({ currentUser }) {
     fetchDocs()
   }
 
-  const handleDelete = async (doc) => {
-    if (!window.confirm(`Delete "${doc.name}"? This cannot be undone.`)) return
+  const performDelete = async (doc) => {
     await supabase.storage.from('documents').remove([doc.file_path])
     await supabase.from('documents').delete().eq('id', doc.id)
     if (selectedDoc?.id === doc.id) setSelectedDoc(null)
+    setDeletingDoc(null)
     fetchDocs()
   }
 
@@ -351,12 +247,10 @@ export default function Documents({ currentUser }) {
   const totalPages = Math.ceil(filtered.length / DOCS_PER_PAGE)
   const paginated = filtered.slice((currentPage - 1) * DOCS_PER_PAGE, currentPage * DOCS_PER_PAGE)
 
-  // Reset to page 1 when filters change
   useEffect(() => { setCurrentPage(1) }, [search, typeFilter, jobFilter])
 
   return (
     <div>
-      {showAutofill && <AutofillModal onClose={() => setShowAutofill(false)} />}
       {renamingDoc && (
         <RenameModal
           doc={renamingDoc}
@@ -364,13 +258,13 @@ export default function Documents({ currentUser }) {
           onRename={(newName) => handleRename(renamingDoc.id, newName)}
         />
       )}
-
-      <div className="flex items-center justify-between mb-3">
-        <div className="text-xs text-gray-400">{docs.length} document{docs.length !== 1 ? 's' : ''}</div>
-        <button onClick={() => setShowAutofill(true)} className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
-          ⬡ Autofill & generate
-        </button>
-      </div>
+      {deletingDoc && (
+        <DeleteConfirmModal
+          doc={deletingDoc}
+          onConfirm={() => performDelete(deletingDoc)}
+          onCancel={() => setDeletingDoc(null)}
+        />
+      )}
 
       {/* Upload zone */}
       <div
@@ -483,7 +377,7 @@ export default function Documents({ currentUser }) {
                 <div className="text-sm font-semibold truncate">{selectedDoc.name}</div>
                 <div className="text-xs text-gray-400 mt-0.5">{selectedDoc.job_code || 'General'} · {selectedDoc.uploaded_by}</div>
               </div>
-              <button onClick={() => setSelectedDoc(null)} className="text-xs text-gray-400 hover:text-gray-600">✕</button>
+              <button onClick={() => setSelectedDoc(null)} className="text-xs text-gray-400 hover:text-gray-600" title="Close">✕</button>
             </div>
             {[
               ['File type', selectedDoc.file_type?.toUpperCase() || '—'],
@@ -499,20 +393,24 @@ export default function Documents({ currentUser }) {
             ))}
             <div className="flex gap-2 mt-4">
               <a href={selectedDoc.file_url} target="_blank" rel="noopener noreferrer"
-                className="flex-1 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-center">
+                className="flex-1 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-center"
+                title="Open in new tab">
                 Open
               </a>
               <a href={selectedDoc.file_url} download={selectedDoc.name}
-                className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 text-center">
+                className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 text-center"
+                title="Download document">
                 ↓ Download
               </a>
               <button
                 onClick={e => { e.stopPropagation(); setRenamingDoc(selectedDoc) }}
-                className="px-3 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">
+                className="px-3 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50"
+                title="Rename document">
                 ✎ Rename
               </button>
-              <button onClick={() => handleDelete(selectedDoc)}
-                className="px-3 py-2 text-xs text-red-400 border border-red-100 rounded-lg hover:bg-red-50">
+              <button onClick={() => setDeletingDoc(selectedDoc)}
+                className="px-3 py-2 text-xs text-red-400 border border-red-100 rounded-lg hover:bg-red-50"
+                title="Delete document">
                 ✕
               </button>
             </div>
