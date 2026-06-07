@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabase'
 import { generatePlanningReport, generateIRResponse, generateEngagementLetter, generateInvoice, generateFeeProposal } from './docGenerator'
+import { generateFromTemplate } from './templateFiller'
 
 const COUNCILS = [
   'Balina Shire Council', 'Banana Shire Council', 'Brisbane City Council',
@@ -134,6 +135,28 @@ const templatesByType = {
   OW: ['Fee Proposal', 'OW Planning Report', 'OW Compliance Report', 'Tax Invoice'],
   SPS: ['Fee Proposal', 'SPS Request Report', 'SPS Supporting Statement', 'Tax Invoice'],
 }
+
+// Storage-based .docx templates (cleaned + placeholder-filled), grouped by stage.
+// More categories (Stage 2, Stage 3, Miscellaneous) get added as their templates arrive.
+const STAGE1_TEMPLATES = [
+  {
+    group: 'Fee Proposals',
+    items: [
+      { file: 'Fee_Proposal_Code.docx',         label: 'Fee Proposal — Code Assessable' },
+      { file: 'Fee_Proposal_Impact.docx',       label: 'Fee Proposal — Impact Assessable' },
+      { file: 'Fee_Proposal_Minor_Change.docx', label: 'Fee Proposal — Minor Change' },
+      { file: 'Fee_Proposal_RAA.docx',          label: 'Fee Proposal — Referral Agency Assessment' },
+    ],
+  },
+  {
+    group: "Owner's Consent",
+    items: [
+      { file: 'Consent_Individual.docx', label: "Owner's Consent — Individual" },
+      { file: 'Consent_Company.docx',    label: "Owner's Consent — Company" },
+    ],
+  },
+]
+const ALL_DOCX_ITEMS = STAGE1_TEMPLATES.flatMap(g => g.items)
 
 function daysUntil(dateStr) {
   if (!dateStr) return null
@@ -1138,6 +1161,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
   const [showEditJob, setShowEditJob] = useState(false)
   const [selectedTemplates, setSelectedTemplates] = useState([])
   const [generating, setGenerating] = useState(false)
+  const [currentPlanner, setCurrentPlanner] = useState(null)
   const [jobStatus, setJobStatus] = useState(job?.status || 'Draft')
   const [statusSaving, setStatusSaving] = useState(false)
   const [editingDates, setEditingDates] = useState(false)
@@ -1175,6 +1199,20 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
     }
     loadHistory()
   }, [job.id])
+
+  // Load the logged-in planner's profile so their name/position/email fill their own documents.
+  useEffect(() => {
+    const loadPlanner = async () => {
+      if (!currentUser?.id) return
+      const { data } = await supabase
+        .from('planner_profiles')
+        .select('full_name, position, email')
+        .eq('user_id', currentUser.id)
+        .maybeSingle()
+      if (data) setCurrentPlanner(data)
+    }
+    loadPlanner()
+  }, [currentUser])
 
   if (!job) return (
     <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
@@ -1226,22 +1264,40 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
     hpc_stages: hpcStages,
   }
 
+  // Code-built docs still available for app types we haven't converted to .docx templates yet.
+  // The old code-built "Fee Proposal" is dropped — the four .docx fee proposals replace it.
+  const otherDocs = (templatesByType[jobData.app_type] || []).filter(t => t !== 'Fee Proposal')
+
+  const labelFor = (id) => ALL_DOCX_ITEMS.find(i => i.file === id)?.label || id
+
   const toggleTemplate = (t) => setSelectedTemplates(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])
 
   const handleGenerate = async () => {
-    if (selectedTemplates.length === 0) { alert('Please select at least one template.'); return }
+    if (selectedTemplates.length === 0) { alert('Please select at least one document.'); return }
     setGenerating(true)
     setShowGenerate(false)
-    for (const template of selectedTemplates) {
-      if (template === 'Fee Proposal') await generateFeeProposal(jobForDocs)
-      else if (template.includes('Planning Report')) await generatePlanningReport(jobForDocs)
-      else if (template.includes('IR Response')) await generateIRResponse(jobForDocs, 1)
-      else if (template.includes('Engagement Letter')) await generateEngagementLetter(jobForDocs)
-      else if (template.includes('Invoice')) await generateInvoice(jobForDocs)
+    const failures = []
+    for (const sel of selectedTemplates) {
+      try {
+        if (sel.endsWith('.docx')) {
+          await generateFromTemplate(sel, jobForDocs, currentPlanner || {})
+        } else if (sel.includes('Planning Report')) {
+          await generatePlanningReport(jobForDocs)
+        } else if (sel.includes('IR Response')) {
+          await generateIRResponse(jobForDocs, 1)
+        } else if (sel.includes('Engagement Letter')) {
+          await generateEngagementLetter(jobForDocs)
+        } else if (sel.includes('Invoice')) {
+          await generateInvoice(jobForDocs)
+        }
+      } catch (e) {
+        failures.push(`${labelFor(sel)}: ${e.message}`)
+      }
     }
-    for (const t of selectedTemplates) await addHistory(`Document generated: ${t}`)
+    for (const sel of selectedTemplates) await addHistory(`Document generated: ${labelFor(sel)}`)
     setSelectedTemplates([])
     setGenerating(false)
+    if (failures.length) alert('Some documents could not be generated:\n\n' + failures.join('\n'))
   }
 
   const plannersList = jobData.planners?.length > 0 ? jobData.planners : (jobData.planner ? [jobData.planner] : [])
@@ -1280,20 +1336,42 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
       </div>
 
       {showGenerate && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl border border-gray-200 p-5 w-96 max-h-96 overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl border border-gray-200 p-5 w-full max-w-md max-h-[85vh] overflow-y-auto">
             <div className="text-sm font-semibold mb-1">Generate documents</div>
-            <div className="text-xs text-gray-400 mb-4">For {jobData.code} — {jobData.name}. All client details pre-filled.</div>
-            <div className="text-xs font-medium text-gray-500 mb-2">Select templates:</div>
-            {(templatesByType[jobData.app_type] || []).map(t => (
-              <div key={t} onClick={() => toggleTemplate(t)} className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-1 cursor-pointer text-xs transition-colors ${selectedTemplates.includes(t) ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-50 hover:bg-gray-100'}`}>
-                <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${selectedTemplates.includes(t) ? 'bg-emerald-600 border-emerald-600' : 'border-gray-300'}`}>
-                  {selectedTemplates.includes(t) && <span className="text-white text-xs">✓</span>}
-                </div>
-                {t === 'Fee Proposal' && <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-medium ml-1">HPC</span>}
-                {t}
+            <div className="text-xs text-gray-400 mb-4">
+              {jobData.code} — filled from this job{currentPlanner?.full_name ? ` & ${currentPlanner.full_name}` : ''}. Anything not on file is left as an editable placeholder in the Word doc.
+            </div>
+
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Stage 1</div>
+            {STAGE1_TEMPLATES.map(group => (
+              <div key={group.group} className="mb-3">
+                <div className="text-xs font-medium text-gray-600 mb-1">{group.group}</div>
+                {group.items.map(item => (
+                  <div key={item.file} onClick={() => toggleTemplate(item.file)} className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-1 cursor-pointer text-xs transition-colors ${selectedTemplates.includes(item.file) ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-50 hover:bg-gray-100'}`}>
+                    <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${selectedTemplates.includes(item.file) ? 'bg-emerald-600 border-emerald-600' : 'border-gray-300'}`}>
+                      {selectedTemplates.includes(item.file) && <span className="text-white text-xs">✓</span>}
+                    </div>
+                    {item.label}
+                  </div>
+                ))}
               </div>
             ))}
+
+            {otherDocs.length > 0 && (
+              <>
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-4">Other documents</div>
+                {otherDocs.map(t => (
+                  <div key={t} onClick={() => toggleTemplate(t)} className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-1 cursor-pointer text-xs transition-colors ${selectedTemplates.includes(t) ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-50 hover:bg-gray-100'}`}>
+                    <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${selectedTemplates.includes(t) ? 'bg-emerald-600 border-emerald-600' : 'border-gray-300'}`}>
+                      {selectedTemplates.includes(t) && <span className="text-white text-xs">✓</span>}
+                    </div>
+                    {t}
+                  </div>
+                ))}
+              </>
+            )}
+
             <div className="flex gap-2 mt-4">
               <button onClick={() => setShowGenerate(false)} className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
               <button onClick={handleGenerate} className="flex-1 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">Generate {selectedTemplates.length > 0 ? `(${selectedTemplates.length})` : ''}</button>
