@@ -111,6 +111,30 @@ const TABS = [
   { id: 'history', label: 'History' },
 ]
 
+const statusColors = {
+  Draft: 'bg-gray-100 text-gray-600',
+  Active: 'bg-emerald-100 text-emerald-700',
+  Review: 'bg-amber-100 text-amber-700',
+  'On Hold': 'bg-red-100 text-red-700',
+  Complete: 'bg-green-100 text-green-700',
+}
+
+const typeBadgeColors = {
+  MCU: 'bg-blue-100 text-blue-700',
+  ROL: 'bg-amber-100 text-amber-700',
+  RAA: 'bg-pink-100 text-pink-700',
+  OW: 'bg-green-100 text-green-700',
+  SPS: 'bg-purple-100 text-purple-700',
+}
+
+const templatesByType = {
+  MCU: ['Fee Proposal', 'MCU Planning Report', 'MCU IR Response', 'MCU Client Engagement Letter', 'Tax Invoice'],
+  ROL: ['Fee Proposal', 'ROL Planning Report', 'ROL IR Response', 'ROL Engagement Letter', 'Tax Invoice'],
+  RAA: ['Fee Proposal', 'RAA Response Report', 'Referral Agency Submission', 'Tax Invoice'],
+  OW: ['Fee Proposal', 'OW Planning Report', 'OW Compliance Report', 'Tax Invoice'],
+  SPS: ['Fee Proposal', 'SPS Request Report', 'SPS Supporting Statement', 'Tax Invoice'],
+}
+
 function daysUntil(dateStr) {
   if (!dateStr) return null
   const diff = new Date(dateStr) - new Date()
@@ -229,7 +253,7 @@ function HPCStagesTab({ job, onHistoryAdd }) {
   const gst = totalFees * 0.1
   const totalWithGST = totalFees + gst
 
-  const statusColors = {
+  const hpcStatusColors = {
     pending: 'bg-gray-100 text-gray-500',
     active: 'bg-amber-100 text-amber-700',
     complete: 'bg-emerald-100 text-emerald-700',
@@ -237,7 +261,6 @@ function HPCStagesTab({ job, onHistoryAdd }) {
 
   return (
     <div className="space-y-4">
-      {/* Summary */}
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="text-xs text-gray-400 mb-1">Total fees (ex GST)</div>
@@ -256,7 +279,6 @@ function HPCStagesTab({ job, onHistoryAdd }) {
         </div>
       </div>
 
-      {/* Progress bar */}
       <div className="bg-white rounded-xl border border-gray-200 p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">HPC stage progress</div>
@@ -288,7 +310,6 @@ function HPCStagesTab({ job, onHistoryAdd }) {
         </div>
       </div>
 
-      {/* Stage cards */}
       {HPC_STAGES.map((stage, index) => {
         const data = stages[stage.id]
         const isExpanded = expandedStage === stage.id
@@ -311,7 +332,7 @@ function HPCStagesTab({ job, onHistoryAdd }) {
               <div className="text-right flex-shrink-0 mr-2">
                 <div className="text-xs font-semibold">${parseFloat(data.fee || 0).toLocaleString()} + GST</div>
                 <div className="flex items-center gap-2 justify-end mt-0.5">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[data.status]}`}>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${hpcStatusColors[data.status]}`}>
                     {data.status === 'pending' ? 'Not started' : data.status === 'active' ? 'In progress' : 'Complete'}
                   </span>
                   <span className="text-xs text-gray-400">{checkedCount}/{totalItems} tasks</span>
@@ -323,7 +344,6 @@ function HPCStagesTab({ job, onHistoryAdd }) {
             {isExpanded && (
               <div className="px-4 pb-4 border-t border-gray-100">
                 <div className="grid grid-cols-2 gap-4 mt-3">
-                  {/* Scope of works — clickable checklist */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Scope of works</div>
@@ -353,77 +373,50 @@ function HPCStagesTab({ job, onHistoryAdd }) {
                       })}
                     </div>
                   </div>
-
-                  {/* Stage settings */}
                   <div className="space-y-3">
                     <div>
                       <label className="block text-xs text-gray-500 mb-1">Stage fee (ex GST)</label>
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-gray-400">$</span>
-                        <input
-                          type="number"
-                          value={data.fee}
-                          onChange={e => updateStage(stage.id, { fee: e.target.value })}
-                          className="flex-1 px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400"
-                        />
+                        <input type="number" value={data.fee} onChange={e => updateStage(stage.id, { fee: e.target.value })}
+                          className="flex-1 px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
                         <span className="text-xs text-gray-400">+ GST</span>
                       </div>
                     </div>
                     <div>
                       <label className="block text-xs text-gray-500 mb-1">Status</label>
-                      <select
-                        value={data.status}
-                        onChange={e => updateStage(stage.id, {
-                          status: e.target.value,
-                          completedDate: e.target.value === 'complete' ? new Date().toISOString().split('T')[0] : data.completedDate
-                        })}
-                        className="w-full px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400"
-                      >
+                      <select value={data.status}
+                        onChange={e => updateStage(stage.id, { status: e.target.value, completedDate: e.target.value === 'complete' ? new Date().toISOString().split('T')[0] : data.completedDate })}
+                        className="w-full px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
                         <option value="pending">Not started</option>
                         <option value="active">In progress</option>
                         <option value="complete">Complete</option>
                       </select>
                     </div>
-                    {data.completedDate && (
-                      <div className="text-xs text-emerald-600">✓ Completed {formatDateShort(data.completedDate)}</div>
-                    )}
+                    {data.completedDate && <div className="text-xs text-emerald-600">✓ Completed {formatDateShort(data.completedDate)}</div>}
                     <div>
                       <label className="block text-xs text-gray-500 mb-1">Notes</label>
-                      <textarea
-                        value={data.notes}
-                        onChange={e => updateStage(stage.id, { notes: e.target.value })}
-                        placeholder="Add notes for this stage..."
-                        rows={3}
-                        className="w-full px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400 resize-none"
-                      />
+                      <textarea value={data.notes} onChange={e => updateStage(stage.id, { notes: e.target.value })}
+                        placeholder="Add notes for this stage..." rows={3}
+                        className="w-full px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400 resize-none" />
                     </div>
                     <div className="flex gap-2">
                       {data.status === 'pending' && (
                         <button onClick={() => updateStage(stage.id, { status: 'active' })}
-                          className="flex-1 py-1.5 text-xs bg-amber-500 text-white rounded-lg hover:bg-amber-600">
-                          Start stage
-                        </button>
+                          className="flex-1 py-1.5 text-xs bg-amber-500 text-white rounded-lg hover:bg-amber-600">Start stage</button>
                       )}
                       {data.status === 'active' && (
                         <button onClick={() => updateStage(stage.id, { status: 'complete', completedDate: new Date().toISOString().split('T')[0] })}
-                          className="flex-1 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
-                          Mark complete
-                        </button>
+                          className="flex-1 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">Mark complete</button>
                       )}
                     </div>
-
-                    {/* Mini progress */}
                     {checkedCount > 0 && (
                       <div>
                         <div className="flex justify-between text-xs text-gray-400 mb-1">
-                          <span>Tasks completed</span>
-                          <span>{checkedCount}/{totalItems}</span>
+                          <span>Tasks completed</span><span>{checkedCount}/{totalItems}</span>
                         </div>
                         <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-emerald-500 rounded-full transition-all"
-                            style={{ width: `${Math.round((checkedCount / totalItems) * 100)}%` }}
-                          />
+                          <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${Math.round((checkedCount / totalItems) * 100)}%` }} />
                         </div>
                       </div>
                     )}
@@ -435,7 +428,6 @@ function HPCStagesTab({ job, onHistoryAdd }) {
         )
       })}
 
-      {/* Fee summary table */}
       <div className="bg-white rounded-xl border border-gray-200 p-4">
         <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Fee summary</div>
         {HPC_STAGES.map(stage => (
@@ -1140,30 +1132,6 @@ function DocumentsTab({ job, currentUser, onHistoryAdd }) {
   )
 }
 
-const templatesByType = {
-  MCU: ['Fee Proposal', 'MCU Planning Report', 'MCU IR Response', 'MCU Client Engagement Letter', 'Tax Invoice'],
-  ROL: ['Fee Proposal', 'ROL Planning Report', 'ROL IR Response', 'ROL Engagement Letter', 'Tax Invoice'],
-  RAA: ['Fee Proposal', 'RAA Response Report', 'Referral Agency Submission', 'Tax Invoice'],
-  OW: ['Fee Proposal', 'OW Planning Report', 'OW Compliance Report', 'Tax Invoice'],
-  SPS: ['Fee Proposal', 'SPS Request Report', 'SPS Supporting Statement', 'Tax Invoice'],
-}
-
-const statusColors = {
-  Draft: 'bg-gray-100 text-gray-600',
-  Active: 'bg-emerald-100 text-emerald-700',
-  Review: 'bg-amber-100 text-amber-700',
-  'On Hold': 'bg-red-100 text-red-700',
-  Complete: 'bg-green-100 text-green-700',
-}
-
-const typeBadgeColors = {
-  MCU: 'bg-blue-100 text-blue-700',
-  ROL: 'bg-amber-100 text-amber-700',
-  RAA: 'bg-pink-100 text-pink-700',
-  OW: 'bg-green-100 text-green-700',
-  SPS: 'bg-purple-100 text-purple-700',
-}
-
 export default function JobDetail({ job, onNavigate, currentUser }) {
   const [activeTab, setActiveTab] = useState('overview')
   const [showGenerate, setShowGenerate] = useState(false)
@@ -1171,6 +1139,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
   const [selectedTemplates, setSelectedTemplates] = useState([])
   const [generating, setGenerating] = useState(false)
   const [jobStatus, setJobStatus] = useState(job?.status || 'Draft')
+  const [statusSaving, setStatusSaving] = useState(false)
   const [editingDates, setEditingDates] = useState(false)
   const [notes, setNotes] = useState(job?.notes || '')
   const [notesSaving, setNotesSaving] = useState(false)
@@ -1218,6 +1187,14 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
     const updated = [newEntry, ...history]
     setHistory(updated)
     await supabase.from('jobs').update({ job_history: updated }).eq('id', job.id)
+  }
+
+  const handleStatusChange = async (newStatus) => {
+    setJobStatus(newStatus)
+    setStatusSaving(true)
+    await supabase.from('jobs').update({ status: newStatus }).eq('id', job.id)
+    setStatusSaving(false)
+    await addHistory(`Status changed to ${newStatus}`)
   }
 
   const handleJobSaved = async (historyText) => {
@@ -1275,16 +1252,27 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
         <EditJobModal job={jobData} currentUser={currentUser} onClose={() => setShowEditJob(false)} onSaved={handleJobSaved} />
       )}
 
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
         <button onClick={() => onNavigate('jobs')} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">← Back</button>
-        <div className="flex-1">
-          <div className="text-base font-semibold">{jobData.code} — {jobData.name}</div>
-          <div className="text-xs text-gray-400">{jobData.address} · {jobData.lot_reference} · {jobData.council}</div>
+        <div className="flex-1 min-w-0">
+          <div className="text-base font-semibold truncate">{jobData.code} — {jobData.name}</div>
+          <div className="text-xs text-gray-400 truncate">{jobData.address} · {jobData.lot_reference} · {jobData.council}</div>
         </div>
         <span className={`text-xs px-2 py-1 rounded-full font-medium ${typeBadgeColors[jobData.app_type] || 'bg-gray-100 text-gray-600'}`}>{jobData.app_type}</span>
-        <select value={jobStatus} onChange={e => setJobStatus(e.target.value)} className={`text-xs px-2 py-1 rounded-lg border border-gray-200 focus:outline-none focus:border-emerald-400 font-medium ${statusColors[jobStatus]}`}>
-          <option>Draft</option><option>Active</option><option>Review</option><option>On Hold</option><option>Complete</option>
-        </select>
+        <div className="relative">
+          <select
+            value={jobStatus}
+            onChange={e => handleStatusChange(e.target.value)}
+            disabled={statusSaving}
+            className={`text-xs px-2 py-1 rounded-lg border border-gray-200 focus:outline-none focus:border-emerald-400 font-medium ${statusColors[jobStatus]} ${statusSaving ? 'opacity-50' : ''}`}
+          >
+            <option>Draft</option>
+            <option>Active</option>
+            <option>Review</option>
+            <option>On Hold</option>
+            <option>Complete</option>
+          </select>
+        </div>
         <button onClick={() => setShowEditJob(true)} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">✎ Edit</button>
         <button onClick={() => setShowGenerate(true)} disabled={generating} className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50">
           {generating ? 'Generating...' : '⬡ Generate docs'}
@@ -1421,6 +1409,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
                   h.text.includes('HPC stages') ? 'bg-blue-500' :
                   h.text.includes('DA stages') ? 'bg-pink-500' :
                   h.text.includes('Time log') ? 'bg-teal-500' :
+                  h.text.includes('Status changed') ? 'bg-emerald-500' :
                   h.text.includes('details updated') ? 'bg-emerald-500' : 'bg-gray-300'
                 }`} />
                 <div>
