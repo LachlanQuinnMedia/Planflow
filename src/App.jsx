@@ -453,7 +453,7 @@ export default function App() {
           onConnectShown={() => setPendingCalendarConnect(false)}
         />
       )
-      case 'templates': return <Templates />
+      case 'templates': return <Templates currentUser={currentUser} />
       case 'docs': return <Documents currentUser={currentUser} />
       case 'time': return <TimeBudget />
       case 'planners': return <Planners currentUser={currentUser} />

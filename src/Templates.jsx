@@ -1,96 +1,195 @@
-const templates = [
+import { useState, useEffect } from 'react'
+import { supabase } from './supabase'
+
+// Stage-based template catalogue. As Word docs for Stage 2/3/Misc get uploaded
+// to Supabase Storage, add them to the matching `items` arrays below.
+const STAGE_CATEGORIES = [
   {
-    category: 'MCU — Material Change of Use',
+    stage: 'Stage 1',
     color: 'bg-blue-100 text-blue-700',
-    items: [
-      { name: 'MCU Planning Report', desc: 'Full planning report template — code & impact assessable' },
-      { name: 'MCU IR Response (Code assessable)', desc: 'Information request response for code assessable MCU' },
-      { name: 'MCU IR Response (Impact assessable)', desc: 'Information request response for impact assessable MCU' },
-      { name: 'MCU Client Engagement Letter', desc: 'Initial engagement letter with fee estimate' },
-    ]
+    groups: [
+      {
+        name: 'Fee Proposals',
+        items: [
+          { file: 'Fee_Proposal_Code.docx',         label: 'Fee Proposal — Code Assessable' },
+          { file: 'Fee_Proposal_Impact.docx',       label: 'Fee Proposal — Impact Assessable' },
+          { file: 'Fee_Proposal_Minor_Change.docx', label: 'Fee Proposal — Minor Change' },
+          { file: 'Fee_Proposal_RAA.docx',          label: 'Fee Proposal — Referral Agency Assessment' },
+        ],
+      },
+      {
+        name: "Owner's Consent",
+        items: [
+          { file: 'Consent_Individual.docx', label: "Owner's Consent — Individual" },
+          { file: 'Consent_Company.docx',    label: "Owner's Consent — Company" },
+        ],
+      },
+    ],
   },
   {
-    category: 'ROL — Reconfiguration of a Lot',
-    color: 'bg-amber-100 text-amber-700',
-    items: [
-      { name: 'ROL Planning Report', desc: 'Full planning report for lot reconfiguration' },
-      { name: 'ROL IR Response', desc: 'Information request response template' },
-      { name: 'ROL Engagement Letter', desc: 'Client engagement letter for subdivision work' },
-    ]
-  },
-  {
-    category: 'RAA — Referral Agency Assessment',
-    color: 'bg-pink-100 text-pink-700',
-    items: [
-      { name: 'RAA Response Report', desc: 'Referral agency assessment response' },
-      { name: 'Referral Agency Submission', desc: 'Formal submission to referral agency' },
-    ]
-  },
-  {
-    category: 'OW — Operational Works',
-    color: 'bg-green-100 text-green-700',
-    items: [
-      { name: 'OW Planning Report', desc: 'Operational works planning report' },
-      { name: 'OW Compliance Report', desc: 'Compliance report for operational works' },
-    ]
-  },
-  {
-    category: 'SPS — Superseded Planning Scheme',
+    stage: 'Stage 2',
     color: 'bg-purple-100 text-purple-700',
-    items: [
-      { name: 'SPS Request Report', desc: 'Request to assess under superseded planning scheme' },
-      { name: 'SPS Supporting Statement', desc: 'Supporting statement for SPS request' },
-    ]
+    groups: [
+      { name: 'Action Notice',    items: [] },
+      { name: 'Planning Reports', items: [] },
+      { name: 'Referrals',        items: [] },
+    ],
   },
   {
-    category: 'General templates',
+    stage: 'Stage 3',
+    color: 'bg-emerald-100 text-emerald-700',
+    groups: [
+      { name: 'Information Request', items: [] },
+      { name: 'Public Notification', items: [] },
+      { name: 'Waive Appeal Rights', items: [] },
+    ],
+  },
+  {
+    stage: 'Miscellaneous',
     color: 'bg-gray-100 text-gray-700',
-    items: [
-      { name: 'Preliminary Enquiry Response', desc: 'Response to preliminary planning enquiry' },
-      { name: 'Tax Invoice', desc: 'Standard tax invoice — auto-fills job and client details' },
-      { name: 'Fee Estimate Letter', desc: 'Fee estimate for new or existing clients' },
-      { name: 'Client Engagement Letter', desc: 'General client engagement and scope of works letter' },
-      { name: 'Decision Notice Response', desc: 'Response to council decision notice' },
-      { name: 'Fee Variation Letter', desc: 'Letter advising client of fee variation' },
-    ]
+    groups: [{ name: 'Other', items: [] }],
   },
 ]
 
-export default function Templates() {
+function MyDetailsModal({ currentUser, onClose }) {
+  const [form, setForm] = useState({ full_name: '', position: '', email: '' })
+  const [existingId, setExistingId] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const load = async () => {
+      if (!currentUser?.id) { setLoading(false); return }
+      const { data } = await supabase
+        .from('planner_profiles')
+        .select('id, full_name, position, email')
+        .eq('user_id', currentUser.id)
+        .maybeSingle()
+      if (data) {
+        setExistingId(data.id)
+        setForm({ full_name: data.full_name || '', position: data.position || '', email: data.email || '' })
+      }
+      setLoading(false)
+    }
+    load()
+  }, [currentUser])
+
+  const handleSave = async () => {
+    setSaving(true); setError('')
+    let result
+    if (existingId) {
+      result = await supabase
+        .from('planner_profiles')
+        .update({ full_name: form.full_name, position: form.position, email: form.email })
+        .eq('id', existingId)
+    } else {
+      result = await supabase
+        .from('planner_profiles')
+        .insert({ user_id: currentUser.id, company_id: currentUser.company_id, full_name: form.full_name, position: form.position, email: form.email })
+        .select('id').single()
+      if (result.data) setExistingId(result.data.id)
+    }
+    setSaving(false)
+    if (result.error) { setError(result.error.message); return }
+    setSaved(true)
+    setTimeout(() => setSaved(false), 1500)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
+      <div className="bg-white rounded-xl border border-gray-200 w-full max-w-md">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div>
+            <div className="text-sm font-semibold">My details</div>
+            <div className="text-xs text-gray-400 mt-0.5">Fills <span className="font-mono">{'{planner_name}'}</span>, <span className="font-mono">{'{planner_position}'}</span> and <span className="font-mono">{'{planner_email}'}</span> in your generated documents.</div>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
+        </div>
+        <div className="px-5 py-4 space-y-3">
+          {!currentUser?.id && <div className="bg-amber-50 text-amber-700 text-xs px-3 py-2 rounded-lg">Not signed in — open this page from inside the app.</div>}
+          {loading ? <div className="text-xs text-gray-400">Loading...</div> : (
+            <>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Full name</label>
+                <input value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} placeholder="Lachlan Quinn" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Position</label>
+                <input value={form.position} onChange={e => setForm(f => ({ ...f, position: e.target.value }))} placeholder="Senior Urban Planner" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Email</label>
+                <input value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="lachlan@hpcplanning.com.au" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
+              </div>
+              {error && <div className="bg-red-50 text-red-600 text-xs px-3 py-2 rounded-lg">{error}</div>}
+            </>
+          )}
+        </div>
+        <div className="px-5 py-4 border-t border-gray-100 flex gap-2 justify-end">
+          <button onClick={onClose} className="px-4 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Close</button>
+          <button onClick={handleSave} disabled={saving || loading || !currentUser?.id} className="px-4 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 font-medium">
+            {saving ? 'Saving...' : saved ? '✓ Saved' : 'Save details'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function Templates({ currentUser }) {
+  const [showMyDetails, setShowMyDetails] = useState(false)
+
   return (
     <div>
-      {/* Info banner */}
-      <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 mb-4">
-        <div className="text-xs font-medium text-emerald-700 mb-0.5">Auto-fill variables</div>
-        <div className="text-xs text-emerald-600">All templates automatically fill in: client name, address, lot/RP reference, council, zone, application type, assessment level, referral agencies, planner name and date when a job is created.</div>
+      {showMyDetails && <MyDetailsModal currentUser={currentUser} onClose={() => setShowMyDetails(false)} />}
+
+      <div className="flex items-start justify-between mb-4 gap-3">
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 flex-1">
+          <div className="text-xs font-medium text-emerald-700 mb-0.5">Auto-fill</div>
+          <div className="text-xs text-emerald-600">Documents are generated from inside a job. Job details (client, address, lot, council, app type, dates) and your planner details fill automatically. Anything else is left as an editable placeholder in the Word file.</div>
+        </div>
+        <button onClick={() => setShowMyDetails(true)} className="px-4 py-3 text-xs bg-[#1B2A4A] text-white rounded-xl hover:bg-[#16223c] font-medium whitespace-nowrap">
+          My details
+        </button>
       </div>
 
-      {/* Template grid */}
       <div className="grid grid-cols-2 gap-4">
-        {templates.map(group => (
-          <div key={group.category} className="bg-white rounded-xl border border-gray-200 p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${group.color}`}>
-                {group.category.split('—')[0].trim()}
-              </span>
-              <div className="text-xs font-semibold text-gray-600">{group.category}</div>
-            </div>
-            {group.items.map((item, i) => (
-              <div key={i} className="flex items-center gap-3 py-2 border-b border-gray-100 last:border-0">
-                <div className="w-7 h-7 rounded-md bg-blue-50 flex items-center justify-center text-xs font-semibold text-blue-600 flex-shrink-0">
-                  W
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-medium">{item.name}</div>
-                  <div className="text-xs text-gray-400 truncate">{item.desc}</div>
-                </div>
-                <button className="px-2 py-1 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 flex-shrink-0">
-                  Edit
-                </button>
+        {STAGE_CATEGORIES.map(cat => {
+          const totalItems = cat.groups.reduce((n, g) => n + g.items.length, 0)
+          return (
+            <div key={cat.stage} className="bg-white rounded-xl border border-gray-200 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cat.color}`}>{cat.stage}</span>
+                <span className="text-xs text-gray-400">{totalItems} template{totalItems !== 1 ? 's' : ''}</span>
               </div>
-            ))}
-          </div>
-        ))}
+
+              {cat.groups.map(group => (
+                <div key={group.name} className="mb-3 last:mb-0">
+                  <div className="text-xs font-semibold text-gray-600 mb-1.5">{group.name}</div>
+                  {group.items.length === 0 ? (
+                    <div className="text-xs text-gray-400 italic px-1 py-1">No templates uploaded yet.</div>
+                  ) : (
+                    group.items.map(item => (
+                      <div key={item.file} className="flex items-center gap-3 py-1.5 border-b border-gray-100 last:border-0">
+                        <div className="w-7 h-7 rounded-md bg-blue-50 flex items-center justify-center text-xs font-semibold text-blue-600 flex-shrink-0">W</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-medium truncate">{item.label}</div>
+                          <div className="text-xs text-gray-400 truncate">{item.file}</div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              ))}
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="text-xs text-gray-400 mt-4 text-center">
+        Generate documents from inside a job via the <span className="font-medium text-gray-600">Generate docs</span> button.
       </div>
     </div>
   )

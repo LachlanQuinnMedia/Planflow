@@ -7,13 +7,35 @@ import {
   generateNoticeToStop,
   generateQuoteRequest,
 } from './docGenerator'
+import { generateFromTemplate } from './templateFiller'
 
+// Code-built HPC docs (existing).
 const HPC_TEMPLATES = [
   { id: 'cover', label: 'Lodgement cover letter', fn: generateLodgementCoverLetter },
   { id: 'withdraw', label: 'Withdraw application', fn: generateWithdrawApplication },
   { id: 'revive', label: 'Notice to revive', fn: generateNoticeToRevive },
   { id: 'stop', label: 'Notice to stop clock', fn: generateNoticeToStop },
   { id: 'quote', label: 'Quote request', fn: generateQuoteRequest },
+]
+
+// Stage 1 .docx templates (Supabase Storage, filled via templateFiller).
+const STAGE1_TEMPLATES = [
+  {
+    group: 'Fee Proposals',
+    items: [
+      { file: 'Fee_Proposal_Code.docx',         label: 'Fee Proposal — Code Assessable' },
+      { file: 'Fee_Proposal_Impact.docx',       label: 'Fee Proposal — Impact Assessable' },
+      { file: 'Fee_Proposal_Minor_Change.docx', label: 'Fee Proposal — Minor Change' },
+      { file: 'Fee_Proposal_RAA.docx',          label: 'Fee Proposal — Referral Agency Assessment' },
+    ],
+  },
+  {
+    group: "Owner's Consent",
+    items: [
+      { file: 'Consent_Individual.docx', label: "Owner's Consent — Individual" },
+      { file: 'Consent_Company.docx',    label: "Owner's Consent — Company" },
+    ],
+  },
 ]
 
 const COUNCILS = [
@@ -39,10 +61,11 @@ const COMPLEXITY_OPTIONS = [
   { value: 'C4', label: 'C4 — High complexity', description: 'Impact assessable or highly contentious application', color: 'border-red-200 bg-red-50 text-red-700', activeColor: 'border-red-500 bg-red-100 text-red-800' },
 ]
 
-function DocGenerateModal({ job, onClose, onNavigate }) {
+function DocGenerateModal({ job, planner, onClose, onNavigate }) {
   const [selected, setSelected] = useState(new Set())
   const [generating, setGenerating] = useState(false)
   const [done, setDone] = useState(false)
+  const [error, setError] = useState('')
 
   const toggle = (id) => setSelected(prev => {
     const next = new Set(prev)
@@ -53,28 +76,57 @@ function DocGenerateModal({ job, onClose, onNavigate }) {
   const handleGenerate = async () => {
     if (selected.size === 0) return
     setGenerating(true)
-    for (const tmpl of HPC_TEMPLATES) {
-      if (selected.has(tmpl.id)) await tmpl.fn(job)
+    setError('')
+    const failures = []
+    for (const sel of selected) {
+      try {
+        if (sel.endsWith('.docx')) {
+          await generateFromTemplate(sel, job, planner || {})
+        } else {
+          const tmpl = HPC_TEMPLATES.find(t => t.id === sel)
+          if (tmpl) await tmpl.fn(job)
+        }
+      } catch (e) {
+        failures.push(`${sel}: ${e.message}`)
+      }
     }
     setGenerating(false)
-    setDone(true)
+    if (failures.length) setError('Some documents failed:\n' + failures.join('\n'))
+    else setDone(true)
   }
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
-      <div className="bg-white rounded-xl border border-gray-200 w-full max-w-md">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <div>
-            <div className="text-sm font-semibold">Job created ✓</div>
-            <div className="text-xs text-gray-400 mt-0.5">{job.code} — {job.name} · Would you like to generate documents now?</div>
-          </div>
+      <div className="bg-white rounded-xl border border-gray-200 w-full max-w-md max-h-[90vh] flex flex-col">
+        <div className="px-5 py-4 border-b border-gray-100">
+          <div className="text-sm font-semibold">Job created ✓</div>
+          <div className="text-xs text-gray-400 mt-0.5">{job.code} — {job.name} · Generate documents now?</div>
         </div>
-        <div className="px-5 py-4">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Select documents to generate</div>
-          <div className="space-y-2">
+
+        <div className="px-5 py-4 overflow-y-auto">
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Stage 1</div>
+          {STAGE1_TEMPLATES.map(group => (
+            <div key={group.group} className="mb-3">
+              <div className="text-xs font-medium text-gray-600 mb-1">{group.group}</div>
+              {group.items.map(item => (
+                <button key={item.file} onClick={() => toggle(item.file)}
+                  className={`w-full text-left px-3 py-2 rounded-lg border text-xs transition-colors mb-1 ${selected.has(item.file) ? 'border-emerald-500 bg-emerald-50 text-emerald-700 font-medium' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${selected.has(item.file) ? 'bg-emerald-600 border-emerald-600' : 'border-gray-300'}`}>
+                      {selected.has(item.file) && <span className="text-white text-xs leading-none">✓</span>}
+                    </div>
+                    {item.label}
+                  </div>
+                </button>
+              ))}
+            </div>
+          ))}
+
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-4">Other documents</div>
+          <div className="space-y-1">
             {HPC_TEMPLATES.map(t => (
               <button key={t.id} onClick={() => toggle(t.id)}
-                className={`w-full text-left px-3 py-2.5 rounded-lg border text-xs transition-colors ${selected.has(t.id) ? 'border-emerald-500 bg-emerald-50 text-emerald-700 font-medium' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}>
+                className={`w-full text-left px-3 py-2 rounded-lg border text-xs transition-colors ${selected.has(t.id) ? 'border-emerald-500 bg-emerald-50 text-emerald-700 font-medium' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}>
                 <div className="flex items-center gap-2">
                   <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${selected.has(t.id) ? 'bg-emerald-600 border-emerald-600' : 'border-gray-300'}`}>
                     {selected.has(t.id) && <span className="text-white text-xs leading-none">✓</span>}
@@ -84,12 +136,15 @@ function DocGenerateModal({ job, onClose, onNavigate }) {
               </button>
             ))}
           </div>
+
+          {error && <div className="mt-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700 whitespace-pre-line">{error}</div>}
           {done && (
             <div className="mt-3 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-xs text-emerald-700">
               ✓ {selected.size} document{selected.size !== 1 ? 's' : ''} downloaded — check your downloads folder.
             </div>
           )}
         </div>
+
         <div className="px-5 py-4 border-t border-gray-100 flex gap-2">
           <button onClick={() => { onClose(); onNavigate('jobs') }} className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Skip — go to jobs</button>
           <button onClick={done ? () => { onClose(); onNavigate('jobs') } : handleGenerate}
@@ -119,6 +174,7 @@ export default function NewJob({ onNavigate, currentUser }) {
   const [staffList, setStaffList] = useState([])
   const [createdJob, setCreatedJob] = useState(null)
   const [showDocModal, setShowDocModal] = useState(false)
+  const [currentPlanner, setCurrentPlanner] = useState(null)
 
   useEffect(() => {
     const fetchStaff = async () => {
@@ -136,6 +192,20 @@ export default function NewJob({ onNavigate, currentUser }) {
       }
     }
     fetchStaff()
+  }, [currentUser])
+
+  // Logged-in planner's profile — fills planner_name / planner_position / planner_email in generated docs.
+  useEffect(() => {
+    const loadPlanner = async () => {
+      if (!currentUser?.id) return
+      const { data } = await supabase
+        .from('planner_profiles')
+        .select('full_name, position, email')
+        .eq('user_id', currentUser.id)
+        .maybeSingle()
+      if (data) setCurrentPlanner(data)
+    }
+    loadPlanner()
   }, [currentUser])
 
   const update = (field, value) => setForm(f => ({ ...f, [field]: value }))
@@ -206,7 +276,7 @@ export default function NewJob({ onNavigate, currentUser }) {
   return (
     <div className="max-w-3xl">
       {showDocModal && createdJob && (
-        <DocGenerateModal job={createdJob} onClose={() => setShowDocModal(false)} onNavigate={onNavigate} />
+        <DocGenerateModal job={createdJob} planner={currentPlanner} onClose={() => setShowDocModal(false)} onNavigate={onNavigate} />
       )}
 
       <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -269,7 +339,6 @@ export default function NewJob({ onNavigate, currentUser }) {
             <input value={form.referrals} onChange={e => update('referrals', e.target.value)} placeholder="DTMR, TRC Engineering..." className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
         </div>
 
-        {/* Complexity selector */}
         <div className="mb-5">
           <label className="text-xs text-gray-500 mb-2 block">Job complexity</label>
           <div className="grid grid-cols-4 gap-2">
@@ -339,10 +408,13 @@ export default function NewJob({ onNavigate, currentUser }) {
 
         <div className="border-t border-gray-100 mb-5" />
         <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Documents available to generate</div>
-        <div className="text-xs text-gray-400 mb-3">After creating the job you'll be prompted to generate any of these — all pre-filled with job details.</div>
+        <div className="text-xs text-gray-400 mb-3">After creating the job you'll be prompted to generate fee proposals, consents, and other documents — all pre-filled with job and planner details.</div>
         <div className="flex flex-wrap gap-2 mb-6">
+          {STAGE1_TEMPLATES.flatMap(g => g.items).map(t => (
+            <span key={t.file} className="px-3 py-1 bg-emerald-50 text-emerald-700 text-xs rounded-full border border-emerald-200">{t.label}</span>
+          ))}
           {HPC_TEMPLATES.map(t => (
-            <span key={t.id} className="px-3 py-1 bg-emerald-50 text-emerald-700 text-xs rounded-full border border-emerald-200">{t.label}</span>
+            <span key={t.id} className="px-3 py-1 bg-gray-50 text-gray-600 text-xs rounded-full border border-gray-200">{t.label}</span>
           ))}
         </div>
 
