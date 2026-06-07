@@ -504,6 +504,24 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
 
     if (error) { alert('Failed to save.'); setSaving(false); return }
 
+    // Notify on new staff meeting
+    if (newBooking && type === 'internal') {
+      try {
+        const niceDate = new Date(date).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
+        const attendeeSummary = selectedAttendees.length === 1
+          ? selectedAttendees[0]
+          : `${selectedAttendees.length} attendees`
+        await supabase.from('notifications').insert({
+          company_id: currentUser.company_id,
+          type: 'new_meeting',
+          message: `New staff meeting: ${title.trim()} on ${niceDate} at ${startTime} (${attendeeSummary})`,
+          is_read: false,
+        })
+      } catch (e) {
+        console.log('Could not create meeting notification:', e)
+      }
+    }
+
     if (newBooking) {
       for (const provider of ['google', 'outlook']) {
         try {
