@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabase'
-import { generatePlanningReport, generateIRResponse, generateEngagementLetter, generateInvoice, generateFeeProposal } from './docGenerator'
 import { generateFromTemplate } from './templateFiller'
 
 const COUNCILS = [
@@ -128,14 +127,6 @@ const typeBadgeColors = {
   SPS: 'bg-purple-100 text-purple-700',
 }
 
-const templatesByType = {
-  MCU: ['Fee Proposal', 'MCU Planning Report', 'MCU IR Response', 'MCU Client Engagement Letter', 'Tax Invoice'],
-  ROL: ['Fee Proposal', 'ROL Planning Report', 'ROL IR Response', 'ROL Engagement Letter', 'Tax Invoice'],
-  RAA: ['Fee Proposal', 'RAA Response Report', 'Referral Agency Submission', 'Tax Invoice'],
-  OW: ['Fee Proposal', 'OW Planning Report', 'OW Compliance Report', 'Tax Invoice'],
-  SPS: ['Fee Proposal', 'SPS Request Report', 'SPS Supporting Statement', 'Tax Invoice'],
-}
-
 const STAGE1_TEMPLATES = [
   { group: 'Fee Proposals', items: [
     { file: 'Fee_Proposal_Code.docx',         label: 'Fee Proposal — Code Assessable' },
@@ -204,7 +195,17 @@ const STAGE3_TEMPLATES = [
   ]},
 ]
 
-const ALL_DOCX_ITEMS = [...STAGE1_TEMPLATES, ...STAGE2_TEMPLATES, ...STAGE3_TEMPLATES].flatMap(g => g.items)
+const MISC_TEMPLATES = [
+  { group: 'Miscellaneous', items: [
+    { file: 'Lodgement_Cover_Letter.docx',         label: 'Lodgement Cover Letter' },
+    { file: 'Withdraw_Application.docx',           label: 'Withdraw Application' },
+    { file: 'Notice_to_Revive_Application.docx',   label: 'Notice to Revive Application' },
+    { file: 'Notice_to_Stop_Current_Period.docx',  label: 'Notice to Stop Current Period' },
+    { file: 'Quote_Request.docx',                  label: 'Quote Request' },
+  ]},
+]
+
+const ALL_DOCX_ITEMS = [...STAGE1_TEMPLATES, ...STAGE2_TEMPLATES, ...STAGE3_TEMPLATES, ...MISC_TEMPLATES].flatMap(g => g.items)
 
 // For .xlsx and .ai (and any other non-docx Storage template), just download the
 // raw file from the templates bucket. No placeholder filling — these are blank
@@ -1325,7 +1326,6 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
     hpc_stages: hpcStages,
   }
 
-  const otherDocs = (templatesByType[jobData.app_type] || []).filter(t => t !== 'Fee Proposal')
   const labelFor = (id) => ALL_DOCX_ITEMS.find(i => i.file === id)?.label || id
   const toggleTemplate = (t) => setSelectedTemplates(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])
 
@@ -1340,14 +1340,6 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
           await generateFromTemplate(sel, jobForDocs, currentPlanner || {})
         } else if (sel.endsWith('.xlsx') || sel.endsWith('.ai')) {
           await downloadRawTemplate(sel)
-        } else if (sel.includes('Planning Report')) {
-          await generatePlanningReport(jobForDocs)
-        } else if (sel.includes('IR Response')) {
-          await generateIRResponse(jobForDocs, 1)
-        } else if (sel.includes('Engagement Letter')) {
-          await generateEngagementLetter(jobForDocs)
-        } else if (sel.includes('Invoice')) {
-          await generateInvoice(jobForDocs)
         }
       } catch (e) {
         failures.push(`${labelFor(sel)}: ${e.message}`)
@@ -1435,19 +1427,12 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
               </div>
             ))}
 
-            {otherDocs.length > 0 && (
-              <>
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-4">Other documents</div>
-                {otherDocs.map(t => (
-                  <div key={t} onClick={() => toggleTemplate(t)} className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-1 cursor-pointer text-xs transition-colors ${selectedTemplates.includes(t) ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-50 hover:bg-gray-100'}`}>
-                    <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${selectedTemplates.includes(t) ? 'bg-emerald-600 border-emerald-600' : 'border-gray-300'}`}>
-                      {selectedTemplates.includes(t) && <span className="text-white text-xs">✓</span>}
-                    </div>
-                    {t}
-                  </div>
-                ))}
-              </>
-            )}
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-4">Miscellaneous</div>
+            {MISC_TEMPLATES.map(group => (
+              <div key={group.group} className="mb-3">
+                {group.items.map(renderTemplateRow)}
+              </div>
+            ))}
 
             <div className="flex gap-2 mt-4">
               <button onClick={() => setShowGenerate(false)} className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>

@@ -1,21 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
-import {
-  generateLodgementCoverLetter,
-  generateWithdrawApplication,
-  generateNoticeToRevive,
-  generateNoticeToStop,
-  generateQuoteRequest,
-} from './docGenerator'
 import { generateFromTemplate } from './templateFiller'
-
-const HPC_TEMPLATES = [
-  { id: 'cover', label: 'Lodgement cover letter', fn: generateLodgementCoverLetter },
-  { id: 'withdraw', label: 'Withdraw application', fn: generateWithdrawApplication },
-  { id: 'revive', label: 'Notice to revive', fn: generateNoticeToRevive },
-  { id: 'stop', label: 'Notice to stop clock', fn: generateNoticeToStop },
-  { id: 'quote', label: 'Quote request', fn: generateQuoteRequest },
-]
 
 const STAGE1_TEMPLATES = [
   { group: 'Fee Proposals', items: [
@@ -85,6 +70,16 @@ const STAGE3_TEMPLATES = [
   ]},
 ]
 
+const MISC_TEMPLATES = [
+  { group: 'Miscellaneous', items: [
+    { file: 'Lodgement_Cover_Letter.docx',         label: 'Lodgement Cover Letter' },
+    { file: 'Withdraw_Application.docx',           label: 'Withdraw Application' },
+    { file: 'Notice_to_Revive_Application.docx',   label: 'Notice to Revive Application' },
+    { file: 'Notice_to_Stop_Current_Period.docx',  label: 'Notice to Stop Current Period' },
+    { file: 'Quote_Request.docx',                  label: 'Quote Request' },
+  ]},
+]
+
 const COUNCILS = [
   'Balina Shire Council', 'Banana Shire Council', 'Brisbane City Council',
   'Bundaberg Regional Council', 'Cairns Regional Council', 'Cassowary Coast Regional Council',
@@ -108,8 +103,6 @@ const COMPLEXITY_OPTIONS = [
   { value: 'C4', label: 'C4 — High complexity', description: 'Impact assessable or highly contentious application', color: 'border-red-200 bg-red-50 text-red-700', activeColor: 'border-red-500 bg-red-100 text-red-800' },
 ]
 
-// For .xlsx and .ai files in the templates bucket — no placeholder filling,
-// just download the raw file (planner fills it in Excel / Illustrator).
 async function downloadRawTemplate(filename) {
   const { data, error } = await supabase.storage.from('templates').download(filename)
   if (error) throw new Error(`Could not download ${filename}: ${error.message}`)
@@ -145,9 +138,6 @@ function DocGenerateModal({ job, planner, onClose, onNavigate }) {
           await generateFromTemplate(sel, job, planner || {})
         } else if (sel.endsWith('.xlsx') || sel.endsWith('.ai')) {
           await downloadRawTemplate(sel)
-        } else {
-          const tmpl = HPC_TEMPLATES.find(t => t.id === sel)
-          if (tmpl) await tmpl.fn(job)
         }
       } catch (e) {
         failures.push(`${sel}: ${e.message}`)
@@ -203,20 +193,12 @@ function DocGenerateModal({ job, planner, onClose, onNavigate }) {
             </div>
           ))}
 
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-4">Other documents</div>
-          <div className="space-y-1">
-            {HPC_TEMPLATES.map(t => (
-              <button key={t.id} onClick={() => toggle(t.id)}
-                className={`w-full text-left px-3 py-2 rounded-lg border text-xs transition-colors ${selected.has(t.id) ? 'border-emerald-500 bg-emerald-50 text-emerald-700 font-medium' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}>
-                <div className="flex items-center gap-2">
-                  <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${selected.has(t.id) ? 'bg-emerald-600 border-emerald-600' : 'border-gray-300'}`}>
-                    {selected.has(t.id) && <span className="text-white text-xs leading-none">✓</span>}
-                  </div>
-                  {t.label}
-                </div>
-              </button>
-            ))}
-          </div>
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-4">Miscellaneous</div>
+          {MISC_TEMPLATES.map(group => (
+            <div key={group.group} className="mb-3">
+              {group.items.map(renderRow)}
+            </div>
+          ))}
 
           {error && <div className="mt-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700 whitespace-pre-line">{error}</div>}
           {done && (
@@ -462,11 +444,8 @@ export default function NewJob({ onNavigate, currentUser }) {
         <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Documents available to generate</div>
         <div className="text-xs text-gray-400 mb-3">After creating the job you'll be prompted to generate fee proposals, consents, planning reports, IR responses, public notices and more — all pre-filled with job and planner details.</div>
         <div className="flex flex-wrap gap-2 mb-6">
-          {[...STAGE1_TEMPLATES, ...STAGE2_TEMPLATES, ...STAGE3_TEMPLATES].flatMap(g => g.items).map(t => (
+          {[...STAGE1_TEMPLATES, ...STAGE2_TEMPLATES, ...STAGE3_TEMPLATES, ...MISC_TEMPLATES].flatMap(g => g.items).map(t => (
             <span key={t.file} className="px-3 py-1 bg-emerald-50 text-emerald-700 text-xs rounded-full border border-emerald-200">{t.label}</span>
-          ))}
-          {HPC_TEMPLATES.map(t => (
-            <span key={t.id} className="px-3 py-1 bg-gray-50 text-gray-600 text-xs rounded-full border border-gray-200">{t.label}</span>
           ))}
         </div>
 
