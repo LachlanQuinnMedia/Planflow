@@ -12,6 +12,11 @@ const typeColors = {
   internal: 'bg-purple-100 border-purple-300 text-purple-800',
 }
 
+// Format a JS Date as YYYY-MM-DD using LOCAL date parts (no timezone shift).
+function toLocalISODate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 function getWeekDates(date) {
   const start = new Date(date)
   start.setDate(start.getDate() - start.getDay())
@@ -36,7 +41,9 @@ function formatDuration(mins) {
 }
 
 function formatDateFull(dateStr) {
-  return new Date(dateStr).toLocaleDateString('en-AU', {
+  // Parse YYYY-MM-DD as a LOCAL date to avoid timezone shift
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString('en-AU', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
   })
 }
@@ -471,7 +478,7 @@ function MeetingReviewModal({ booking, onClose, onDelete, onEdit }) {
 function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaultDate }) {
   const [type, setType] = useState('client')
   const [title, setTitle] = useState('')
-  const [date, setDate] = useState(defaultDate || new Date().toISOString().split('T')[0])
+  const [date, setDate] = useState(defaultDate || toLocalISODate(new Date()))
   const [startTime, setStartTime] = useState('09:00')
   const [duration, setDuration] = useState(60)
   const [selectedAttendees, setSelectedAttendees] = useState([currentUser.username])
@@ -507,7 +514,8 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
     // Notify on new staff meeting
     if (newBooking && type === 'internal') {
       try {
-        const niceDate = new Date(date).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
+        const [y, m, d] = date.split('-').map(Number)
+        const niceDate = new Date(y, m - 1, d).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
         const attendeeSummary = selectedAttendees.length === 1
           ? selectedAttendees[0]
           : `${selectedAttendees.length} attendees`
@@ -681,8 +689,8 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
 
   const fetchBookings = async () => {
     setLoading(true)
-    const startDate = weekDates[0].toISOString().split('T')[0]
-    const endDate = weekDates[6].toISOString().split('T')[0]
+    const startDate = toLocalISODate(weekDates[0])
+    const endDate = toLocalISODate(weekDates[6])
     const { data } = await supabase
       .from('bookings').select('*')
       .eq('company_id', currentUser.company_id)
@@ -710,7 +718,7 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
   const goToday = () => setCurrentWeek(new Date())
 
   const getBookingsForDayAndHour = (date, hour) => {
-    const dateStr = date.toISOString().split('T')[0]
+    const dateStr = toLocalISODate(date)
     return bookings.filter(b => {
       if (b.date !== dateStr) return false
       return parseInt(b.start_time?.split(':')[0] || '0') === hour
@@ -813,7 +821,7 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
                   <span className="text-xs text-gray-400">{formatTime(hour)}</span>
                 </div>
                 {weekDates.map((date, di) => {
-                  const dateStr = date.toISOString().split('T')[0]
+                  const dateStr = toLocalISODate(date)
                   const isToday = date.toDateString() === new Date().toDateString()
                   const dayBookings = getBookingsForDayAndHour(date, hour)
                   return (
@@ -867,26 +875,30 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
           <div className="text-xs text-gray-400 text-center py-4">Loading...</div>
         ) : bookings.length === 0 ? (
           <div className="text-xs text-gray-400 text-center py-4">No meetings this week.</div>
-        ) : bookings.map((b, i) => (
-          <div key={i} onClick={() => setSelectedBooking(b)}
-            className="flex items-center gap-3 py-2.5 border-b border-gray-100 last:border-0 cursor-pointer hover:bg-gray-50 rounded-lg px-2 -mx-2">
-            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${b.type === 'client' ? 'bg-emerald-500' : 'bg-purple-500'}`} />
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-medium truncate">
-                {b.client_name ? `${b.client_name} — ${b.title}` : b.title}
+        ) : bookings.map((b, i) => {
+          const [by, bm, bd] = (b.date || '').split('-').map(Number)
+          const bookingDate = by ? new Date(by, bm - 1, bd) : null
+          return (
+            <div key={i} onClick={() => setSelectedBooking(b)}
+              className="flex items-center gap-3 py-2.5 border-b border-gray-100 last:border-0 cursor-pointer hover:bg-gray-50 rounded-lg px-2 -mx-2">
+              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${b.type === 'client' ? 'bg-emerald-500' : 'bg-purple-500'}`} />
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-medium truncate">
+                  {b.client_name ? `${b.client_name} — ${b.title}` : b.title}
+                </div>
+                <div className="text-xs text-gray-400">
+                  {bookingDate && bookingDate.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })} · {b.start_time?.slice(0, 5)} · {formatDuration(b.duration_minutes)}
+                  {b.attendees?.length > 1 && ` · ${b.attendees.length} attendees`}
+                  {b.external_source && ` · via ${b.external_source}`}
+                </div>
               </div>
-              <div className="text-xs text-gray-400">
-                {new Date(b.date).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })} · {b.start_time?.slice(0, 5)} · {formatDuration(b.duration_minutes)}
-                {b.attendees?.length > 1 && ` · ${b.attendees.length} attendees`}
-                {b.external_source && ` · via ${b.external_source}`}
-              </div>
+              {b.job_code && <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">{b.job_code}</span>}
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${b.type === 'client' ? 'bg-emerald-100 text-emerald-700' : 'bg-purple-100 text-purple-700'}`}>
+                {b.type === 'client' ? 'Client' : 'Internal'}
+              </span>
             </div>
-            {b.job_code && <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">{b.job_code}</span>}
-            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${b.type === 'client' ? 'bg-emerald-100 text-emerald-700' : 'bg-purple-100 text-purple-700'}`}>
-              {b.type === 'client' ? 'Client' : 'Internal'}
-            </span>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
