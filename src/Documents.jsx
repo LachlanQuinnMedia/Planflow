@@ -152,7 +152,7 @@ export default function Documents({ currentUser }) {
   const fileRef = useRef(null)
 
   useEffect(() => { fetchDocs() }, [currentUser])
-  useEffect(() => { fetchJobs() }, [currentUser])
+  useEffect(() => { fetchJobs() }, [])
 
   const fetchDocs = async () => {
     setLoading(true)
@@ -166,11 +166,9 @@ export default function Documents({ currentUser }) {
   }
 
   const fetchJobs = async () => {
-    if (!currentUser?.company_id) return
     const { data } = await supabase
       .from('jobs')
       .select('id, code, name, client_first_name, client_last_name, app_type')
-      .eq('company_id', currentUser.company_id)
       .order('created_at', { ascending: false })
       .limit(500)
     if (data) setJobs(data)
