@@ -18,63 +18,71 @@ const HPC_TEMPLATES = [
 ]
 
 const STAGE1_TEMPLATES = [
-  {
-    group: 'Fee Proposals',
-    items: [
-      { file: 'Fee_Proposal_Code.docx',         label: 'Fee Proposal — Code Assessable' },
-      { file: 'Fee_Proposal_Impact.docx',       label: 'Fee Proposal — Impact Assessable' },
-      { file: 'Fee_Proposal_Minor_Change.docx', label: 'Fee Proposal — Minor Change' },
-      { file: 'Fee_Proposal_RAA.docx',          label: 'Fee Proposal — Referral Agency Assessment' },
-    ],
-  },
-  {
-    group: "Owner's Consent",
-    items: [
-      { file: 'Consent_Individual.docx', label: "Owner's Consent — Individual" },
-      { file: 'Consent_Company.docx',    label: "Owner's Consent — Company" },
-    ],
-  },
+  { group: 'Fee Proposals', items: [
+    { file: 'Fee_Proposal_Code.docx',         label: 'Fee Proposal — Code Assessable' },
+    { file: 'Fee_Proposal_Impact.docx',       label: 'Fee Proposal — Impact Assessable' },
+    { file: 'Fee_Proposal_Minor_Change.docx', label: 'Fee Proposal — Minor Change' },
+    { file: 'Fee_Proposal_RAA.docx',          label: 'Fee Proposal — Referral Agency Assessment' },
+  ]},
+  { group: "Owner's Consent", items: [
+    { file: 'Consent_Individual.docx', label: "Owner's Consent — Individual" },
+    { file: 'Consent_Company.docx',    label: "Owner's Consent — Company" },
+  ]},
 ]
 
 const STAGE2_TEMPLATES = [
-  {
-    group: 'Action Notice',
-    items: [
-      { file: 'Action_Notice_Response.docx', label: 'Action Notice Response' },
-    ],
-  },
-  {
-    group: 'Planning Reports',
-    items: [
-      { file: 'Town_Planning_Assessment.docx',         label: 'Town Planning Assessment (generic)' },
-      { file: 'DA_Report_Brisbane.docx',               label: 'DA Report — Brisbane' },
-      { file: 'DA_Report_Brisbane_RiskSmart.docx',     label: 'DA Report — Brisbane RiskSmart' },
-      { file: 'DA_Report_Express_Code.docx',           label: 'DA Report — Express DA (Code)' },
-      { file: 'DA_Report_Express_Accepted.docx',       label: 'DA Report — Express DA (Accepted to Code)' },
-      { file: 'DA_Report_Gold_Coast.docx',             label: 'DA Report — Gold Coast' },
-      { file: 'DA_Report_Gold_Coast_RAA.docx',         label: 'DA Report — Gold Coast RAA' },
-      { file: 'DA_Report_Gold_Coast_Sch6_RAA.docx',    label: 'DA Report — Gold Coast Sch6 RAA' },
-      { file: 'DA_Report_OPW.docx',                    label: 'DA Report — Operational Works' },
-    ],
-  },
-  {
-    group: 'Referrals',
-    items: [
-      { file: 'Referral_Cover_Letter.docx',      label: 'Referral Cover Letter' },
-      { file: 'Missed_Referral_Letter.docx',     label: 'Missed Referral Letter' },
-      { file: 'Referral_Compliance_Letter.docx', label: 'Referral Compliance Letter' },
-      { file: 'Early_Concurrence_Request.docx',  label: 'Early Concurrence Request' },
-      { file: 'RAA_Application.docx',            label: 'RAA Application' },
-    ],
-  },
-  {
-    group: 'Change Applications',
-    items: [
-      { file: 'Minor_Change_Application.docx',                 label: 'Minor Change Application' },
-      { file: 'Minor_Change_Application_Affected_Entity.docx', label: 'Minor Change — Affected Entity Notice' },
-      { file: 'Other_Change_Application.docx',                 label: 'Other Change Application' },
-    ],
-  },
+  { group: 'Action Notice', items: [
+    { file: 'Action_Notice_Response.docx', label: 'Action Notice Response' },
+  ]},
+  { group: 'Planning Reports', items: [
+    { file: 'Town_Planning_Assessment.docx',         label: 'Town Planning Assessment (generic)' },
+    { file: 'DA_Report_Brisbane.docx',               label: 'DA Report — Brisbane' },
+    { file: 'DA_Report_Brisbane_RiskSmart.docx',     label: 'DA Report — Brisbane RiskSmart' },
+    { file: 'DA_Report_Express_Code.docx',           label: 'DA Report — Express DA (Code)' },
+    { file: 'DA_Report_Express_Accepted.docx',       label: 'DA Report — Express DA (Accepted to Code)' },
+    { file: 'DA_Report_Gold_Coast.docx',             label: 'DA Report — Gold Coast' },
+    { file: 'DA_Report_Gold_Coast_RAA.docx',         label: 'DA Report — Gold Coast RAA' },
+    { file: 'DA_Report_Gold_Coast_Sch6_RAA.docx',    label: 'DA Report — Gold Coast Sch6 RAA' },
+    { file: 'DA_Report_OPW.docx',                    label: 'DA Report — Operational Works' },
+  ]},
+  { group: 'Referrals', items: [
+    { file: 'Referral_Cover_Letter.docx',      label: 'Referral Cover Letter' },
+    { file: 'Missed_Referral_Letter.docx',     label: 'Missed Referral Letter' },
+    { file: 'Referral_Compliance_Letter.docx', label: 'Referral Compliance Letter' },
+    { file: 'Early_Concurrence_Request.docx',  label: 'Early Concurrence Request' },
+    { file: 'RAA_Application.docx',            label: 'RAA Application' },
+  ]},
+  { group: 'Change Applications', items: [
+    { file: 'Minor_Change_Application.docx',                 label: 'Minor Change Application' },
+    { file: 'Minor_Change_Application_Affected_Entity.docx', label: 'Minor Change — Affected Entity Notice' },
+    { file: 'Other_Change_Application.docx',                 label: 'Other Change Application' },
+  ]},
+]
+
+const STAGE3_TEMPLATES = [
+  { group: 'Information Request', items: [
+    { file: 'IR_Response.docx',                    label: 'IR Response' },
+    { file: 'Extend_Response_Period.docx',         label: 'Extend Response Period' },
+    { file: 'Initial_Response_and_Direction.docx', label: 'Initial Response & Direction' },
+  ]},
+  { group: 'Public Notification', items: [
+    { file: 'Notice_of_Commencement.docx',         label: 'Notice of Commencement' },
+    { file: 'Notice_of_Compliance_to_Council.docx',label: 'Notice of Compliance to Council' },
+    { file: 'Notify_Adjoining_Owner_Letter.docx',  label: 'Notify Adjoining Owner Letter' },
+    { file: 'Newspaper_Template.docx',             label: 'Newspaper Notice Template' },
+  ]},
+  { group: 'Waive Appeal Rights', items: [
+    { file: 'Waive_Appeal_Rights.docx',            label: 'Waive Appeal Rights' },
+    { file: 'Waive_ICN_Appeal_Rights.docx',        label: 'Waive ICN Appeal Rights' },
+    { file: 'Suspend_Applicant_Appeal_Period.docx',label: 'Suspend Applicant Appeal Period' },
+  ]},
+  { group: 'Tools & Forms', items: [
+    { file: 'Adjoining_Owners_Contact_List.xlsx',   label: 'Adjoining Owners Contact List (Excel)' },
+    { file: 'Advertising_Register.xlsx',            label: 'Advertising Register (Excel)' },
+    { file: 'Calendar_2023.xlsx',                   label: 'Calendar (Excel)' },
+    { file: 'DA_Sign_Template.ai',                  label: 'DA Sign Template (Illustrator)' },
+    { file: 'Change_Application_Sign_Template.ai',  label: 'Change Application Sign Template (Illustrator)' },
+  ]},
 ]
 
 const COUNCILS = [
@@ -100,6 +108,20 @@ const COMPLEXITY_OPTIONS = [
   { value: 'C4', label: 'C4 — High complexity', description: 'Impact assessable or highly contentious application', color: 'border-red-200 bg-red-50 text-red-700', activeColor: 'border-red-500 bg-red-100 text-red-800' },
 ]
 
+// For .xlsx and .ai files in the templates bucket — no placeholder filling,
+// just download the raw file (planner fills it in Excel / Illustrator).
+async function downloadRawTemplate(filename) {
+  const { data, error } = await supabase.storage.from('templates').download(filename)
+  if (error) throw new Error(`Could not download ${filename}: ${error.message}`)
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(data)
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000)
+}
+
 function DocGenerateModal({ job, planner, onClose, onNavigate }) {
   const [selected, setSelected] = useState(new Set())
   const [generating, setGenerating] = useState(false)
@@ -121,6 +143,8 @@ function DocGenerateModal({ job, planner, onClose, onNavigate }) {
       try {
         if (sel.endsWith('.docx')) {
           await generateFromTemplate(sel, job, planner || {})
+        } else if (sel.endsWith('.xlsx') || sel.endsWith('.ai')) {
+          await downloadRawTemplate(sel)
         } else {
           const tmpl = HPC_TEMPLATES.find(t => t.id === sel)
           if (tmpl) await tmpl.fn(job)
@@ -133,6 +157,18 @@ function DocGenerateModal({ job, planner, onClose, onNavigate }) {
     if (failures.length) setError('Some documents failed:\n' + failures.join('\n'))
     else setDone(true)
   }
+
+  const renderRow = (item) => (
+    <button key={item.file} onClick={() => toggle(item.file)}
+      className={`w-full text-left px-3 py-2 rounded-lg border text-xs transition-colors mb-1 ${selected.has(item.file) ? 'border-emerald-500 bg-emerald-50 text-emerald-700 font-medium' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}>
+      <div className="flex items-center gap-2">
+        <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${selected.has(item.file) ? 'bg-emerald-600 border-emerald-600' : 'border-gray-300'}`}>
+          {selected.has(item.file) && <span className="text-white text-xs leading-none">✓</span>}
+        </div>
+        {item.label}
+      </div>
+    </button>
+  )
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
@@ -147,17 +183,7 @@ function DocGenerateModal({ job, planner, onClose, onNavigate }) {
           {STAGE1_TEMPLATES.map(group => (
             <div key={group.group} className="mb-3">
               <div className="text-xs font-medium text-gray-600 mb-1">{group.group}</div>
-              {group.items.map(item => (
-                <button key={item.file} onClick={() => toggle(item.file)}
-                  className={`w-full text-left px-3 py-2 rounded-lg border text-xs transition-colors mb-1 ${selected.has(item.file) ? 'border-emerald-500 bg-emerald-50 text-emerald-700 font-medium' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}>
-                  <div className="flex items-center gap-2">
-                    <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${selected.has(item.file) ? 'bg-emerald-600 border-emerald-600' : 'border-gray-300'}`}>
-                      {selected.has(item.file) && <span className="text-white text-xs leading-none">✓</span>}
-                    </div>
-                    {item.label}
-                  </div>
-                </button>
-              ))}
+              {group.items.map(renderRow)}
             </div>
           ))}
 
@@ -165,17 +191,15 @@ function DocGenerateModal({ job, planner, onClose, onNavigate }) {
           {STAGE2_TEMPLATES.map(group => (
             <div key={group.group} className="mb-3">
               <div className="text-xs font-medium text-gray-600 mb-1">{group.group}</div>
-              {group.items.map(item => (
-                <button key={item.file} onClick={() => toggle(item.file)}
-                  className={`w-full text-left px-3 py-2 rounded-lg border text-xs transition-colors mb-1 ${selected.has(item.file) ? 'border-emerald-500 bg-emerald-50 text-emerald-700 font-medium' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}>
-                  <div className="flex items-center gap-2">
-                    <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${selected.has(item.file) ? 'bg-emerald-600 border-emerald-600' : 'border-gray-300'}`}>
-                      {selected.has(item.file) && <span className="text-white text-xs leading-none">✓</span>}
-                    </div>
-                    {item.label}
-                  </div>
-                </button>
-              ))}
+              {group.items.map(renderRow)}
+            </div>
+          ))}
+
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-4">Stage 3</div>
+          {STAGE3_TEMPLATES.map(group => (
+            <div key={group.group} className="mb-3">
+              <div className="text-xs font-medium text-gray-600 mb-1">{group.group}</div>
+              {group.items.map(renderRow)}
             </div>
           ))}
 
@@ -436,9 +460,9 @@ export default function NewJob({ onNavigate, currentUser }) {
 
         <div className="border-t border-gray-100 mb-5" />
         <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Documents available to generate</div>
-        <div className="text-xs text-gray-400 mb-3">After creating the job you'll be prompted to generate fee proposals, consents, planning reports and other documents — all pre-filled with job and planner details.</div>
+        <div className="text-xs text-gray-400 mb-3">After creating the job you'll be prompted to generate fee proposals, consents, planning reports, IR responses, public notices and more — all pre-filled with job and planner details.</div>
         <div className="flex flex-wrap gap-2 mb-6">
-          {[...STAGE1_TEMPLATES, ...STAGE2_TEMPLATES].flatMap(g => g.items).map(t => (
+          {[...STAGE1_TEMPLATES, ...STAGE2_TEMPLATES, ...STAGE3_TEMPLATES].flatMap(g => g.items).map(t => (
             <span key={t.file} className="px-3 py-1 bg-emerald-50 text-emerald-700 text-xs rounded-full border border-emerald-200">{t.label}</span>
           ))}
           {HPC_TEMPLATES.map(t => (

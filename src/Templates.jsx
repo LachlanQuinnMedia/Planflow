@@ -6,83 +6,93 @@ const STAGE_CATEGORIES = [
     stage: 'Stage 1',
     color: 'bg-blue-100 text-blue-700',
     groups: [
-      {
-        name: 'Fee Proposals',
-        items: [
-          { file: 'Fee_Proposal_Code.docx',         label: 'Fee Proposal — Code Assessable' },
-          { file: 'Fee_Proposal_Impact.docx',       label: 'Fee Proposal — Impact Assessable' },
-          { file: 'Fee_Proposal_Minor_Change.docx', label: 'Fee Proposal — Minor Change' },
-          { file: 'Fee_Proposal_RAA.docx',          label: 'Fee Proposal — Referral Agency Assessment' },
-        ],
-      },
-      {
-        name: "Owner's Consent",
-        items: [
-          { file: 'Consent_Individual.docx', label: "Owner's Consent — Individual" },
-          { file: 'Consent_Company.docx',    label: "Owner's Consent — Company" },
-        ],
-      },
+      { name: 'Fee Proposals', items: [
+        { file: 'Fee_Proposal_Code.docx',         label: 'Fee Proposal — Code Assessable' },
+        { file: 'Fee_Proposal_Impact.docx',       label: 'Fee Proposal — Impact Assessable' },
+        { file: 'Fee_Proposal_Minor_Change.docx', label: 'Fee Proposal — Minor Change' },
+        { file: 'Fee_Proposal_RAA.docx',          label: 'Fee Proposal — Referral Agency Assessment' },
+      ]},
+      { name: "Owner's Consent", items: [
+        { file: 'Consent_Individual.docx', label: "Owner's Consent — Individual" },
+        { file: 'Consent_Company.docx',    label: "Owner's Consent — Company" },
+      ]},
     ],
   },
   {
     stage: 'Stage 2',
     color: 'bg-purple-100 text-purple-700',
     groups: [
-      {
-        name: 'Action Notice',
-        items: [
-          { file: 'Action_Notice_Response.docx', label: 'Action Notice Response' },
-        ],
-      },
-      {
-        name: 'Planning Reports',
-        items: [
-          { file: 'Town_Planning_Assessment.docx',         label: 'Town Planning Assessment (generic)' },
-          { file: 'DA_Report_Brisbane.docx',               label: 'DA Report — Brisbane' },
-          { file: 'DA_Report_Brisbane_RiskSmart.docx',     label: 'DA Report — Brisbane RiskSmart' },
-          { file: 'DA_Report_Express_Code.docx',           label: 'DA Report — Express DA (Code)' },
-          { file: 'DA_Report_Express_Accepted.docx',       label: 'DA Report — Express DA (Accepted to Code)' },
-          { file: 'DA_Report_Gold_Coast.docx',             label: 'DA Report — Gold Coast' },
-          { file: 'DA_Report_Gold_Coast_RAA.docx',         label: 'DA Report — Gold Coast RAA' },
-          { file: 'DA_Report_Gold_Coast_Sch6_RAA.docx',    label: 'DA Report — Gold Coast Sch6 RAA' },
-          { file: 'DA_Report_OPW.docx',                    label: 'DA Report — Operational Works' },
-        ],
-      },
-      {
-        name: 'Referrals',
-        items: [
-          { file: 'Referral_Cover_Letter.docx',      label: 'Referral Cover Letter' },
-          { file: 'Missed_Referral_Letter.docx',     label: 'Missed Referral Letter' },
-          { file: 'Referral_Compliance_Letter.docx', label: 'Referral Compliance Letter' },
-          { file: 'Early_Concurrence_Request.docx',  label: 'Early Concurrence Request' },
-          { file: 'RAA_Application.docx',            label: 'RAA Application' },
-        ],
-      },
-      {
-        name: 'Change Applications',
-        items: [
-          { file: 'Minor_Change_Application.docx',                 label: 'Minor Change Application' },
-          { file: 'Minor_Change_Application_Affected_Entity.docx', label: 'Minor Change — Affected Entity Notice' },
-          { file: 'Other_Change_Application.docx',                 label: 'Other Change Application' },
-        ],
-      },
+      { name: 'Action Notice', items: [
+        { file: 'Action_Notice_Response.docx', label: 'Action Notice Response' },
+      ]},
+      { name: 'Planning Reports', items: [
+        { file: 'Town_Planning_Assessment.docx',         label: 'Town Planning Assessment (generic)' },
+        { file: 'DA_Report_Brisbane.docx',               label: 'DA Report — Brisbane' },
+        { file: 'DA_Report_Brisbane_RiskSmart.docx',     label: 'DA Report — Brisbane RiskSmart' },
+        { file: 'DA_Report_Express_Code.docx',           label: 'DA Report — Express DA (Code)' },
+        { file: 'DA_Report_Express_Accepted.docx',       label: 'DA Report — Express DA (Accepted to Code)' },
+        { file: 'DA_Report_Gold_Coast.docx',             label: 'DA Report — Gold Coast' },
+        { file: 'DA_Report_Gold_Coast_RAA.docx',         label: 'DA Report — Gold Coast RAA' },
+        { file: 'DA_Report_Gold_Coast_Sch6_RAA.docx',    label: 'DA Report — Gold Coast Sch6 RAA' },
+        { file: 'DA_Report_OPW.docx',                    label: 'DA Report — Operational Works' },
+      ]},
+      { name: 'Referrals', items: [
+        { file: 'Referral_Cover_Letter.docx',      label: 'Referral Cover Letter' },
+        { file: 'Missed_Referral_Letter.docx',     label: 'Missed Referral Letter' },
+        { file: 'Referral_Compliance_Letter.docx', label: 'Referral Compliance Letter' },
+        { file: 'Early_Concurrence_Request.docx',  label: 'Early Concurrence Request' },
+        { file: 'RAA_Application.docx',            label: 'RAA Application' },
+      ]},
+      { name: 'Change Applications', items: [
+        { file: 'Minor_Change_Application.docx',                 label: 'Minor Change Application' },
+        { file: 'Minor_Change_Application_Affected_Entity.docx', label: 'Minor Change — Affected Entity Notice' },
+        { file: 'Other_Change_Application.docx',                 label: 'Other Change Application' },
+      ]},
     ],
   },
   {
     stage: 'Stage 3',
     color: 'bg-emerald-100 text-emerald-700',
     groups: [
-      { name: 'Information Request', items: [] },
-      { name: 'Public Notification', items: [] },
-      { name: 'Waive Appeal Rights', items: [] },
+      { name: 'Information Request', items: [
+        { file: 'IR_Response.docx',                    label: 'IR Response' },
+        { file: 'Extend_Response_Period.docx',         label: 'Extend Response Period' },
+        { file: 'Initial_Response_and_Direction.docx', label: 'Initial Response & Direction' },
+      ]},
+      { name: 'Public Notification', items: [
+        { file: 'Notice_of_Commencement.docx',         label: 'Notice of Commencement' },
+        { file: 'Notice_of_Compliance_to_Council.docx',label: 'Notice of Compliance to Council' },
+        { file: 'Notify_Adjoining_Owner_Letter.docx',  label: 'Notify Adjoining Owner Letter' },
+        { file: 'Newspaper_Template.docx',             label: 'Newspaper Notice Template' },
+      ]},
+      { name: 'Waive Appeal Rights', items: [
+        { file: 'Waive_Appeal_Rights.docx',            label: 'Waive Appeal Rights' },
+        { file: 'Waive_ICN_Appeal_Rights.docx',        label: 'Waive ICN Appeal Rights' },
+        { file: 'Suspend_Applicant_Appeal_Period.docx',label: 'Suspend Applicant Appeal Period' },
+      ]},
+      { name: 'Tools & Forms', items: [
+        { file: 'Adjoining_Owners_Contact_List.xlsx',   label: 'Adjoining Owners Contact List (Excel)' },
+        { file: 'Advertising_Register.xlsx',            label: 'Advertising Register (Excel)' },
+        { file: 'Calendar_2023.xlsx',                   label: 'Calendar (Excel)' },
+        { file: 'DA_Sign_Template.ai',                  label: 'DA Sign Template (Illustrator)' },
+        { file: 'Change_Application_Sign_Template.ai',  label: 'Change Application Sign Template (Illustrator)' },
+      ]},
     ],
   },
-  {
-    stage: 'Miscellaneous',
-    color: 'bg-gray-100 text-gray-700',
-    groups: [{ name: 'Other', items: [] }],
-  },
 ]
+
+function fileExt(filename) {
+  const m = filename.match(/\.([^.]+)$/)
+  return m ? m[1].toLowerCase() : 'file'
+}
+
+function fileIcon(ext) {
+  if (ext === 'docx' || ext === 'doc') return { label: 'W',   bg: 'bg-blue-50 text-blue-600' }
+  if (ext === 'xlsx' || ext === 'xls') return { label: 'X',   bg: 'bg-green-50 text-green-600' }
+  if (ext === 'ai')                    return { label: 'Ai',  bg: 'bg-orange-50 text-orange-600' }
+  if (ext === 'pdf')                   return { label: 'PDF', bg: 'bg-red-50 text-red-600' }
+  return { label: ext.toUpperCase(), bg: 'bg-gray-50 text-gray-600' }
+}
 
 function MyDetailsModal({ currentUser, onClose }) {
   const [form, setForm] = useState({ full_name: '', position: '', email: '' })
@@ -181,7 +191,7 @@ export default function Templates({ currentUser }) {
       <div className="flex items-start justify-between mb-4 gap-3">
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 flex-1">
           <div className="text-xs font-medium text-emerald-700 mb-0.5">Auto-fill</div>
-          <div className="text-xs text-emerald-600">Documents are generated from inside a job. Job details (client, address, lot, council, app type, dates) and your planner details fill automatically. Anything else is left as an editable placeholder in the Word file.</div>
+          <div className="text-xs text-emerald-600">Documents are generated from inside a job. Job details (client, address, lot, council, app type, dates) and your planner details fill automatically. Anything else is left as an editable placeholder in the Word file. Excel and Illustrator files in <span className="font-medium">Tools & Forms</span> download blank — you fill them in Excel or Illustrator.</div>
         </div>
         <button onClick={() => setShowMyDetails(true)} className="px-4 py-3 text-xs bg-[#1B2A4A] text-white rounded-xl hover:bg-[#16223c] font-medium whitespace-nowrap">
           My details
@@ -204,15 +214,19 @@ export default function Templates({ currentUser }) {
                   {group.items.length === 0 ? (
                     <div className="text-xs text-gray-400 italic px-1 py-1">No templates uploaded yet.</div>
                   ) : (
-                    group.items.map(item => (
-                      <div key={item.file} className="flex items-center gap-3 py-1.5 border-b border-gray-100 last:border-0">
-                        <div className="w-7 h-7 rounded-md bg-blue-50 flex items-center justify-center text-xs font-semibold text-blue-600 flex-shrink-0">W</div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-medium truncate">{item.label}</div>
-                          <div className="text-xs text-gray-400 truncate">{item.file}</div>
+                    group.items.map(item => {
+                      const ext = fileExt(item.file)
+                      const icon = fileIcon(ext)
+                      return (
+                        <div key={item.file} className="flex items-center gap-3 py-1.5 border-b border-gray-100 last:border-0">
+                          <div className={`w-7 h-7 rounded-md flex items-center justify-center text-xs font-semibold flex-shrink-0 ${icon.bg}`}>{icon.label}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-medium truncate">{item.label}</div>
+                            <div className="text-xs text-gray-400 truncate">{item.file}</div>
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      )
+                    })
                   )}
                 </div>
               ))}

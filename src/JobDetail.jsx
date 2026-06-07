@@ -137,66 +137,89 @@ const templatesByType = {
 }
 
 const STAGE1_TEMPLATES = [
-  {
-    group: 'Fee Proposals',
-    items: [
-      { file: 'Fee_Proposal_Code.docx',         label: 'Fee Proposal — Code Assessable' },
-      { file: 'Fee_Proposal_Impact.docx',       label: 'Fee Proposal — Impact Assessable' },
-      { file: 'Fee_Proposal_Minor_Change.docx', label: 'Fee Proposal — Minor Change' },
-      { file: 'Fee_Proposal_RAA.docx',          label: 'Fee Proposal — Referral Agency Assessment' },
-    ],
-  },
-  {
-    group: "Owner's Consent",
-    items: [
-      { file: 'Consent_Individual.docx', label: "Owner's Consent — Individual" },
-      { file: 'Consent_Company.docx',    label: "Owner's Consent — Company" },
-    ],
-  },
+  { group: 'Fee Proposals', items: [
+    { file: 'Fee_Proposal_Code.docx',         label: 'Fee Proposal — Code Assessable' },
+    { file: 'Fee_Proposal_Impact.docx',       label: 'Fee Proposal — Impact Assessable' },
+    { file: 'Fee_Proposal_Minor_Change.docx', label: 'Fee Proposal — Minor Change' },
+    { file: 'Fee_Proposal_RAA.docx',          label: 'Fee Proposal — Referral Agency Assessment' },
+  ]},
+  { group: "Owner's Consent", items: [
+    { file: 'Consent_Individual.docx', label: "Owner's Consent — Individual" },
+    { file: 'Consent_Company.docx',    label: "Owner's Consent — Company" },
+  ]},
 ]
 
 const STAGE2_TEMPLATES = [
-  {
-    group: 'Action Notice',
-    items: [
-      { file: 'Action_Notice_Response.docx', label: 'Action Notice Response' },
-    ],
-  },
-  {
-    group: 'Planning Reports',
-    items: [
-      { file: 'Town_Planning_Assessment.docx',         label: 'Town Planning Assessment (generic)' },
-      { file: 'DA_Report_Brisbane.docx',               label: 'DA Report — Brisbane' },
-      { file: 'DA_Report_Brisbane_RiskSmart.docx',     label: 'DA Report — Brisbane RiskSmart' },
-      { file: 'DA_Report_Express_Code.docx',           label: 'DA Report — Express DA (Code)' },
-      { file: 'DA_Report_Express_Accepted.docx',       label: 'DA Report — Express DA (Accepted to Code)' },
-      { file: 'DA_Report_Gold_Coast.docx',             label: 'DA Report — Gold Coast' },
-      { file: 'DA_Report_Gold_Coast_RAA.docx',         label: 'DA Report — Gold Coast RAA' },
-      { file: 'DA_Report_Gold_Coast_Sch6_RAA.docx',    label: 'DA Report — Gold Coast Sch6 RAA' },
-      { file: 'DA_Report_OPW.docx',                    label: 'DA Report — Operational Works' },
-    ],
-  },
-  {
-    group: 'Referrals',
-    items: [
-      { file: 'Referral_Cover_Letter.docx',      label: 'Referral Cover Letter' },
-      { file: 'Missed_Referral_Letter.docx',     label: 'Missed Referral Letter' },
-      { file: 'Referral_Compliance_Letter.docx', label: 'Referral Compliance Letter' },
-      { file: 'Early_Concurrence_Request.docx',  label: 'Early Concurrence Request' },
-      { file: 'RAA_Application.docx',            label: 'RAA Application' },
-    ],
-  },
-  {
-    group: 'Change Applications',
-    items: [
-      { file: 'Minor_Change_Application.docx',                 label: 'Minor Change Application' },
-      { file: 'Minor_Change_Application_Affected_Entity.docx', label: 'Minor Change — Affected Entity Notice' },
-      { file: 'Other_Change_Application.docx',                 label: 'Other Change Application' },
-    ],
-  },
+  { group: 'Action Notice', items: [
+    { file: 'Action_Notice_Response.docx', label: 'Action Notice Response' },
+  ]},
+  { group: 'Planning Reports', items: [
+    { file: 'Town_Planning_Assessment.docx',         label: 'Town Planning Assessment (generic)' },
+    { file: 'DA_Report_Brisbane.docx',               label: 'DA Report — Brisbane' },
+    { file: 'DA_Report_Brisbane_RiskSmart.docx',     label: 'DA Report — Brisbane RiskSmart' },
+    { file: 'DA_Report_Express_Code.docx',           label: 'DA Report — Express DA (Code)' },
+    { file: 'DA_Report_Express_Accepted.docx',       label: 'DA Report — Express DA (Accepted to Code)' },
+    { file: 'DA_Report_Gold_Coast.docx',             label: 'DA Report — Gold Coast' },
+    { file: 'DA_Report_Gold_Coast_RAA.docx',         label: 'DA Report — Gold Coast RAA' },
+    { file: 'DA_Report_Gold_Coast_Sch6_RAA.docx',    label: 'DA Report — Gold Coast Sch6 RAA' },
+    { file: 'DA_Report_OPW.docx',                    label: 'DA Report — Operational Works' },
+  ]},
+  { group: 'Referrals', items: [
+    { file: 'Referral_Cover_Letter.docx',      label: 'Referral Cover Letter' },
+    { file: 'Missed_Referral_Letter.docx',     label: 'Missed Referral Letter' },
+    { file: 'Referral_Compliance_Letter.docx', label: 'Referral Compliance Letter' },
+    { file: 'Early_Concurrence_Request.docx',  label: 'Early Concurrence Request' },
+    { file: 'RAA_Application.docx',            label: 'RAA Application' },
+  ]},
+  { group: 'Change Applications', items: [
+    { file: 'Minor_Change_Application.docx',                 label: 'Minor Change Application' },
+    { file: 'Minor_Change_Application_Affected_Entity.docx', label: 'Minor Change — Affected Entity Notice' },
+    { file: 'Other_Change_Application.docx',                 label: 'Other Change Application' },
+  ]},
 ]
 
-const ALL_DOCX_ITEMS = [...STAGE1_TEMPLATES, ...STAGE2_TEMPLATES].flatMap(g => g.items)
+const STAGE3_TEMPLATES = [
+  { group: 'Information Request', items: [
+    { file: 'IR_Response.docx',                    label: 'IR Response' },
+    { file: 'Extend_Response_Period.docx',         label: 'Extend Response Period' },
+    { file: 'Initial_Response_and_Direction.docx', label: 'Initial Response & Direction' },
+  ]},
+  { group: 'Public Notification', items: [
+    { file: 'Notice_of_Commencement.docx',         label: 'Notice of Commencement' },
+    { file: 'Notice_of_Compliance_to_Council.docx',label: 'Notice of Compliance to Council' },
+    { file: 'Notify_Adjoining_Owner_Letter.docx',  label: 'Notify Adjoining Owner Letter' },
+    { file: 'Newspaper_Template.docx',             label: 'Newspaper Notice Template' },
+  ]},
+  { group: 'Waive Appeal Rights', items: [
+    { file: 'Waive_Appeal_Rights.docx',            label: 'Waive Appeal Rights' },
+    { file: 'Waive_ICN_Appeal_Rights.docx',        label: 'Waive ICN Appeal Rights' },
+    { file: 'Suspend_Applicant_Appeal_Period.docx',label: 'Suspend Applicant Appeal Period' },
+  ]},
+  { group: 'Tools & Forms', items: [
+    { file: 'Adjoining_Owners_Contact_List.xlsx',   label: "Adjoining Owners Contact List (Excel)" },
+    { file: 'Advertising_Register.xlsx',            label: 'Advertising Register (Excel)' },
+    { file: 'Calendar_2023.xlsx',                   label: 'Calendar (Excel)' },
+    { file: 'DA_Sign_Template.ai',                  label: 'DA Sign Template (Illustrator)' },
+    { file: 'Change_Application_Sign_Template.ai',  label: 'Change Application Sign Template (Illustrator)' },
+  ]},
+]
+
+const ALL_DOCX_ITEMS = [...STAGE1_TEMPLATES, ...STAGE2_TEMPLATES, ...STAGE3_TEMPLATES].flatMap(g => g.items)
+
+// For .xlsx and .ai (and any other non-docx Storage template), just download the
+// raw file from the templates bucket. No placeholder filling — these are blank
+// tools the planner opens in Excel / Illustrator and fills manually.
+async function downloadRawTemplate(filename) {
+  const { data, error } = await supabase.storage.from('templates').download(filename)
+  if (error) throw new Error(`Could not download ${filename}: ${error.message}`)
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(data)
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000)
+}
 
 function daysUntil(dateStr) {
   if (!dateStr) return null
@@ -1315,6 +1338,8 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
       try {
         if (sel.endsWith('.docx')) {
           await generateFromTemplate(sel, jobForDocs, currentPlanner || {})
+        } else if (sel.endsWith('.xlsx') || sel.endsWith('.ai')) {
+          await downloadRawTemplate(sel)
         } else if (sel.includes('Planning Report')) {
           await generatePlanningReport(jobForDocs)
         } else if (sel.includes('IR Response')) {
@@ -1335,6 +1360,15 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
   }
 
   const plannersList = jobData.planners?.length > 0 ? jobData.planners : (jobData.planner ? [jobData.planner] : [])
+
+  const renderTemplateRow = (item) => (
+    <div key={item.file} onClick={() => toggleTemplate(item.file)} className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-1 cursor-pointer text-xs transition-colors ${selectedTemplates.includes(item.file) ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-50 hover:bg-gray-100'}`}>
+      <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${selectedTemplates.includes(item.file) ? 'bg-emerald-600 border-emerald-600' : 'border-gray-300'}`}>
+        {selectedTemplates.includes(item.file) && <span className="text-white text-xs">✓</span>}
+      </div>
+      {item.label}
+    </div>
+  )
 
   return (
     <div>
@@ -1374,21 +1408,14 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
           <div className="bg-white rounded-xl border border-gray-200 p-5 w-full max-w-md max-h-[85vh] overflow-y-auto">
             <div className="text-sm font-semibold mb-1">Generate documents</div>
             <div className="text-xs text-gray-400 mb-4">
-              {jobData.code} — filled from this job{currentPlanner?.full_name ? ` & ${currentPlanner.full_name}` : ''}. Anything not on file is left as an editable placeholder in the Word doc.
+              {jobData.code} — filled from this job{currentPlanner?.full_name ? ` & ${currentPlanner.full_name}` : ''}. Anything not on file is left as an editable placeholder.
             </div>
 
             <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Stage 1</div>
             {STAGE1_TEMPLATES.map(group => (
               <div key={group.group} className="mb-3">
                 <div className="text-xs font-medium text-gray-600 mb-1">{group.group}</div>
-                {group.items.map(item => (
-                  <div key={item.file} onClick={() => toggleTemplate(item.file)} className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-1 cursor-pointer text-xs transition-colors ${selectedTemplates.includes(item.file) ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-50 hover:bg-gray-100'}`}>
-                    <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${selectedTemplates.includes(item.file) ? 'bg-emerald-600 border-emerald-600' : 'border-gray-300'}`}>
-                      {selectedTemplates.includes(item.file) && <span className="text-white text-xs">✓</span>}
-                    </div>
-                    {item.label}
-                  </div>
-                ))}
+                {group.items.map(renderTemplateRow)}
               </div>
             ))}
 
@@ -1396,14 +1423,15 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
             {STAGE2_TEMPLATES.map(group => (
               <div key={group.group} className="mb-3">
                 <div className="text-xs font-medium text-gray-600 mb-1">{group.group}</div>
-                {group.items.map(item => (
-                  <div key={item.file} onClick={() => toggleTemplate(item.file)} className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-1 cursor-pointer text-xs transition-colors ${selectedTemplates.includes(item.file) ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-50 hover:bg-gray-100'}`}>
-                    <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${selectedTemplates.includes(item.file) ? 'bg-emerald-600 border-emerald-600' : 'border-gray-300'}`}>
-                      {selectedTemplates.includes(item.file) && <span className="text-white text-xs">✓</span>}
-                    </div>
-                    {item.label}
-                  </div>
-                ))}
+                {group.items.map(renderTemplateRow)}
+              </div>
+            ))}
+
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-4">Stage 3</div>
+            {STAGE3_TEMPLATES.map(group => (
+              <div key={group.group} className="mb-3">
+                <div className="text-xs font-medium text-gray-600 mb-1">{group.group}</div>
+                {group.items.map(renderTemplateRow)}
               </div>
             ))}
 
