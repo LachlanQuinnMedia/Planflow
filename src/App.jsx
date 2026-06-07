@@ -185,7 +185,7 @@ function GlobalTimer({ jobs }) {
   )
 }
 
-function NotificationPanel({ notifications, seenIds, onClose, onApprove, onReject }) {
+function NotificationPanel({ notifications, onClose, onApprove, onReject, processingId }) {
   const extractUsername = (message) => {
     const match = message.match(/created:\s*(.+?)\.\s*Awaiting/)
     return match ? match[1].trim() : null
@@ -203,15 +203,9 @@ function NotificationPanel({ notifications, seenIds, onClose, onApprove, onRejec
         notifications.map(n => {
           const username = extractUsername(n.message)
           const isNewUser = n.type === 'new_user'
-          const isUnseen = !seenIds.has(n.id)
+          const isProcessing = processingId === n.id
           return (
-            <div key={n.id} className={`px-3 py-3 border-b border-gray-100 last:border-0 ${isUnseen ? 'bg-blue-50' : ''}`}>
-              {isUnseen && (
-                <div className="flex items-center gap-1 mb-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
-                  <span className="text-xs text-blue-600 font-medium">New</span>
-                </div>
-              )}
+            <div key={n.id} className="px-3 py-3 border-b border-gray-100 last:border-0">
               <div className="text-xs font-medium text-gray-700 mb-1">{n.message}</div>
               <div className="text-xs text-gray-400 mb-2">
                 {new Date(n.created_at).toLocaleString('en-AU', {
@@ -222,13 +216,19 @@ function NotificationPanel({ notifications, seenIds, onClose, onApprove, onRejec
               </div>
               {isNewUser && username && (
                 <div className="flex gap-2">
-                  <button onClick={() => onApprove(n, username)}
-                    className="flex-1 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium">
-                    ✓ Approve
+                  <button
+                    onClick={() => onApprove(n, username)}
+                    disabled={isProcessing}
+                    className="flex-1 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium disabled:opacity-50"
+                  >
+                    {isProcessing ? '...' : '✓ Approve'}
                   </button>
-                  <button onClick={() => onReject(n, username)}
-                    className="flex-1 py-1.5 text-xs bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium">
-                    ✕ Reject
+                  <button
+                    onClick={() => onReject(n, username)}
+                    disabled={isProcessing}
+                    className="flex-1 py-1.5 text-xs bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium disabled:opacity-50"
+                  >
+                    {isProcessing ? '...' : '✕ Reject'}
                   </button>
                 </div>
               )}
@@ -248,8 +248,8 @@ export default function App() {
   const [jobCount, setJobCount] = useState(0)
   const [jobs, setJobs] = useState([])
   const [notifications, setNotifications] = useState([])
-  const [seenNotificationIds, setSeenNotificationIds] = useState(new Set())
   const [showNotifications, setShowNotifications] = useState(false)
+  const [processingNotificationId, setProcessingNotificationId] = useState(null)
   const [history, setHistory] = useState(['dashboard'])
   const [historyIndex, setHistoryIndex] = useState(0)
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -265,7 +265,6 @@ export default function App() {
 
     if (!code) return
 
-    // Clear URL immediately — this is the key fix, done before anything else
     window.history.replaceState({}, '', '/')
 
     if (!state) return
@@ -330,7 +329,14 @@ export default function App() {
       if (data) { setJobs(data); setJobCount(data.length) }
     }
     fetchJobs()
-    if (currentUser.role === 'director') fetchNotifications()
+  }, [currentUser])
+
+  // Poll notifications every 20s for directors
+  useEffect(() => {
+    if (!currentUser || currentUser.role !== 'director' || !currentUser.company_id) return
+    fetchNotifications()
+    const interval = setInterval(fetchNotifications, 20000)
+    return () => clearInterval(interval)
   }, [currentUser])
 
   const fetchNotifications = async () => {
@@ -344,36 +350,64 @@ export default function App() {
     if (data) setNotifications(data)
   }
 
-  const unreadCount = notifications.filter(n => !n.is_read && !seenNotificationIds.has(n.id)).length
+  const unreadCount = notifications.filter(n => !n.is_read).length
 
-  const handleOpenNotifications = () => {
+  const handleOpenNotifications = async () => {
     const opening = !showNotifications
     setShowNotifications(opening)
-    if (opening) {
-      const unreadIds = new Set(notifications.filter(n => !n.is_read).map(n => n.id))
-      setSeenNotificationIds(unreadIds)
-      if (unreadIds.size > 0) {
-        supabase.from('notifications')
-          .update({ is_read: true })
-          .eq('company_id', currentUser.company_id)
-          .eq('is_read', false)
-          .then(() => {})
-      }
+    if (opening && currentUser?.company_id) {
+      // Optimistically mark all as read in local state so the badge updates immediately
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('company_id', currentUser.company_id)
+        .eq('is_read', false)
+      if (error) console.error('Could not mark notifications as read:', error)
     }
   }
 
   const handleApprove = async (notification, username) => {
-    await supabase.from('app_users').update({ is_approved: true })
-      .eq('username', username).eq('company_id', currentUser.company_id)
-    await supabase.from('notifications').update({ is_read: true }).eq('id', notification.id)
-    fetchNotifications()
+    setProcessingNotificationId(notification.id)
+    const { data, error } = await supabase
+      .from('app_users')
+      .update({ is_approved: true })
+      .eq('username', username)
+      .eq('company_id', currentUser.company_id)
+      .select()
+
+    if (error) {
+      alert(`Could not approve ${username}: ${error.message}`)
+      setProcessingNotificationId(null)
+      return
+    }
+    if (!data || data.length === 0) {
+      alert(`Could not find an unapproved account for "${username}". They may have already been processed.`)
+    }
+
+    await supabase.from('notifications').delete().eq('id', notification.id)
+    setNotifications(prev => prev.filter(n => n.id !== notification.id))
+    setProcessingNotificationId(null)
   }
 
   const handleReject = async (notification, username) => {
-    await supabase.from('app_users').delete()
-      .eq('username', username).eq('company_id', currentUser.company_id).eq('is_approved', false)
-    await supabase.from('notifications').update({ is_read: true }).eq('id', notification.id)
-    fetchNotifications()
+    setProcessingNotificationId(notification.id)
+    const { error } = await supabase
+      .from('app_users')
+      .delete()
+      .eq('username', username)
+      .eq('company_id', currentUser.company_id)
+      .eq('is_approved', false)
+
+    if (error) {
+      alert(`Could not reject ${username}: ${error.message}`)
+      setProcessingNotificationId(null)
+      return
+    }
+
+    await supabase.from('notifications').delete().eq('id', notification.id)
+    setNotifications(prev => prev.filter(n => n.id !== notification.id))
+    setProcessingNotificationId(null)
   }
 
   const handleLogin = (user) => {
@@ -395,7 +429,6 @@ export default function App() {
     setHistoryIndex(0)
     setJobs([])
     setNotifications([])
-    setSeenNotificationIds(new Set())
     setPendingCalendarConnect(false)
     sessionStorage.removeItem('oauth_callback')
   }
@@ -522,10 +555,10 @@ export default function App() {
               {showNotifications && (
                 <NotificationPanel
                   notifications={notifications}
-                  seenIds={seenNotificationIds}
                   onClose={() => setShowNotifications(false)}
                   onApprove={handleApprove}
                   onReject={handleReject}
+                  processingId={processingNotificationId}
                 />
               )}
             </div>
