@@ -32,6 +32,13 @@ const COUNCILS = [
   'Townsville City Council', 'Western Downs Regional Council', 'Whitsunday Regional Council', 'Other',
 ]
 
+const COMPLEXITY_OPTIONS = [
+  { value: 'C1', label: 'C1 — Simple', description: 'Straightforward application, minimal issues expected', color: 'border-gray-300 bg-gray-50 text-gray-700', activeColor: 'border-gray-500 bg-gray-100 text-gray-800' },
+  { value: 'C2', label: 'C2 — Moderate', description: 'Standard application with some complexity', color: 'border-blue-200 bg-blue-50 text-blue-700', activeColor: 'border-blue-500 bg-blue-100 text-blue-800' },
+  { value: 'C3', label: 'C3 — Complex', description: 'Complex application, multiple issues or referrals', color: 'border-amber-200 bg-amber-50 text-amber-700', activeColor: 'border-amber-500 bg-amber-100 text-amber-800' },
+  { value: 'C4', label: 'C4 — High complexity', description: 'Impact assessable or highly contentious application', color: 'border-red-200 bg-red-50 text-red-700', activeColor: 'border-red-500 bg-red-100 text-red-800' },
+]
+
 function DocGenerateModal({ job, onClose, onNavigate }) {
   const [selected, setSelected] = useState(new Set())
   const [generating, setGenerating] = useState(false)
@@ -104,6 +111,7 @@ export default function NewJob({ onNavigate, currentUser }) {
     address: '', lot: '', council: 'City of Gold Coast',
     zone: '', proposedUse: '', referrals: '',
     budget: '', lodgement: '', decisionDue: '',
+    complexity: 'C2',
   })
   const [selectedPlanners, setSelectedPlanners] = useState([])
   const [saving, setSaving] = useState(false)
@@ -123,7 +131,6 @@ export default function NewJob({ onNavigate, currentUser }) {
           return { ...u, displayName: profile?.full_name || u.username }
         })
         setStaffList(merged)
-        // Default: current user selected
         const me = merged.find(s => s.id === currentUser.id)
         if (me) setSelectedPlanners([me.displayName])
       }
@@ -174,6 +181,7 @@ export default function NewJob({ onNavigate, currentUser }) {
       planner_rate: 150,
       budget_hours: parseFloat(form.budget) || 0,
       status: 'Draft',
+      complexity: form.complexity,
       lodgement_date: form.lodgement || null,
       decision_due_date: form.decisionDue || null,
     })
@@ -190,6 +198,7 @@ export default function NewJob({ onNavigate, currentUser }) {
       assessment_level: form.assessment, proposed_use: form.proposedUse,
       referral_agencies: form.referrals, planner: leadPlanner,
       budget_hours: parseFloat(form.budget) || 0,
+      complexity: form.complexity,
     })
     setShowDocModal(true)
   }
@@ -253,17 +262,42 @@ export default function NewJob({ onNavigate, currentUser }) {
           <div><label className="text-xs text-gray-500 mb-1 block">Planning zone</label>
             <input value={form.zone} onChange={e => update('zone', e.target.value)} placeholder="Medium Density Residential" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
         </div>
-        <div className="grid grid-cols-2 gap-3 mb-5">
+        <div className="grid grid-cols-2 gap-3 mb-3">
           <div><label className="text-xs text-gray-500 mb-1 block">Proposed use</label>
             <input value={form.proposedUse} onChange={e => update('proposedUse', e.target.value)} placeholder="Mixed-use — retail GF + 12 units" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
           <div><label className="text-xs text-gray-500 mb-1 block">Referral agencies</label>
             <input value={form.referrals} onChange={e => update('referrals', e.target.value)} placeholder="DTMR, TRC Engineering..." className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
         </div>
 
+        {/* Complexity selector */}
+        <div className="mb-5">
+          <label className="text-xs text-gray-500 mb-2 block">Job complexity</label>
+          <div className="grid grid-cols-4 gap-2">
+            {COMPLEXITY_OPTIONS.map(opt => {
+              const isSelected = form.complexity === opt.value
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => update('complexity', opt.value)}
+                  className={`px-3 py-2.5 rounded-lg border text-left transition-all ${isSelected ? opt.activeColor + ' border-2' : opt.color + ' hover:opacity-80'}`}
+                >
+                  <div className="text-xs font-semibold">{opt.value}</div>
+                  <div className="text-xs opacity-75 mt-0.5 leading-tight">{opt.label.split('—')[1].trim()}</div>
+                </button>
+              )
+            })}
+          </div>
+          {form.complexity && (
+            <div className="text-xs text-gray-400 mt-1.5">
+              {COMPLEXITY_OPTIONS.find(o => o.value === form.complexity)?.description}
+            </div>
+          )}
+        </div>
+
         <div className="border-t border-gray-100 mb-5" />
         <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Assign & budget</div>
 
-        {/* Multi-planner selector */}
         <div className="mb-3">
           <label className="text-xs text-gray-500 mb-2 block">
             Assigned planners <span className="text-gray-400 font-normal">(select all who will work on this job — first selected is lead)</span>
@@ -294,7 +328,7 @@ export default function NewJob({ onNavigate, currentUser }) {
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-3 mb-5">
+        <div className="grid grid-cols-3 gap-3 mb-5">
           <div><label className="text-xs text-gray-500 mb-1 block">Budget (hours)</label>
             <input type="number" value={form.budget} onChange={e => update('budget', e.target.value)} placeholder="60" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
           <div><label className="text-xs text-gray-500 mb-1 block">Lodgement date</label>
