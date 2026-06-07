@@ -137,6 +137,7 @@ function Pagination({ currentPage, totalPages, onPageChange }) {
 
 export default function Documents({ currentUser }) {
   const [docs, setDocs] = useState([])
+  const [jobs, setJobs] = useState([])
   const [loading, setLoading] = useState(true)
   const [uploadProgress, setUploadProgress] = useState(null)
   const [dragOver, setDragOver] = useState(false)
@@ -146,10 +147,12 @@ export default function Documents({ currentUser }) {
   const [selectedDoc, setSelectedDoc] = useState(null)
   const [renamingDoc, setRenamingDoc] = useState(null)
   const [deletingDoc, setDeletingDoc] = useState(null)
+  const [assigningJob, setAssigningJob] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const fileRef = useRef(null)
 
   useEffect(() => { fetchDocs() }, [currentUser])
+  useEffect(() => { fetchJobs() }, [currentUser])
 
   const fetchDocs = async () => {
     setLoading(true)
@@ -160,6 +163,17 @@ export default function Documents({ currentUser }) {
       .order('created_at', { ascending: false })
     if (data) setDocs(data)
     setLoading(false)
+  }
+
+  const fetchJobs = async () => {
+    if (!currentUser?.company_id) return
+    const { data } = await supabase
+      .from('jobs')
+      .select('id, code, name, client_first_name, client_last_name, app_type')
+      .eq('company_id', currentUser.company_id)
+      .order('created_at', { ascending: false })
+      .limit(500)
+    if (data) setJobs(data)
   }
 
   const handleUpload = async (files) => {
@@ -214,6 +228,19 @@ export default function Documents({ currentUser }) {
   const handleRename = (docId, newName) => {
     setDocs(prev => prev.map(d => d.id === docId ? { ...d, name: newName } : d))
     if (selectedDoc?.id === docId) setSelectedDoc(prev => ({ ...prev, name: newName }))
+  }
+
+  const handleAssignJob = async (doc, jobId) => {
+    setAssigningJob(true)
+    const job = jobs.find(j => j.id === jobId)
+    const updates = {
+      job_id: jobId || null,
+      job_code: job?.code || null,
+    }
+    await supabase.from('documents').update(updates).eq('id', doc.id)
+    setDocs(prev => prev.map(d => d.id === doc.id ? { ...d, ...updates } : d))
+    if (selectedDoc?.id === doc.id) setSelectedDoc(prev => ({ ...prev, ...updates }))
+    setAssigningJob(false)
   }
 
   const getFileIcon = (type) => {
@@ -379,26 +406,47 @@ export default function Documents({ currentUser }) {
               </div>
               <button onClick={() => setSelectedDoc(null)} className="text-xs text-gray-400 hover:text-gray-600" title="Close">✕</button>
             </div>
-            {[
-              ['File type', selectedDoc.file_type?.toUpperCase() || '—'],
-              ['Job', selectedDoc.job_code || 'Not linked to a job'],
-              ['Size', formatSize(selectedDoc.file_size)],
-              ['Uploaded by', selectedDoc.uploaded_by],
-              ['Date', new Date(selectedDoc.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })],
-            ].map(([k, v]) => (
-              <div key={k} className="flex py-1.5 border-b border-gray-50 last:border-0">
-                <div className="text-xs text-gray-400 w-24 flex-shrink-0">{k}</div>
-                <div className="text-xs font-medium">{v}</div>
-              </div>
-            ))}
+
+            <div className="flex py-1.5 border-b border-gray-50">
+              <div className="text-xs text-gray-400 w-24 flex-shrink-0">File type</div>
+              <div className="text-xs font-medium">{selectedDoc.file_type?.toUpperCase() || '—'}</div>
+            </div>
+
+            {/* Job — editable dropdown */}
+            <div className="flex items-center py-1.5 border-b border-gray-50 gap-2">
+              <div className="text-xs text-gray-400 w-24 flex-shrink-0">Job</div>
+              <select
+                value={selectedDoc.job_id || ''}
+                onChange={e => handleAssignJob(selectedDoc, e.target.value)}
+                disabled={assigningJob}
+                className="flex-1 min-w-0 text-xs px-2 py-1 border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-emerald-400 disabled:opacity-50"
+              >
+                <option value="">Not linked to a job</option>
+                {jobs.map(j => {
+                  const client = `${j.client_first_name || ''} ${j.client_last_name || ''}`.trim()
+                  const label = `${j.code} — ${client || j.name || 'Untitled'}${j.app_type ? ` (${j.app_type})` : ''}`
+                  return <option key={j.id} value={j.id}>{label}</option>
+                })}
+              </select>
+              {assigningJob && <span className="text-xs text-gray-400">Saving...</span>}
+            </div>
+
+            <div className="flex py-1.5 border-b border-gray-50">
+              <div className="text-xs text-gray-400 w-24 flex-shrink-0">Size</div>
+              <div className="text-xs font-medium">{formatSize(selectedDoc.file_size)}</div>
+            </div>
+            <div className="flex py-1.5 border-b border-gray-50">
+              <div className="text-xs text-gray-400 w-24 flex-shrink-0">Uploaded by</div>
+              <div className="text-xs font-medium">{selectedDoc.uploaded_by}</div>
+            </div>
+            <div className="flex py-1.5">
+              <div className="text-xs text-gray-400 w-24 flex-shrink-0">Date</div>
+              <div className="text-xs font-medium">{new Date(selectedDoc.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+            </div>
+
             <div className="flex gap-2 mt-4">
-              <a href={selectedDoc.file_url} target="_blank" rel="noopener noreferrer"
-                className="flex-1 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-center"
-                title="Open in new tab">
-                Open
-              </a>
               <a href={selectedDoc.file_url} download={selectedDoc.name}
-                className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 text-center"
+                className="flex-1 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-center"
                 title="Download document">
                 ↓ Download
               </a>
