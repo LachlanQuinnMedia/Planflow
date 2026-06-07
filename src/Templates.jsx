@@ -130,17 +130,16 @@ function GenerateModal({ items, currentUser, planner, onClose, onDone }) {
 
   useEffect(() => {
     const load = async () => {
-      if (!currentUser?.company_id) { setLoadingJobs(false); return }
-      const { data } = await supabase.from('jobs')
+      const { data } = await supabase
+        .from('jobs')
         .select('id, code, name, client_first_name, client_last_name, app_type, address, status')
-        .eq('company_id', currentUser.company_id)
         .order('created_at', { ascending: false })
         .limit(500)
       if (data) setJobs(data)
       setLoadingJobs(false)
     }
     load()
-  }, [currentUser])
+  }, [])
 
   const handleGenerate = async () => {
     setGenerating(true)
@@ -369,8 +368,6 @@ export default function Templates({ currentUser }) {
 
   const clearSelection = () => setSelected(new Set())
 
-  // Build the ordered list of selected items by walking through categories
-  // (preserves the user's visual order in the modal preview)
   const selectedItems = []
   for (const cat of STAGE_CATEGORIES) {
     for (const group of cat.groups) {
