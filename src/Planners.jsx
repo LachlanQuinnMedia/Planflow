@@ -43,6 +43,51 @@ function Avatar({ profile, username, size = 'md' }) {
   )
 }
 
+function DeactivateModal({ staff, profile, onConfirm, onCancel }) {
+  const name = profile?.full_name || staff.username
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
+      <div className="bg-white rounded-xl border border-gray-200 p-6 w-full max-w-sm">
+        <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center mb-3">
+          <span className="text-red-600 text-lg">⚠</span>
+        </div>
+        <div className="text-sm font-semibold mb-1">Deactivate {name}?</div>
+        <div className="text-xs text-gray-500 mb-4">
+          This will prevent <span className="font-medium">{name}</span> from logging into QPlan. Their job history, time logs and documents will be preserved. You can reactivate their account at any time.
+        </div>
+        <div className="bg-red-50 border border-red-100 rounded-lg px-3 py-2 text-xs text-red-600 mb-4">
+          {name} will be logged out immediately and will not be able to log back in until reactivated.
+        </div>
+        <div className="flex gap-2">
+          <button onClick={onCancel} className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium">Cancel</button>
+          <button onClick={onConfirm} className="flex-1 py-2 text-xs bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium">Yes, deactivate</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ReactivateModal({ staff, profile, onConfirm, onCancel }) {
+  const name = profile?.full_name || staff.username
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
+      <div className="bg-white rounded-xl border border-gray-200 p-6 w-full max-w-sm">
+        <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center mb-3">
+          <span className="text-emerald-600 text-lg">✓</span>
+        </div>
+        <div className="text-sm font-semibold mb-1">Reactivate {name}?</div>
+        <div className="text-xs text-gray-500 mb-4">
+          This will restore <span className="font-medium">{name}</span>'s access to QPlan. They will be able to log in immediately with their existing credentials.
+        </div>
+        <div className="flex gap-2">
+          <button onClick={onCancel} className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium">Cancel</button>
+          <button onClick={onConfirm} className="flex-1 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium">Yes, reactivate</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function EditProfileModal({ staffUser, profile, currentUser, onSave, onClose }) {
   const [form, setForm] = useState({
     full_name: profile?.full_name || staffUser?.username || '',
@@ -124,8 +169,6 @@ function EditProfileModal({ staffUser, profile, currentUser, onSave, onClose }) 
         </div>
 
         <div className="px-6 py-5 space-y-5 overflow-y-auto max-h-[70vh]">
-
-          {/* Avatar */}
           <div>
             <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Profile picture</div>
             <div className="flex items-center gap-4">
@@ -156,7 +199,6 @@ function EditProfileModal({ staffUser, profile, currentUser, onSave, onClose }) 
             </div>
           </div>
 
-          {/* Personal info */}
           <div>
             <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Personal info</div>
             <div className="grid grid-cols-2 gap-3">
@@ -207,7 +249,6 @@ function EditProfileModal({ staffUser, profile, currentUser, onSave, onClose }) 
             </div>
           </div>
 
-          {/* Rate */}
           <div>
             <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Billing</div>
             <div>
@@ -218,7 +259,6 @@ function EditProfileModal({ staffUser, profile, currentUser, onSave, onClose }) 
             </div>
           </div>
 
-          {/* Document sign-off */}
           <div>
             <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Document sign-off</div>
             <div className="text-xs text-gray-400 mb-3">How your name appears on letters, reports and quotes — fill this in once and it autofills every document.</div>
@@ -252,11 +292,15 @@ function EditProfileModal({ staffUser, profile, currentUser, onSave, onClose }) 
 }
 
 export default function Planners({ currentUser }) {
-  const [staffList, setStaffList] = useState([])
+  const [activeStaff, setActiveStaff] = useState([])
+  const [inactiveStaff, setInactiveStaff] = useState([])
   const [profiles, setProfiles] = useState({})
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
   const [editingStaff, setEditingStaff] = useState(null)
+  const [deactivating, setDeactivating] = useState(null)
+  const [reactivating, setReactivating] = useState(null)
+  const [actionLoading, setActionLoading] = useState(false)
   const isDirector = currentUser?.role === 'director'
 
   useEffect(() => {
@@ -266,14 +310,23 @@ export default function Planners({ currentUser }) {
 
   const fetchAll = async () => {
     setLoading(true)
-    const { data: staff } = await supabase
+
+    const { data: active } = await supabase
       .from('app_users')
-      .select('id, username, role')
+      .select('id, username, role, is_approved')
       .eq('company_id', currentUser.company_id)
       .eq('is_approved', true)
       .order('username', { ascending: true })
 
-    if (staff) setStaffList(staff)
+    const { data: inactive } = await supabase
+      .from('app_users')
+      .select('id, username, role, is_approved')
+      .eq('company_id', currentUser.company_id)
+      .eq('is_approved', false)
+      .order('username', { ascending: true })
+
+    if (active) setActiveStaff(active)
+    if (inactive) setInactiveStaff(inactive)
 
     const { data: profileData } = await supabase
       .from('planner_profiles')
@@ -289,11 +342,73 @@ export default function Planners({ currentUser }) {
     setLoading(false)
   }
 
+  const handleDeactivate = async () => {
+    if (!deactivating) return
+    setActionLoading(true)
+    await supabase.from('app_users').update({ is_approved: false }).eq('id', deactivating.id)
+    setActionLoading(false)
+    setDeactivating(null)
+    setSelected(null)
+    fetchAll()
+  }
+
+  const handleReactivate = async () => {
+    if (!reactivating) return
+    setActionLoading(true)
+    await supabase.from('app_users').update({ is_approved: true }).eq('id', reactivating.id)
+    setActionLoading(false)
+    setReactivating(null)
+    setSelected(null)
+    fetchAll()
+  }
+
   const canEdit = (staffId) => isDirector || staffId === currentUser.id
 
   if (loading) return (
     <div className="text-sm text-gray-400 text-center py-12">Loading planners...</div>
   )
+
+  const PlannerCard = ({ staff, isInactive = false }) => {
+    const profile = profiles[staff.id]
+    const name = profile?.full_name || staff.username
+    const isMe = staff.id === currentUser.id
+
+    return (
+      <div
+        onClick={() => setSelected(selected?.id === staff.id ? null : staff)}
+        className={`bg-white rounded-xl border cursor-pointer transition-all p-4 ${
+          isInactive ? 'opacity-60' : ''
+        } ${selected?.id === staff.id ? 'border-emerald-300 bg-emerald-50' : 'border-gray-200 hover:border-gray-300'}`}
+      >
+        <div className="flex items-center gap-2 mb-3">
+          <div className="relative">
+            <Avatar profile={profile} username={staff.username} size="sm" />
+            {isInactive && (
+              <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-red-400 border-2 border-white" />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <div className="text-xs font-semibold truncate">{name}</div>
+              {isMe && <span className="text-xs px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded-full flex-shrink-0">You</span>}
+              {isInactive && <span className="text-xs px-1.5 py-0.5 bg-red-100 text-red-600 rounded-full flex-shrink-0">Inactive</span>}
+            </div>
+            <div className="text-xs text-gray-400">{profile?.position || staff.role}</div>
+          </div>
+        </div>
+        {profile?.specialisation && (
+          <div className="text-xs text-gray-400 mb-2 truncate">{profile.specialisation}</div>
+        )}
+        {!profile && (
+          <div className="text-xs text-gray-300 italic mb-2">Profile not set up yet</div>
+        )}
+        <div className="flex justify-between text-xs text-gray-400 mt-2">
+          <span>{isInactive ? 'Account inactive' : '—'}</span>
+          <span>{staff.role}</span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div>
@@ -307,71 +422,78 @@ export default function Planners({ currentUser }) {
         />
       )}
 
+      {deactivating && (
+        <DeactivateModal
+          staff={deactivating}
+          profile={profiles[deactivating.id]}
+          onConfirm={handleDeactivate}
+          onCancel={() => setDeactivating(null)}
+        />
+      )}
+
+      {reactivating && (
+        <ReactivateModal
+          staff={reactivating}
+          profile={profiles[reactivating.id]}
+          onConfirm={handleReactivate}
+          onCancel={() => setReactivating(null)}
+        />
+      )}
+
       <div className="flex justify-between items-center mb-4">
-        <div className="text-xs text-gray-400">{staffList.length} planner{staffList.length !== 1 ? 's' : ''} in the team</div>
+        <div className="text-xs text-gray-400">
+          {activeStaff.length} active · {inactiveStaff.length} inactive
+        </div>
         <button
-          onClick={() => setEditingStaff(staffList.find(s => s.id === currentUser.id))}
+          onClick={() => setEditingStaff(activeStaff.find(s => s.id === currentUser.id))}
           className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
         >
           Edit my profile
         </button>
       </div>
 
-      {/* Planner grid */}
+      {/* Active planners */}
       <div className="grid grid-cols-3 gap-3">
-        {staffList.map(staff => {
-          const profile = profiles[staff.id]
-          const name = profile?.full_name || staff.username
-          const colorStyle = getColorStyle(profile?.avatar_color)
-          const isMe = staff.id === currentUser.id
-
-          return (
-            <div
-              key={staff.id}
-              onClick={() => setSelected(selected?.id === staff.id ? null : staff)}
-              className={`bg-white rounded-xl border cursor-pointer transition-all p-4 ${selected?.id === staff.id ? 'border-emerald-300 bg-emerald-50' : 'border-gray-200 hover:border-gray-300'}`}
-            >
-              <div className="flex items-center gap-2 mb-3">
-                <Avatar profile={profile} username={staff.username} size="sm" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <div className="text-xs font-semibold truncate">{name}</div>
-                    {isMe && <span className="text-xs px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded-full flex-shrink-0">You</span>}
-                  </div>
-                  <div className="text-xs text-gray-400">{profile?.position || staff.role}</div>
-                </div>
-              </div>
-              {profile?.specialisation && (
-                <div className="text-xs text-gray-400 mb-2 truncate">{profile.specialisation}</div>
-              )}
-              {!profile && (
-                <div className="text-xs text-gray-300 italic mb-2">Profile not set up yet</div>
-              )}
-              <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-1">
-                <div className="h-full rounded-full bg-emerald-500" style={{ width: '0%' }} />
-              </div>
-              <div className="flex justify-between text-xs text-gray-400">
-                <span>—</span>
-                <span>{staff.role}</span>
-              </div>
-            </div>
-          )
-        })}
+        {activeStaff.map(staff => (
+          <PlannerCard key={staff.id} staff={staff} isInactive={false} />
+        ))}
       </div>
+
+      {/* Inactive planners — directors only */}
+      {isDirector && inactiveStaff.length > 0 && (
+        <div className="mt-6">
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Inactive accounts</div>
+          <div className="grid grid-cols-3 gap-3">
+            {inactiveStaff.map(staff => (
+              <PlannerCard key={staff.id} staff={staff} isInactive={true} />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Selected planner detail panel */}
       {selected && (() => {
         const profile = profiles[selected.id]
         const name = profile?.full_name || selected.username
+        const isInactive = inactiveStaff.some(s => s.id === selected.id)
+
         return (
           <div className="mt-4 bg-white rounded-xl border border-gray-200 p-5">
             <div className="flex items-center gap-3 mb-4">
-              <Avatar profile={profile} username={selected.username} size="md" />
+              <div className="relative">
+                <Avatar profile={profile} username={selected.username} size="md" />
+                {isInactive && (
+                  <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-red-400 border-2 border-white" />
+                )}
+              </div>
               <div className="flex-1">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <div className="text-sm font-semibold">{name}</div>
                   {selected.id === currentUser.id && (
                     <span className="text-xs px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full">You</span>
+                  )}
+                  {isInactive && (
+                    <span className="text-xs px-2 py-0.5 bg-red-100 text-red-600 rounded-full">Inactive</span>
                   )}
                 </div>
                 <div className="text-xs text-gray-400">
@@ -379,14 +501,33 @@ export default function Planners({ currentUser }) {
                   {profile?.hourly_rate > 0 ? ` · $${profile.hourly_rate}/hr` : ''}
                 </div>
               </div>
-              <div className="flex gap-2">
-                {canEdit(selected.id) && (
+              <div className="flex gap-2 flex-wrap justify-end">
+                {canEdit(selected.id) && !isInactive && (
                   <button
                     onClick={(e) => { e.stopPropagation(); setEditingStaff(selected) }}
                     className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50"
                   >
                     Edit profile
                   </button>
+                )}
+                {isDirector && selected.id !== currentUser.id && (
+                  isInactive ? (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setReactivating(selected) }}
+                      disabled={actionLoading}
+                      className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
+                    >
+                      Reactivate account
+                    </button>
+                  ) : (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setDeactivating(selected) }}
+                      disabled={actionLoading}
+                      className="px-3 py-1.5 text-xs text-red-500 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50"
+                    >
+                      Deactivate account
+                    </button>
+                  )
                 )}
                 <button onClick={() => setSelected(null)} className="text-xs text-gray-400 hover:text-gray-600 px-2">✕</button>
               </div>
@@ -414,7 +555,13 @@ export default function Planners({ currentUser }) {
               )}
             </div>
 
-            {!profile && (
+            {isInactive && (
+              <div className="mt-3 bg-red-50 border border-red-100 rounded-lg px-3 py-2 text-xs text-red-600">
+                This account is deactivated. {name} cannot log in until a director reactivates their account.
+              </div>
+            )}
+
+            {!profile && !isInactive && (
               <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700">
                 {selected.id === currentUser.id
                   ? 'Your profile isn\'t set up yet. Click "Edit profile" to get started — it only takes a minute and will autofill all your documents.'
