@@ -313,6 +313,26 @@ export default function App() {
       return
     }
 
+    // Microsoft 365 / OneDrive connection (Files scopes)
+    if (callback.type === 'calendar' && callback.provider === 'msgraph') {
+      fetch(`${SUPABASE_URL}/functions/v1/ms-graph?action=callback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ANON_KEY}` },
+        body: JSON.stringify({
+          code: callback.code,
+          company_id: callback.company_id,
+          username: callback.username,
+        }),
+      }).then(res => res.json()).then(data => {
+        if (data.success) {
+          setActivePage('docs')
+        } else {
+          alert('Microsoft 365 connection failed: ' + (data.error || 'Unknown error'))
+        }
+      })
+      return
+    }
+
     if (callback.type === 'calendar') {
       fetch(`${SUPABASE_URL}/functions/v1/calendar-${callback.provider}?action=callback`, {
         method: 'POST',
@@ -363,20 +383,16 @@ export default function App() {
   }
 
   // Unread = anything created after the last time the panel was opened.
-  // Doesn't depend on the is_read column behaving correctly.
   const unreadCount = notifications.filter(n => new Date(n.created_at) > new Date(lastSeenAt)).length
 
   const handleOpenNotifications = async () => {
     const opening = !showNotifications
     setShowNotifications(opening)
     if (opening && currentUser?.company_id) {
-      // Refresh notifications immediately so the panel shows the latest
       fetchNotifications()
-      // Mark "last seen" to now — clears the badge
       const now = new Date().toISOString()
       setLastSeenAt(now)
       localStorage.setItem('qplanLastSeenNotifications', now)
-      // Best-effort mark as read in DB (don't block on it)
       supabase
         .from('notifications')
         .update({ is_read: true })

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabase'
+import OneDriveBrowser from './OneDriveBrowser'
 
 const DOCS_PER_PAGE = 100
 
@@ -136,6 +137,7 @@ function Pagination({ currentPage, totalPages, onPageChange }) {
 }
 
 export default function Documents({ currentUser }) {
+  const [source, setSource] = useState('qplan')
   const [docs, setDocs] = useState([])
   const [jobs, setJobs] = useState([])
   const [loading, setLoading] = useState(true)
@@ -276,193 +278,211 @@ export default function Documents({ currentUser }) {
 
   return (
     <div>
-      {renamingDoc && (
-        <RenameModal
-          doc={renamingDoc}
-          onClose={() => setRenamingDoc(null)}
-          onRename={(newName) => handleRename(renamingDoc.id, newName)}
-        />
-      )}
-      {deletingDoc && (
-        <DeleteConfirmModal
-          doc={deletingDoc}
-          onConfirm={() => performDelete(deletingDoc)}
-          onCancel={() => setDeletingDoc(null)}
-        />
-      )}
+      {/* Source tabs */}
+      <div className="flex gap-2 mb-4">
+        <button onClick={() => setSource('qplan')}
+          className={`px-4 py-2 text-xs rounded-lg font-medium transition-colors ${source === 'qplan' ? 'bg-emerald-600 text-white' : 'border border-gray-200 text-gray-500 hover:bg-gray-50 bg-white'}`}>
+          QPlan storage
+        </button>
+        <button onClick={() => setSource('onedrive')}
+          className={`px-4 py-2 text-xs rounded-lg font-medium transition-colors ${source === 'onedrive' ? 'bg-blue-700 text-white' : 'border border-gray-200 text-gray-500 hover:bg-gray-50 bg-white'}`}>
+          OneDrive · Microsoft 365
+        </button>
+      </div>
 
-      {/* Upload zone */}
-      <div
-        onDragOver={e => { e.preventDefault(); setDragOver(true) }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={e => { e.preventDefault(); setDragOver(false); handleUpload(e.dataTransfer.files) }}
-        onClick={() => uploadProgress === null && fileRef.current?.click()}
-        className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors mb-4 ${dragOver ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200 hover:border-emerald-300 hover:bg-gray-50'}`}
-      >
-        <input ref={fileRef} type="file" multiple className="hidden" onChange={e => handleUpload(e.target.files)} />
+      {source === 'onedrive' ? (
+        <OneDriveBrowser currentUser={currentUser} />
+      ) : (
+        <>
+          {renamingDoc && (
+            <RenameModal
+              doc={renamingDoc}
+              onClose={() => setRenamingDoc(null)}
+              onRename={(newName) => handleRename(renamingDoc.id, newName)}
+            />
+          )}
+          {deletingDoc && (
+            <DeleteConfirmModal
+              doc={deletingDoc}
+              onConfirm={() => performDelete(deletingDoc)}
+              onCancel={() => setDeletingDoc(null)}
+            />
+          )}
 
-        {uploadProgress !== null ? (
-          <div className="py-1">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs text-emerald-600 font-medium">Uploading...</span>
-              <span className="text-xs text-emerald-600 font-bold">{uploadProgress}%</span>
-            </div>
-            <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-              <div
-                className="bg-emerald-500 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${uploadProgress}%` }}
-              />
-            </div>
-            {uploadProgress === 100 && (
-              <div className="text-xs text-emerald-600 mt-1.5">✓ Upload complete</div>
+          {/* Upload zone */}
+          <div
+            onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={e => { e.preventDefault(); setDragOver(false); handleUpload(e.dataTransfer.files) }}
+            onClick={() => uploadProgress === null && fileRef.current?.click()}
+            className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors mb-4 ${dragOver ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200 hover:border-emerald-300 hover:bg-gray-50'}`}
+          >
+            <input ref={fileRef} type="file" multiple className="hidden" onChange={e => handleUpload(e.target.files)} />
+
+            {uploadProgress !== null ? (
+              <div className="py-1">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs text-emerald-600 font-medium">Uploading...</span>
+                  <span className="text-xs text-emerald-600 font-bold">{uploadProgress}%</span>
+                </div>
+                <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                  <div
+                    className="bg-emerald-500 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+                {uploadProgress === 100 && (
+                  <div className="text-xs text-emerald-600 mt-1.5">✓ Upload complete</div>
+                )}
+              </div>
+            ) : (
+              <div className="text-xs text-gray-400 py-1">☁️ Drop files here or click to upload — any file type</div>
             )}
           </div>
-        ) : (
-          <div className="text-xs text-gray-400 py-1">☁️ Drop files here or click to upload — any file type</div>
-        )}
-      </div>
 
-      {/* Filters */}
-      <div className="flex gap-2 mb-4">
-        <input type="text" placeholder="Search by name, job code, uploader..."
-          value={search} onChange={e => setSearch(e.target.value)}
-          className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-emerald-400" />
-        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
-          className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white">
-          <option value="All">All types</option>
-          {uniqueTypes.map(t => <option key={t} value={t}>{t}</option>)}
-        </select>
-        <select value={jobFilter} onChange={e => setJobFilter(e.target.value)}
-          className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white">
-          <option value="All">All jobs</option>
-          {uniqueJobCodes.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
-      </div>
-
-      <div className={`grid gap-4 ${selectedDoc ? 'grid-cols-2' : 'grid-cols-1'}`}>
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">All documents</div>
-            <div className="text-xs text-gray-400">
-              {filtered.length} of {docs.length}
-              {totalPages > 1 && ` · Page ${currentPage} of ${totalPages}`}
-            </div>
+          {/* Filters */}
+          <div className="flex gap-2 mb-4">
+            <input type="text" placeholder="Search by name, job code, uploader..."
+              value={search} onChange={e => setSearch(e.target.value)}
+              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-emerald-400" />
+            <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+              className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white">
+              <option value="All">All types</option>
+              {uniqueTypes.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <select value={jobFilter} onChange={e => setJobFilter(e.target.value)}
+              className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white">
+              <option value="All">All jobs</option>
+              {uniqueJobCodes.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
           </div>
 
-          {loading ? (
-            <div className="px-4 py-8 text-center text-xs text-gray-400">Loading...</div>
-          ) : filtered.length === 0 ? (
-            <div className="px-4 py-8 text-center text-xs text-gray-400">
-              {docs.length === 0 ? 'No documents yet — upload files above or from any job.' : 'No documents match your search.'}
-            </div>
-          ) : (
-            <>
-              {paginated.map(doc => {
-                const icon = getFileIcon(doc.file_type)
-                return (
-                  <div key={doc.id}
-                    onClick={() => setSelectedDoc(selectedDoc?.id === doc.id ? null : doc)}
-                    className={`flex items-center gap-3 px-4 py-3 border-b border-gray-100 last:border-0 cursor-pointer transition-colors ${selectedDoc?.id === doc.id ? 'bg-emerald-50' : 'hover:bg-gray-50'}`}>
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-semibold flex-shrink-0 ${icon.color}`}>
-                      {icon.label}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-medium truncate">{doc.name}</div>
-                      <div className="text-xs text-gray-400">
-                        {doc.job_code ? `${doc.job_code} · ` : 'General · '}
-                        {doc.uploaded_by} · {new Date(doc.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}
+          <div className={`grid gap-4 ${selectedDoc ? 'grid-cols-2' : 'grid-cols-1'}`}>
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">All documents</div>
+                <div className="text-xs text-gray-400">
+                  {filtered.length} of {docs.length}
+                  {totalPages > 1 && ` · Page ${currentPage} of ${totalPages}`}
+                </div>
+              </div>
+
+              {loading ? (
+                <div className="px-4 py-8 text-center text-xs text-gray-400">Loading...</div>
+              ) : filtered.length === 0 ? (
+                <div className="px-4 py-8 text-center text-xs text-gray-400">
+                  {docs.length === 0 ? 'No documents yet — upload files above or from any job.' : 'No documents match your search.'}
+                </div>
+              ) : (
+                <>
+                  {paginated.map(doc => {
+                    const icon = getFileIcon(doc.file_type)
+                    return (
+                      <div key={doc.id}
+                        onClick={() => setSelectedDoc(selectedDoc?.id === doc.id ? null : doc)}
+                        className={`flex items-center gap-3 px-4 py-3 border-b border-gray-100 last:border-0 cursor-pointer transition-colors ${selectedDoc?.id === doc.id ? 'bg-emerald-50' : 'hover:bg-gray-50'}`}>
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-semibold flex-shrink-0 ${icon.color}`}>
+                          {icon.label}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-medium truncate">{doc.name}</div>
+                          <div className="text-xs text-gray-400">
+                            {doc.job_code ? `${doc.job_code} · ` : 'General · '}
+                            {doc.uploaded_by} · {new Date(doc.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </div>
+                        </div>
+                        <button
+                          onClick={e => { e.stopPropagation(); setRenamingDoc(doc) }}
+                          className="text-xs text-gray-400 hover:text-gray-600 px-1.5 py-1 rounded hover:bg-gray-100 flex-shrink-0"
+                          title="Rename">
+                          ✎
+                        </button>
+                        <span className="text-xs text-gray-400 flex-shrink-0">{formatSize(doc.file_size)}</span>
                       </div>
-                    </div>
-                    <button
-                      onClick={e => { e.stopPropagation(); setRenamingDoc(doc) }}
-                      className="text-xs text-gray-400 hover:text-gray-600 px-1.5 py-1 rounded hover:bg-gray-100 flex-shrink-0"
-                      title="Rename">
-                      ✎
-                    </button>
-                    <span className="text-xs text-gray-400 flex-shrink-0">{formatSize(doc.file_size)}</span>
+                    )
+                  })}
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={setCurrentPage}
+                  />
+                </>
+              )}
+            </div>
+
+            {selectedDoc && (
+              <div className="bg-white rounded-xl border border-gray-200 p-4">
+                <div className="flex items-start gap-3 mb-4">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-semibold flex-shrink-0 ${getFileIcon(selectedDoc.file_type).color}`}>
+                    {getFileIcon(selectedDoc.file_type).label}
                   </div>
-                )
-              })}
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={setCurrentPage}
-              />
-            </>
-          )}
-        </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold truncate">{selectedDoc.name}</div>
+                    <div className="text-xs text-gray-400 mt-0.5">{selectedDoc.job_code || 'General'} · {selectedDoc.uploaded_by}</div>
+                  </div>
+                  <button onClick={() => setSelectedDoc(null)} className="text-xs text-gray-400 hover:text-gray-600" title="Close">✕</button>
+                </div>
 
-        {selectedDoc && (
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <div className="flex items-start gap-3 mb-4">
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-semibold flex-shrink-0 ${getFileIcon(selectedDoc.file_type).color}`}>
-                {getFileIcon(selectedDoc.file_type).label}
+                <div className="flex py-1.5 border-b border-gray-50">
+                  <div className="text-xs text-gray-400 w-24 flex-shrink-0">File type</div>
+                  <div className="text-xs font-medium">{selectedDoc.file_type?.toUpperCase() || '—'}</div>
+                </div>
+
+                {/* Job — editable dropdown */}
+                <div className="flex items-center py-1.5 border-b border-gray-50 gap-2">
+                  <div className="text-xs text-gray-400 w-24 flex-shrink-0">Job</div>
+                  <select
+                    value={selectedDoc.job_id || ''}
+                    onChange={e => handleAssignJob(selectedDoc, e.target.value)}
+                    disabled={assigningJob}
+                    className="flex-1 min-w-0 text-xs px-2 py-1 border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-emerald-400 disabled:opacity-50"
+                  >
+                    <option value="">Not linked to a job</option>
+                    {jobs.map(j => {
+                      const client = `${j.client_first_name || ''} ${j.client_last_name || ''}`.trim()
+                      const label = `${j.code} — ${client || j.name || 'Untitled'}${j.app_type ? ` (${j.app_type})` : ''}`
+                      return <option key={j.id} value={j.id}>{label}</option>
+                    })}
+                  </select>
+                  {assigningJob && <span className="text-xs text-gray-400">Saving...</span>}
+                </div>
+
+                <div className="flex py-1.5 border-b border-gray-50">
+                  <div className="text-xs text-gray-400 w-24 flex-shrink-0">Size</div>
+                  <div className="text-xs font-medium">{formatSize(selectedDoc.file_size)}</div>
+                </div>
+                <div className="flex py-1.5 border-b border-gray-50">
+                  <div className="text-xs text-gray-400 w-24 flex-shrink-0">Uploaded by</div>
+                  <div className="text-xs font-medium">{selectedDoc.uploaded_by}</div>
+                </div>
+                <div className="flex py-1.5">
+                  <div className="text-xs text-gray-400 w-24 flex-shrink-0">Date</div>
+                  <div className="text-xs font-medium">{new Date(selectedDoc.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+                </div>
+
+                <div className="flex gap-2 mt-4">
+                  <a href={selectedDoc.file_url} download={selectedDoc.name}
+                    className="flex-1 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-center"
+                    title="Download document">
+                    ↓ Download
+                  </a>
+                  <button
+                    onClick={e => { e.stopPropagation(); setRenamingDoc(selectedDoc) }}
+                    className="px-3 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50"
+                    title="Rename document">
+                    ✎ Rename
+                  </button>
+                  <button onClick={() => setDeletingDoc(selectedDoc)}
+                    className="px-3 py-2 text-xs text-red-400 border border-red-100 rounded-lg hover:bg-red-50"
+                    title="Delete document">
+                    ✕
+                  </button>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold truncate">{selectedDoc.name}</div>
-                <div className="text-xs text-gray-400 mt-0.5">{selectedDoc.job_code || 'General'} · {selectedDoc.uploaded_by}</div>
-              </div>
-              <button onClick={() => setSelectedDoc(null)} className="text-xs text-gray-400 hover:text-gray-600" title="Close">✕</button>
-            </div>
-
-            <div className="flex py-1.5 border-b border-gray-50">
-              <div className="text-xs text-gray-400 w-24 flex-shrink-0">File type</div>
-              <div className="text-xs font-medium">{selectedDoc.file_type?.toUpperCase() || '—'}</div>
-            </div>
-
-            {/* Job — editable dropdown */}
-            <div className="flex items-center py-1.5 border-b border-gray-50 gap-2">
-              <div className="text-xs text-gray-400 w-24 flex-shrink-0">Job</div>
-              <select
-                value={selectedDoc.job_id || ''}
-                onChange={e => handleAssignJob(selectedDoc, e.target.value)}
-                disabled={assigningJob}
-                className="flex-1 min-w-0 text-xs px-2 py-1 border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-emerald-400 disabled:opacity-50"
-              >
-                <option value="">Not linked to a job</option>
-                {jobs.map(j => {
-                  const client = `${j.client_first_name || ''} ${j.client_last_name || ''}`.trim()
-                  const label = `${j.code} — ${client || j.name || 'Untitled'}${j.app_type ? ` (${j.app_type})` : ''}`
-                  return <option key={j.id} value={j.id}>{label}</option>
-                })}
-              </select>
-              {assigningJob && <span className="text-xs text-gray-400">Saving...</span>}
-            </div>
-
-            <div className="flex py-1.5 border-b border-gray-50">
-              <div className="text-xs text-gray-400 w-24 flex-shrink-0">Size</div>
-              <div className="text-xs font-medium">{formatSize(selectedDoc.file_size)}</div>
-            </div>
-            <div className="flex py-1.5 border-b border-gray-50">
-              <div className="text-xs text-gray-400 w-24 flex-shrink-0">Uploaded by</div>
-              <div className="text-xs font-medium">{selectedDoc.uploaded_by}</div>
-            </div>
-            <div className="flex py-1.5">
-              <div className="text-xs text-gray-400 w-24 flex-shrink-0">Date</div>
-              <div className="text-xs font-medium">{new Date(selectedDoc.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
-            </div>
-
-            <div className="flex gap-2 mt-4">
-              <a href={selectedDoc.file_url} download={selectedDoc.name}
-                className="flex-1 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-center"
-                title="Download document">
-                ↓ Download
-              </a>
-              <button
-                onClick={e => { e.stopPropagation(); setRenamingDoc(selectedDoc) }}
-                className="px-3 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50"
-                title="Rename document">
-                ✎ Rename
-              </button>
-              <button onClick={() => setDeletingDoc(selectedDoc)}
-                className="px-3 py-2 text-xs text-red-400 border border-red-100 rounded-lg hover:bg-red-50"
-                title="Delete document">
-                ✕
-              </button>
-            </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
     </div>
   )
 }
