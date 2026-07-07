@@ -1,100 +1,41 @@
-import { Resend } from 'resend'
+// src/notifications.js
+// Email notifications now go through the send-email Edge Function.
+// The Resend API key lives ONLY on the server as a Supabase secret.
+// Exported function signatures are unchanged, so no other file needs editing.
 
-const resend = new Resend('re_YqKAaVyc_DpPRbWAS1Ng7CxWnPBm9TFwU')
+const SUPABASE_URL = 'https://sltaaiumviyzgdsdkkbe.supabase.co'
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdGFhaXVtdml5emdkc2Rra2JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MTYyNTMsImV4cCI6MjA5MDQ5MjI1M30.xqWqvx8vdofj119nXDpasQ8xVD67YJU0RrjTrxycTGo'
 
-export const sendIRDeadlineAlert = async ({ plannerEmail, plannerName, jobCode, jobName, irDeadline, council }) => {
+async function sendTemplatedEmail(template, to, params) {
   try {
-    await resend.emails.send({
-      from: 'PlanFlow <onboarding@resend.dev>',
-      to: plannerEmail,
-      subject: `⚑ IR Response due in 7 days — ${jobCode}`,
-      html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
-          <div style="background: #1D9E75; padding: 16px 24px; border-radius: 8px 8px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 18px;">PlanFlow — Deadline Alert</h1>
-          </div>
-          <div style="background: #f9f9f9; padding: 24px; border-radius: 0 0 8px 8px; border: 1px solid #e5e5e5;">
-            <p style="margin: 0 0 16px;">Hi ${plannerName},</p>
-            <p style="margin: 0 0 16px;">This is a reminder that an Information Request response is due in <strong>7 days</strong>.</p>
-            <div style="background: #FEF9C3; border: 1px solid #FDE047; border-radius: 8px; padding: 16px; margin: 16px 0;">
-              <p style="margin: 0 0 8px;"><strong>Job:</strong> ${jobCode} — ${jobName}</p>
-              <p style="margin: 0 0 8px;"><strong>Council:</strong> ${council}</p>
-              <p style="margin: 0;"><strong>IR Response due:</strong> ${irDeadline}</p>
-            </div>
-            <p style="margin: 16px 0;">Please log in to PlanFlow to review and complete your IR response.</p>
-            <a href="https://planflow-liej06c3m-lachlan-quinns-projects.vercel.app" style="display: inline-block; background: #1D9E75; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 500;">Open PlanFlow</a>
-            <p style="margin: 24px 0 0; color: #888; font-size: 12px;">This is an automated notification from PlanFlow.</p>
-          </div>
-        </div>
-      `
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${ANON_KEY}`,
+      },
+      body: JSON.stringify({ template, to, params }),
     })
+    const data = await res.json()
+    if (!data.success) {
+      console.error('Email error:', data.error)
+      return { success: false, error: data.error }
+    }
     return { success: true }
   } catch (error) {
     console.error('Email error:', error)
     return { success: false, error }
   }
+}
+
+export const sendIRDeadlineAlert = async ({ plannerEmail, plannerName, jobCode, jobName, irDeadline, council }) => {
+  return sendTemplatedEmail('ir_deadline', plannerEmail, { plannerName, jobCode, jobName, irDeadline, council })
 }
 
 export const sendOverBudgetAlert = async ({ plannerEmail, plannerName, jobCode, jobName, budgetPct }) => {
-  try {
-    await resend.emails.send({
-      from: 'PlanFlow <onboarding@resend.dev>',
-      to: plannerEmail,
-      subject: `⚠️ Over budget alert — ${jobCode}`,
-      html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
-          <div style="background: #E24B4A; padding: 16px 24px; border-radius: 8px 8px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 18px;">PlanFlow — Budget Alert</h1>
-          </div>
-          <div style="background: #f9f9f9; padding: 24px; border-radius: 0 0 8px 8px; border: 1px solid #e5e5e5;">
-            <p style="margin: 0 0 16px;">Hi ${plannerName},</p>
-            <p style="margin: 0 0 16px;">A job has exceeded its budget allocation.</p>
-            <div style="background: #FEE2E2; border: 1px solid #FCA5A5; border-radius: 8px; padding: 16px; margin: 16px 0;">
-              <p style="margin: 0 0 8px;"><strong>Job:</strong> ${jobCode} — ${jobName}</p>
-              <p style="margin: 0;"><strong>Budget used:</strong> ${budgetPct}%</p>
-            </div>
-            <p style="margin: 16px 0;">Please review this job and consider advising the client of a potential fee variation.</p>
-            <a href="https://planflow-liej06c3m-lachlan-quinns-projects.vercel.app" style="display: inline-block; background: #E24B4A; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 500;">Open PlanFlow</a>
-            <p style="margin: 24px 0 0; color: #888; font-size: 12px;">This is an automated notification from PlanFlow.</p>
-          </div>
-        </div>
-      `
-    })
-    return { success: true }
-  } catch (error) {
-    console.error('Email error:', error)
-    return { success: false, error }
-  }
+  return sendTemplatedEmail('over_budget', plannerEmail, { plannerName, jobCode, jobName, budgetPct })
 }
 
 export const sendNewBookingAlert = async ({ plannerEmail, plannerName, clientName, bookingTime, bookingType }) => {
-  try {
-    await resend.emails.send({
-      from: 'PlanFlow <onboarding@resend.dev>',
-      to: plannerEmail,
-      subject: `📅 New booking — ${clientName}`,
-      html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
-          <div style="background: #185FA5; padding: 16px 24px; border-radius: 8px 8px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 18px;">PlanFlow — New Booking</h1>
-          </div>
-          <div style="background: #f9f9f9; padding: 24px; border-radius: 0 0 8px 8px; border: 1px solid #e5e5e5;">
-            <p style="margin: 0 0 16px;">Hi ${plannerName},</p>
-            <p style="margin: 0 0 16px;">You have a new booking via Calendly.</p>
-            <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; padding: 16px; margin: 16px 0;">
-              <p style="margin: 0 0 8px;"><strong>Client:</strong> ${clientName}</p>
-              <p style="margin: 0 0 8px;"><strong>Time:</strong> ${bookingTime}</p>
-              <p style="margin: 0;"><strong>Type:</strong> ${bookingType}</p>
-            </div>
-            <a href="https://planflow-liej06c3m-lachlan-quinns-projects.vercel.app" style="display: inline-block; background: #185FA5; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 500;">Open PlanFlow</a>
-            <p style="margin: 24px 0 0; color: #888; font-size: 12px;">This is an automated notification from PlanFlow.</p>
-          </div>
-        </div>
-      `
-    })
-    return { success: true }
-  } catch (error) {
-    console.error('Email error:', error)
-    return { success: false, error }
-  }
+  return sendTemplatedEmail('new_booking', plannerEmail, { plannerName, clientName, bookingTime, bookingType })
 }

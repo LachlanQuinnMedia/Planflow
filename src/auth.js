@@ -1,4 +1,4 @@
-import { supabase, supabaseAdmin } from './supabase'
+import { supabase } from './supabase'
 
 // Simple hash function for passwords and security answers
 // In production you'd use bcrypt but this works for local/demo use
@@ -71,22 +71,11 @@ export async function registerUser({ username, password, companyCode, directorCo
   // Send email to directors if employee (not director)
   if (!isDirector && company.director_emails?.length > 0) {
     for (const email of company.director_emails) {
-      await supabaseAdmin.functions.invoke('send-email', {
+      await supabase.functions.invoke('send-email', {
         body: {
+          template: 'account_approval',
           to: email,
-          subject: `New PlanFlow account pending approval — ${username}`,
-          html: `
-            <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-              <h2 style="color: #059669;">PlanFlow — New Account Request</h2>
-              <p>A new employee has created an account and is awaiting your approval.</p>
-              <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
-                <tr><td style="padding: 8px; color: #6b7280; font-size: 14px;">Username</td><td style="padding: 8px; font-weight: 600; font-size: 14px;">${username}</td></tr>
-                <tr><td style="padding: 8px; color: #6b7280; font-size: 14px;">Company</td><td style="padding: 8px; font-weight: 600; font-size: 14px;">${company.name}</td></tr>
-                <tr><td style="padding: 8px; color: #6b7280; font-size: 14px;">Role</td><td style="padding: 8px; font-weight: 600; font-size: 14px;">Employee</td></tr>
-              </table>
-              <p style="color: #6b7280; font-size: 13px;">Log in to PlanFlow to approve or reject this account.</p>
-            </div>
-          `,
+          params: { username, companyName: company.name },
         },
       }).catch(() => {}) // fail silently if email doesn't send
     }
