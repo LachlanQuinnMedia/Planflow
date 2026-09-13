@@ -1,6 +1,8 @@
 // Jobs.jsx
 import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
+import { loadSession } from './auth'
+import { isXeroConnected, pushInvoiceToXero } from './xero'
 
 const typeBadge = {
   MCU: 'bg-blue-100 text-blue-700',
@@ -10,7 +12,6 @@ const typeBadge = {
   SPS: 'bg-purple-100 text-purple-700',
   PE: 'bg-orange-100 text-orange-700',
 }
-
 const statusBadge = {
   Active: 'bg-emerald-100 text-emerald-700',
   Review: 'bg-amber-100 text-amber-700',
@@ -18,13 +19,11 @@ const statusBadge = {
   Complete: 'bg-green-100 text-green-700',
   'On Hold': 'bg-red-100 text-red-700',
 }
-
 function isOverdue(job) {
   if (!job.decision_due_date) return false
   if (job.status === 'Complete') return false
   return new Date(job.decision_due_date) < new Date()
 }
-
 function isDueSoon(job) {
   if (!job.decision_due_date) return false
   if (job.status === 'Complete') return false
@@ -32,13 +31,11 @@ function isDueSoon(job) {
   const days = Math.ceil(diff / (1000 * 60 * 60 * 24))
   return days >= 0 && days <= 7
 }
-
 function daysUntil(dateStr) {
   if (!dateStr) return null
   const diff = new Date(dateStr) - new Date()
   return Math.ceil(diff / (1000 * 60 * 60 * 24))
 }
-
 function formatDateShort(dateStr) {
   if (!dateStr) return null
   return new Date(dateStr).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })
@@ -63,7 +60,148 @@ function DeleteConfirmModal({ job, onConfirm, onCancel }) {
   )
 }
 
-export default function Jobs({ onNavigate, onJobCountChange }) {
+// Push-to-Xero modal: handles not-connected, confirm, pushing, success, error
+function XeroPushModal({ job, companyId, onClose, onGoToXero }) {
+  const [stage, setStage] = useState('checking') // checking | notconnected | confirm | pushing | done | error
+  const [tenantName, setTenantName] = useState('')
+  const [logs, setLogs] = useState([])
+  const [result, setResult] = useState(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const init = async () => {
+      const status = await isXeroConnected(companyId)
+      if (!status.connected) { setStage('notconnected'); return }
+      setTenantName(status.tenantName || '')
+      const { data } = await supabase
+        .from('time_logs')
+        .select('*')
+        .eq('job_id', job.id)
+        .order('log_date', { ascending: true })
+      setLogs(data || [])
+      setStage('confirm')
+    }
+    init()
+  }, [job, companyId])
+
+  const totalHours = logs.reduce((s, l) => s + ((l.duration_seconds || 0) / 3600), 0)
+  const totalAmount = logs.reduce((s, l) => s + ((l.duration_seconds || 0) / 3600) * (l.rate || job.planner_rate || 0), 0)
+
+  const handlePush = async () => {
+    setStage('pushing')
+    try {
+      const invoice = await pushInvoiceToXero(companyId, job, logs)
+      if (!invoice) throw new Error('Xero did not return an invoice. Check the connection and try again.')
+      setResult(invoice)
+      setStage('done')
+    } catch (e) {
+      setError(e.message || 'Push failed.')
+      setStage('error')
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
+      <div className="bg-white rounded-xl border border-gray-200 w-full max-w-md">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div>
+            <div className="text-sm font-semibold">Push to Xero</div>
+            <div className="text-xs text-gray-400 mt-0.5">{job.code} — {job.name}</div>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
+        </div>
+
+        <div className="px-5 py-4">
+          {stage === 'checking' && (
+            <div className="text-xs text-gray-400 text-center py-4">Checking Xero connection...</div>
+          )}
+
+          {stage === 'notconnected' && (
+            <div className="text-center py-2">
+              <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center mx-auto mb-3 text-sm font-bold">X</div>
+              <div className="text-sm font-semibold mb-1">Xero isn't connected yet</div>
+              <div className="text-xs text-gray-400 max-w-xs mx-auto">
+                Connect your firm's Xero account once, and every job gets a one-click draft invoice built from its logged time.
+              </div>
+            </div>
+          )}
+
+          {stage === 'confirm' && (
+            <div>
+              <div className="text-xs text-gray-500 mb-3">
+                This creates a <span className="font-medium">draft</span> invoice in Xero{tenantName ? ` (${tenantName})` : ''} for <span className="font-medium">{job.client_first_name} {job.client_last_name}</span>. You can review it in Xero before sending.
+              </div>
+              {logs.length === 0 ? (
+                <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  No time has been logged against this job yet, so the invoice would be empty. Log time first, then push.
+                </div>
+              ) : (
+                <div className="border border-gray-100 rounded-lg overflow-hidden">
+                  <div className="max-h-40 overflow-y-auto">
+                    {logs.map(l => (
+                      <div key={l.id} className="flex items-center justify-between px-3 py-2 border-b border-gray-50 last:border-0 text-xs">
+                        <div className="truncate flex-1 pr-2">{l.task || 'General work'}</div>
+                        <div className="text-gray-400 flex-shrink-0">{((l.duration_seconds || 0) / 3600).toFixed(2)}h</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between px-3 py-2 bg-gray-50 text-xs font-medium">
+                    <div>{logs.length} line item{logs.length !== 1 ? 's' : ''} · {totalHours.toFixed(2)}h</div>
+                    <div>${totalAmount.toFixed(2)} ex GST</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {stage === 'pushing' && (
+            <div className="text-xs text-gray-400 text-center py-4">Creating draft invoice in Xero...</div>
+          )}
+
+          {stage === 'done' && (
+            <div className="text-center py-2">
+              <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto mb-3 text-lg">✓</div>
+              <div className="text-sm font-semibold mb-1">Draft invoice created</div>
+              <div className="text-xs text-gray-400">
+                {result?.InvoiceNumber ? `Invoice ${result.InvoiceNumber}` : 'Invoice'} is now in Xero as a draft, ready for review.
+              </div>
+            </div>
+          )}
+
+          {stage === 'error' && (
+            <div className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</div>
+          )}
+        </div>
+
+        <div className="px-5 py-4 border-t border-gray-100 flex gap-2">
+          {stage === 'notconnected' && (
+            <>
+              <button onClick={onClose} className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium">Not now</button>
+              <button onClick={onGoToXero} className="flex-1 py-2 text-xs bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium">Go to Xero setup</button>
+            </>
+          )}
+          {stage === 'confirm' && (
+            <>
+              <button onClick={onClose} className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium">Cancel</button>
+              <button onClick={handlePush} disabled={logs.length === 0}
+                className="flex-1 py-2 text-xs bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+                Create draft invoice
+              </button>
+            </>
+          )}
+          {(stage === 'done' || stage === 'error' || stage === 'checking' || stage === 'pushing') && (
+            <button onClick={onClose} disabled={stage === 'pushing'}
+              className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium disabled:opacity-50">
+              {stage === 'done' ? 'Done' : 'Close'}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
   const [jobs, setJobs] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -72,9 +210,12 @@ export default function Jobs({ onNavigate, onJobCountChange }) {
   const [statusFilter, setStatusFilter] = useState('All')
   const [jobToDelete, setJobToDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
+  const [xeroJob, setXeroJob] = useState(null)
+
+  // Works whether or not App passes currentUser down
+  const companyId = currentUser?.company_id || loadSession()?.company_id
 
   useEffect(() => { fetchJobs() }, [])
-
   const fetchJobs = async () => {
     setLoading(true)
     const { data, error } = await supabase
@@ -87,7 +228,6 @@ export default function Jobs({ onNavigate, onJobCountChange }) {
     }
     setLoading(false)
   }
-
   const handleDelete = async () => {
     if (!jobToDelete) return
     setDeleting(true)
@@ -97,7 +237,6 @@ export default function Jobs({ onNavigate, onJobCountChange }) {
     setDeleting(false)
     fetchJobs()
   }
-
   const filtered = jobs.filter(j => {
     const matchSearch = !search ||
       j.name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -110,16 +249,23 @@ export default function Jobs({ onNavigate, onJobCountChange }) {
     const matchStatus = statusFilter === 'All' || j.status === statusFilter
     return matchSearch && matchType && matchPlanner && matchStatus
   })
-
-  // Sort: overdue first, then due soon, then rest
   const sorted = [...filtered].sort((a, b) => {
     const aOverdue = isOverdue(a) ? 0 : isDueSoon(a) ? 1 : 2
     const bOverdue = isOverdue(b) ? 0 : isDueSoon(b) ? 1 : 2
     return aOverdue - bOverdue
   })
-
   const uniquePlanners = [...new Set(jobs.map(j => j.planner).filter(Boolean))].sort()
   const overdueCount = jobs.filter(j => isOverdue(j)).length
+
+  const XeroButton = ({ job, compact }) => (
+    <button
+      onClick={e => { e.stopPropagation(); setXeroJob(job) }}
+      className={`flex items-center justify-center gap-1 rounded-lg font-medium transition-colors bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-100 ${compact ? 'px-2 py-1 text-xs' : 'px-2 py-1 text-xs w-full'}`}
+      title="Create a draft invoice in Xero from this job's logged time"
+    >
+      <span className="font-bold">X</span> Push to Xero
+    </button>
+  )
 
   return (
     <div>
@@ -130,8 +276,15 @@ export default function Jobs({ onNavigate, onJobCountChange }) {
           onCancel={() => setJobToDelete(null)}
         />
       )}
+      {xeroJob && (
+        <XeroPushModal
+          job={xeroJob}
+          companyId={companyId}
+          onClose={() => setXeroJob(null)}
+          onGoToXero={() => { setXeroJob(null); onNavigate('xero') }}
+        />
+      )}
 
-      {/* Overdue banner */}
       {overdueCount > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4 flex items-center gap-3">
           <div className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
@@ -144,7 +297,6 @@ export default function Jobs({ onNavigate, onJobCountChange }) {
         </div>
       )}
 
-      {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-2 mb-4 sm:items-end">
         <div className="flex-1">
           <input
@@ -194,7 +346,6 @@ export default function Jobs({ onNavigate, onJobCountChange }) {
           const overdue = isOverdue(job)
           const dueSoon = !overdue && isDueSoon(job)
           const days = daysUntil(job.decision_due_date)
-
           return (
             <div
               key={job.id}
@@ -220,7 +371,7 @@ export default function Jobs({ onNavigate, onJobCountChange }) {
               </div>
               <div className="text-sm font-medium text-gray-800 mb-0.5">{job.name}</div>
               <div className="text-xs text-gray-400 mb-1">{job.address}</div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-2">
                 <span className="text-xs text-gray-500">{job.client_first_name} {job.client_last_name}</span>
                 <div className="flex items-center gap-2">
                   {job.decision_due_date && job.status !== 'Complete' && (
@@ -231,6 +382,7 @@ export default function Jobs({ onNavigate, onJobCountChange }) {
                   <span className="text-xs text-gray-400">{job.planner?.split(' ')[0]} {job.planner?.split(' ')[1]?.[0]}.</span>
                 </div>
               </div>
+              <XeroButton job={job} />
             </div>
           )
         })}
@@ -243,7 +395,7 @@ export default function Jobs({ onNavigate, onJobCountChange }) {
 
       {/* Desktop table view */}
       <div className="hidden md:block bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="grid grid-cols-[70px_1fr_90px_55px_65px_70px_100px_50px] gap-3 px-4 py-2 border-b border-gray-100 bg-gray-50">
+        <div className="grid grid-cols-[70px_1fr_90px_55px_65px_70px_100px_110px_50px] gap-3 px-4 py-2 border-b border-gray-100 bg-gray-50">
           <div className="text-xs text-gray-400">Job #</div>
           <div className="text-xs text-gray-400">Name / address</div>
           <div className="text-xs text-gray-400">Client</div>
@@ -251,9 +403,9 @@ export default function Jobs({ onNavigate, onJobCountChange }) {
           <div className="text-xs text-gray-400">Planner</div>
           <div className="text-xs text-gray-400">Status</div>
           <div className="text-xs text-gray-400">Decision due</div>
+          <div className="text-xs text-gray-400">Invoice</div>
           <div className="text-xs text-gray-400">Delete</div>
         </div>
-
         {loading ? (
           <div className="px-4 py-8 text-center text-sm text-gray-400">Loading jobs...</div>
         ) : sorted.length === 0 ? (
@@ -265,11 +417,10 @@ export default function Jobs({ onNavigate, onJobCountChange }) {
             const overdue = isOverdue(job)
             const dueSoon = !overdue && isDueSoon(job)
             const days = daysUntil(job.decision_due_date)
-
             return (
               <div
                 key={job.id}
-                className={`grid grid-cols-[70px_1fr_90px_55px_65px_70px_100px_50px] gap-3 px-4 py-3 border-b border-gray-100 last:border-0 items-center ${
+                className={`grid grid-cols-[70px_1fr_90px_55px_65px_70px_100px_110px_50px] gap-3 px-4 py-3 border-b border-gray-100 last:border-0 items-center ${
                   overdue ? 'bg-red-50 border-l-4 border-l-red-400' : dueSoon ? 'bg-amber-50 border-l-4 border-l-amber-400' : 'hover:bg-gray-50'
                 }`}
               >
@@ -305,6 +456,9 @@ export default function Jobs({ onNavigate, onJobCountChange }) {
                   ) : (
                     <span className="text-xs text-gray-300">—</span>
                   )}
+                </div>
+                <div>
+                  <XeroButton job={job} compact />
                 </div>
                 <div className="flex items-center justify-center">
                   <button
