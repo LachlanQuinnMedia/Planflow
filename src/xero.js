@@ -5,7 +5,6 @@ const REDIRECT_URI = 'https://planflow-beige.vercel.app/xero/callback'
 const EDGE_FUNCTION_URL = 'https://sltaaiumviyzgdsdkkbe.supabase.co/functions/v1/xero-auth'
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdGFhaXVtdml5emdkc2Rra2JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MTYyNTMsImV4cCI6MjA5MDQ5MjI1M30.xqWqvx8vdofj119nXDpasQ8xVD67YJU0RrjTrxycTGo'
 
-// Xero granular scopes (apps created after 2 March 2026 must use these)
 const XERO_SCOPES = [
   'openid',
   'offline_access',
@@ -13,10 +12,18 @@ const XERO_SCOPES = [
   'accounting.contacts'
 ].join(' ')
 
-const fnHeaders = {
-  'Content-Type': 'application/json',
-  'Authorization': `Bearer ${ANON_KEY}`,
-  'apikey': ANON_KEY,
+async function callFn(action, payload) {
+  const res = await fetch(`${EDGE_FUNCTION_URL}?action=${action}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${ANON_KEY}`,
+      'apikey': ANON_KEY,
+    },
+    body: JSON.stringify(payload || {}),
+  })
+  const data = await res.json().catch(() => ({}))
+  return { ok: res.ok, status: res.status, ...data }
 }
 
 export function getXeroAuthUrl(companyId) {
@@ -32,35 +39,20 @@ export function getXeroAuthUrl(companyId) {
 }
 
 export async function handleXeroCallback(code, companyId) {
-  const res = await fetch(`${EDGE_FUNCTION_URL}?action=callback`, {
-    method: 'POST',
-    headers: fnHeaders,
-    body: JSON.stringify({ code, company_id: companyId }),
-  })
-  const data = await res.json().catch(() => ({}))
-  if (!res.ok || !data.success) {
-    console.error('Xero callback failed:', res.status, data)
-    alert(`Xero connection failed: ${data.error || data.msg || `HTTP ${res.status}`}`)
+  const data = await callFn('callback', { code, company_id: companyId })
+  if (!data.success) {
+    console.error('Xero callback failed:', data)
+    alert(`Xero connection failed: ${data.error || data.msg || `HTTP ${data.status}`}`)
   }
   return data
 }
 
 export async function getXeroToken(companyId) {
-  const res = await fetch(`${EDGE_FUNCTION_URL}?action=get_token`, {
-    method: 'POST',
-    headers: fnHeaders,
-    body: JSON.stringify({ company_id: companyId }),
-  })
-  return res.json()
+  return callFn('get_token', { company_id: companyId })
 }
 
 export async function disconnectXero(companyId) {
-  const res = await fetch(`${EDGE_FUNCTION_URL}?action=disconnect`, {
-    method: 'POST',
-    headers: fnHeaders,
-    body: JSON.stringify({ company_id: companyId }),
-  })
-  return res.json()
+  return callFn('disconnect', { company_id: companyId })
 }
 
 export async function isXeroConnected(companyId) {
@@ -73,48 +65,21 @@ export async function isXeroConnected(companyId) {
 }
 
 export async function getXeroContacts(companyId) {
-  const { access_token, tenant_id } = await getXeroToken(companyId)
-  const res = await fetch('https://api.xero.com/api.xro/2.0/Contacts?where=IsCustomer%3D%3Dtrue', {
-    headers: {
-      'Authorization': `Bearer ${access_token}`,
-      'Xero-tenant-id': tenant_id,
-      'Accept': 'application/json',
-    }
-  })
-  const data = await res.json()
-  return data.Contacts || []
+  const data = await callFn('contacts', { company_id: companyId })
+  if (!data.success) { console.error('Xero contacts:', data.error); return [] }
+  return data.contacts || []
 }
 
 export async function createXeroContact(companyId, { firstName, lastName, email, phone }) {
-  const { access_token, tenant_id } = await getXeroToken(companyId)
-  const res = await fetch('https://api.xero.com/api.xro/2.0/Contacts', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${access_token}`,
-      'Xero-tenant-id': tenant_id,
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    },
-    body: JSON.stringify({
-      Contacts: [{
-        FirstName: firstName,
-        LastName: lastName,
-        EmailAddress: email,
-        Phones: phone ? [{ PhoneType: 'DEFAULT', PhoneNumber: phone }] : [],
-        IsCustomer: true,
-      }]
-    })
-  })
-  const data = await res.json()
-  return data.Contacts?.[0]
+  const data = await callFn('create_contact', { company_id: companyId, firstName, lastName, email, phone })
+  if (!data.success) throw new Error(data.error || 'Could not create contact in Xero')
+  return data.contact
 }
 
 export async function pushInvoiceToXero(companyId, job, timeLogs) {
-  const { access_token, tenant_id } = await getXeroToken(companyId)
-
   const contacts = await getXeroContacts(companyId)
   let contact = contacts.find(c =>
-    c.EmailAddress?.toLowerCase() === job.client_email?.toLowerCase() ||
+    (job.client_email && c.EmailAddress?.toLowerCase() === job.client_email.toLowerCase()) ||
     (c.FirstName === job.client_first_name && c.LastName === job.client_last_name)
   )
 
@@ -130,7 +95,7 @@ export async function pushInvoiceToXero(companyId, job, timeLogs) {
   const lineItems = timeLogs.map(log => {
     const hours = parseFloat(((log.duration_seconds || 0) / 3600).toFixed(2))
     return {
-      Description: `${log.task} — ${job.code}`,
+      Description: `${log.task || 'General work'} — ${job.code}`,
       Quantity: hours,
       UnitAmount: log.rate || job.planner_rate || 0,
       AccountCode: '200',
@@ -141,55 +106,30 @@ export async function pushInvoiceToXero(companyId, job, timeLogs) {
   const dueDate = new Date()
   dueDate.setDate(dueDate.getDate() + 14)
 
-  const res = await fetch('https://api.xero.com/api.xro/2.0/Invoices', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${access_token}`,
-      'Xero-tenant-id': tenant_id,
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    },
-    body: JSON.stringify({
-      Invoices: [{
-        Type: 'ACCREC',
-        Contact: { ContactID: contact.ContactID },
-        LineItems: lineItems,
-        Date: new Date().toISOString().split('T')[0],
-        DueDate: dueDate.toISOString().split('T')[0],
-        Reference: job.code,
-        Status: 'DRAFT',
-        LineAmountTypes: 'EXCLUSIVE',
-        CurrencyCode: 'AUD',
-      }]
-    })
-  })
+  const invoice = {
+    Type: 'ACCREC',
+    Contact: { ContactID: contact.ContactID },
+    LineItems: lineItems,
+    Date: new Date().toISOString().split('T')[0],
+    DueDate: dueDate.toISOString().split('T')[0],
+    Reference: job.code,
+    Status: 'DRAFT',
+    LineAmountTypes: 'EXCLUSIVE',
+    CurrencyCode: 'AUD',
+  }
 
-  const data = await res.json()
-  return data.Invoices?.[0]
+  const data = await callFn('create_invoice', { company_id: companyId, invoice })
+  if (!data.success) throw new Error(data.error || 'Xero rejected the invoice')
+  return data.invoice
 }
 
 export async function getXeroInvoices(companyId) {
-  const { access_token, tenant_id } = await getXeroToken(companyId)
-  const res = await fetch('https://api.xero.com/api.xro/2.0/Invoices?where=Type%3D%3D%22ACCREC%22&order=Date DESC', {
-    headers: {
-      'Authorization': `Bearer ${access_token}`,
-      'Xero-tenant-id': tenant_id,
-      'Accept': 'application/json',
-    }
-  })
-  const data = await res.json()
-  return data.Invoices || []
+  const data = await callFn('invoices', { company_id: companyId })
+  if (!data.success) { console.error('Xero invoices:', data.error); return [] }
+  return data.invoices || []
 }
 
 export async function getInvoiceStatus(companyId, invoiceId) {
-  const { access_token, tenant_id } = await getXeroToken(companyId)
-  const res = await fetch(`https://api.xero.com/api.xro/2.0/Invoices/${invoiceId}`, {
-    headers: {
-      'Authorization': `Bearer ${access_token}`,
-      'Xero-tenant-id': tenant_id,
-      'Accept': 'application/json',
-    }
-  })
-  const data = await res.json()
-  return data.Invoices?.[0]
+  const invoices = await getXeroInvoices(companyId)
+  return invoices.find(i => i.InvoiceID === invoiceId) || null
 }
