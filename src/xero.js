@@ -4,10 +4,11 @@ const XERO_CLIENT_ID = import.meta.env.VITE_XERO_CLIENT_ID
 const REDIRECT_URI = 'https://planflow-beige.vercel.app/xero/callback'
 const EDGE_FUNCTION_URL = 'https://sltaaiumviyzgdsdkkbe.supabase.co/functions/v1/xero-auth'
 
+// Xero granular scopes (apps created after 2 March 2026 must use these)
 const XERO_SCOPES = [
   'openid',
   'offline_access',
-  'accounting.transactions',
+  'accounting.invoices',
   'accounting.contacts'
 ].join(' ')
 
