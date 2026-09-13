@@ -15,6 +15,7 @@ const statusColors = {
   AUTHORISED: 'bg-blue-100 text-blue-700',
   PAID: 'bg-emerald-100 text-emerald-700',
   VOIDED: 'bg-red-100 text-red-600',
+  DELETED: 'bg-red-100 text-red-600',
 }
 
 function formatCurrency(amount) {
@@ -30,12 +31,106 @@ function formatDate(dateStr) {
   return new Date(dateStr).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
+function xeroInvoiceUrl(invoiceId) {
+  return `https://go.xero.com/AccountsReceivable/View.aspx?InvoiceID=${invoiceId}`
+}
+
+function InvoiceDetailModal({ invoice, onClose }) {
+  const lines = invoice.LineItems || []
+  const hasLines = lines.length > 0
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
+      <div className="bg-white rounded-2xl border border-gray-200 w-full max-w-2xl max-h-[90vh] flex flex-col">
+        <div className="flex items-start justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="text-sm font-semibold">{invoice.InvoiceNumber || 'Invoice'}</div>
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[invoice.Status] || 'bg-gray-100 text-gray-500'}`}>{invoice.Status}</span>
+            </div>
+            <div className="text-xs text-gray-400 mt-0.5">{invoice.Contact?.Name}{invoice.Reference ? ` · Ref ${invoice.Reference}` : ''}</div>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 ml-3 flex-shrink-0">✕</button>
+        </div>
+
+        <div className="px-5 py-4 overflow-y-auto flex-1">
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="bg-gray-50 rounded-lg px-3 py-2">
+              <div className="text-xs text-gray-400">Issued</div>
+              <div className="text-xs font-medium">{formatDate(invoice.Date)}</div>
+            </div>
+            <div className="bg-gray-50 rounded-lg px-3 py-2">
+              <div className="text-xs text-gray-400">Due</div>
+              <div className="text-xs font-medium">{formatDate(invoice.DueDate)}</div>
+            </div>
+            <div className="bg-gray-50 rounded-lg px-3 py-2">
+              <div className="text-xs text-gray-400">Amount due</div>
+              <div className="text-xs font-medium">{formatCurrency(invoice.AmountDue)}</div>
+            </div>
+          </div>
+
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Line items</div>
+          {!hasLines ? (
+            <div className="text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-3 mb-4">
+              Line item detail isn't included in this view — open in Xero to see the full breakdown.
+            </div>
+          ) : (
+            <div className="border border-gray-100 rounded-lg overflow-hidden mb-4">
+              <div className="grid grid-cols-[1fr_60px_90px_90px] gap-2 px-3 py-2 bg-gray-50 border-b border-gray-100">
+                {['Description', 'Qty', 'Unit', 'Amount'].map(h => <div key={h} className="text-xs text-gray-400">{h}</div>)}
+              </div>
+              {lines.map((l, i) => (
+                <div key={i} className="grid grid-cols-[1fr_60px_90px_90px] gap-2 px-3 py-2 border-b border-gray-50 last:border-0 text-xs">
+                  <div className="truncate">{l.Description || '—'}</div>
+                  <div className="text-gray-500">{l.Quantity ?? ''}</div>
+                  <div className="text-gray-500">{l.UnitAmount != null ? formatCurrency(l.UnitAmount) : ''}</div>
+                  <div className="font-medium">{formatCurrency(l.LineAmount)}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-xs">
+              <span className="text-gray-400">Subtotal (ex GST)</span>
+              <span className="font-medium">{formatCurrency(invoice.SubTotal)}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-gray-400">GST</span>
+              <span className="font-medium">{formatCurrency(invoice.TotalTax)}</span>
+            </div>
+            <div className="flex justify-between text-sm font-semibold border-t border-gray-200 pt-2">
+              <span>Total (inc GST)</span>
+              <span className="text-emerald-600">{formatCurrency(invoice.Total)}</span>
+            </div>
+            {invoice.AmountPaid > 0 && (
+              <div className="flex justify-between text-xs">
+                <span className="text-gray-400">Paid</span>
+                <span className="font-medium">{formatCurrency(invoice.AmountPaid)}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="px-5 py-4 border-t border-gray-100 flex gap-2 flex-shrink-0">
+          <button onClick={onClose} className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium">Close</button>
+          <a href={xeroInvoiceUrl(invoice.InvoiceID)} target="_blank" rel="noopener noreferrer"
+            className="flex-1 py-2 text-xs bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-center">
+            ↗ Open in Xero
+          </a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Xero({ currentUser }) {
   const [connected, setConnected] = useState(false)
   const [tenantName, setTenantName] = useState('')
   const [loading, setLoading] = useState(true)
   const [invoices, setInvoices] = useState([])
   const [invoicesLoading, setInvoicesLoading] = useState(false)
+  const [selectedInvoice, setSelectedInvoice] = useState(null)
   const [jobs, setJobs] = useState([])
   const [selectedJob, setSelectedJob] = useState('')
   const [timeLogs, setTimeLogs] = useState([])
@@ -171,6 +266,8 @@ export default function Xero({ currentUser }) {
 
   return (
     <div>
+      {selectedInvoice && <InvoiceDetailModal invoice={selectedInvoice} onClose={() => setSelectedInvoice(null)} />}
+
       <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
@@ -201,7 +298,7 @@ export default function Xero({ currentUser }) {
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50">
             <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Xero Invoices</div>
-            <div className="text-xs text-gray-400">{invoices.length} invoices</div>
+            <div className="text-xs text-gray-400">{invoices.length} invoices · click to view</div>
           </div>
           {invoicesLoading ? (
             <div className="px-4 py-8 text-center text-sm text-gray-400">Loading invoices...</div>
@@ -215,10 +312,12 @@ export default function Xero({ currentUser }) {
                 ))}
               </div>
               {invoices.map(inv => (
-                <div key={inv.InvoiceID} className="grid grid-cols-[1fr_120px_100px_100px_80px] gap-3 px-4 py-3 border-b border-gray-100 last:border-0 items-center hover:bg-gray-50">
-                  <div>
-                    <div className="text-xs font-medium">{inv.Contact?.Name}</div>
-                    <div className="text-xs text-gray-400">{inv.Reference || inv.InvoiceNumber}</div>
+                <div key={inv.InvoiceID}
+                  onClick={() => setSelectedInvoice(inv)}
+                  className="grid grid-cols-[1fr_120px_100px_100px_80px] gap-3 px-4 py-3 border-b border-gray-100 last:border-0 items-center hover:bg-gray-50 cursor-pointer transition-colors">
+                  <div className="min-w-0">
+                    <div className="text-xs font-medium truncate">{inv.Contact?.Name}</div>
+                    <div className="text-xs text-gray-400">{inv.InvoiceNumber}{inv.Reference ? ` · ${inv.Reference}` : ''}</div>
                   </div>
                   <div className="text-xs text-gray-500">{formatDate(inv.Date)}</div>
                   <div className="text-xs text-gray-500">{formatDate(inv.DueDate)}</div>
