@@ -35,37 +35,75 @@ function isOfficeFile(name) {
   return ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(ext)
 }
 
-function WordOnlineModal({ file, onClose }) {
+function appName(name) {
+  const ext = (name.split('.').pop() || '').toLowerCase()
+  if (['xls', 'xlsx'].includes(ext)) return 'Excel'
+  if (['ppt', 'pptx'].includes(ext)) return 'PowerPoint'
+  return 'Word'
+}
+
+// Shows a read-only preview of the document inside QPlan, with an Edit button
+// that opens the full Word/Excel/PowerPoint Online editor (live co-authoring).
+function DocumentModal({ file, companyId, onClose }) {
+  const [previewUrl, setPreviewUrl] = useState(null)
+  const [state, setState] = useState('loading') // loading | ready | failed
+
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      const data = await callGraph('preview', { company_id: companyId, item_id: file.id })
+      if (cancelled) return
+      if (data.success && data.url) { setPreviewUrl(data.url); setState('ready') }
+      else setState('failed')
+    }
+    load()
+    return () => { cancelled = true }
+  }, [file, companyId])
+
+  const openEditor = () => window.open(file.webUrl, '_blank', 'noopener')
+  const icon = fileIcon(file.name, false)
+  const app = appName(file.name)
+
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl border border-gray-200 w-full h-full max-w-6xl flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0 gap-3">
           <div className="flex items-center gap-2 min-w-0">
-            <div className={`w-7 h-7 rounded-md flex items-center justify-center text-xs font-semibold flex-shrink-0 ${fileIcon(file.name, false).color}`}>
-              {fileIcon(file.name, false).label}
-            </div>
+            <div className={`w-7 h-7 rounded-md flex items-center justify-center text-xs font-semibold flex-shrink-0 ${icon.color}`}>{icon.label}</div>
             <div className="text-sm font-semibold truncate">{file.name}</div>
-            <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex-shrink-0">Live co-authoring</span>
+            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full flex-shrink-0">Preview</span>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <a href={file.webUrl} target="_blank" rel="noopener noreferrer"
-              className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium"
-              title="Open in a new browser tab">
-              ↗ Open in new tab
-            </a>
+            <button onClick={openEditor}
+              className="px-3 py-1.5 text-xs bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium"
+              title={`Open the full ${app} Online editor with live co-authoring`}>
+              ✎ Edit in {app} · live co-authoring
+            </button>
             <button onClick={onClose} className="px-3 py-1.5 text-xs text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100" title="Close">✕ Close</button>
           </div>
         </div>
-        <div className="flex-1 bg-gray-50">
-          <iframe
-            src={file.webUrl}
-            title={file.name}
-            className="w-full h-full border-0"
-            allow="clipboard-read; clipboard-write"
-          />
+
+        <div className="flex-1 bg-gray-100 relative">
+          {state === 'loading' && (
+            <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-400">Loading preview...</div>
+          )}
+          {state === 'ready' && (
+            <iframe src={previewUrl} title={file.name} className="w-full h-full border-0 bg-white" />
+          )}
+          {state === 'failed' && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6">
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-semibold mb-3 ${icon.color}`}>{icon.label}</div>
+              <div className="text-sm font-semibold mb-1">Preview not available for this file</div>
+              <div className="text-xs text-gray-400 max-w-sm mb-4">You can still open it in {app} Online — editing and co-authoring work as normal.</div>
+              <button onClick={openEditor} className="px-4 py-2 text-xs bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium">
+                Open in {app}
+              </button>
+            </div>
+          )}
         </div>
+
         <div className="px-4 py-2 border-t border-gray-100 text-xs text-gray-400 flex-shrink-0">
-          Blank screen? Your Microsoft tenant blocks embedding — use "Open in new tab" above. Co-authoring works either way.
+          This is a read-only preview. Click <span className="font-medium">Edit in {app}</span> to open the live document — multiple planners can edit it at the same time, and changes save straight back to OneDrive.
         </div>
       </div>
     </div>
@@ -73,7 +111,7 @@ function WordOnlineModal({ file, onClose }) {
 }
 
 export default function OneDriveBrowser({ currentUser }) {
-  const [connected, setConnected] = useState(null) // null = checking
+  const [connected, setConnected] = useState(null)
   const [connectedEmail, setConnectedEmail] = useState('')
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(false)
@@ -130,14 +168,8 @@ export default function OneDriveBrowser({ currentUser }) {
     setLoading(false)
   }
 
-  const enterFolder = (item) => {
-    loadFolder(item.id, [...breadcrumb, { id: item.id, name: item.name }])
-  }
-
-  const jumpToCrumb = (index) => {
-    const crumb = breadcrumb[index]
-    loadFolder(crumb.id, breadcrumb.slice(0, index + 1))
-  }
+  const enterFolder = (item) => loadFolder(item.id, [...breadcrumb, { id: item.id, name: item.name }])
+  const jumpToCrumb = (index) => loadFolder(breadcrumb[index].id, breadcrumb.slice(0, index + 1))
 
   const handleSearch = async (e) => {
     if (e.key !== 'Enter' || !search.trim()) return
@@ -159,11 +191,10 @@ export default function OneDriveBrowser({ currentUser }) {
   const handleOpen = (item) => {
     if (item.isFolder) { enterFolder(item); return }
     if (!item.webUrl) return
-    if (isOfficeFile(item.name)) setOpenFile(item)
+    if (isOfficeFile(item.name) || item.name.toLowerCase().endsWith('.pdf')) setOpenFile(item)
     else window.open(item.webUrl, '_blank', 'noopener')
   }
 
-  // ---- Not connected states ----
   if (connected === null) {
     return <div className="bg-white rounded-xl border border-gray-200 px-4 py-8 text-center text-xs text-gray-400">Checking Microsoft 365 connection...</div>
   }
@@ -174,11 +205,10 @@ export default function OneDriveBrowser({ currentUser }) {
         <div className="w-12 h-12 bg-blue-700 rounded-xl flex items-center justify-center text-white text-lg font-bold mx-auto mb-3">M</div>
         <div className="text-sm font-semibold mb-1">Connect Microsoft 365</div>
         <div className="text-xs text-gray-400 max-w-sm mx-auto mb-4">
-          Link your firm's OneDrive so planners can browse, search and co-edit your existing documents directly inside QPlan. Files stay in OneDrive — nothing is moved or copied.
+          Link your firm's OneDrive so planners can browse, search and co-edit your existing documents directly from QPlan. Files stay in OneDrive — nothing is moved or copied.
         </div>
         {isDirector ? (
-          <button onClick={handleConnect}
-            className="px-4 py-2 text-xs bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium">
+          <button onClick={handleConnect} className="px-4 py-2 text-xs bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium">
             Connect Microsoft 365
           </button>
         ) : (
@@ -188,10 +218,9 @@ export default function OneDriveBrowser({ currentUser }) {
     )
   }
 
-  // ---- Connected: browser ----
   return (
     <div>
-      {openFile && <WordOnlineModal file={openFile} onClose={() => setOpenFile(null)} />}
+      {openFile && <DocumentModal file={openFile} companyId={currentUser.company_id} onClose={() => setOpenFile(null)} />}
 
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <input
@@ -203,14 +232,10 @@ export default function OneDriveBrowser({ currentUser }) {
           className="flex-1 min-w-[200px] px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-emerald-400"
         />
         {searching && (
-          <button onClick={clearSearch} className="px-3 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">
-            ✕ Clear search
-          </button>
+          <button onClick={clearSearch} className="px-3 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">✕ Clear search</button>
         )}
         {isDirector && (
-          <button onClick={handleDisconnect}
-            className="px-3 py-2 text-xs text-red-400 border border-red-100 rounded-lg hover:bg-red-50"
-            title={`Connected as ${connectedEmail}`}>
+          <button onClick={handleDisconnect} className="px-3 py-2 text-xs text-red-400 border border-red-100 rounded-lg hover:bg-red-50" title={`Connected as ${connectedEmail}`}>
             Disconnect
           </button>
         )}
@@ -221,8 +246,7 @@ export default function OneDriveBrowser({ currentUser }) {
           {breadcrumb.map((crumb, i) => (
             <span key={i} className="flex items-center gap-1">
               {i > 0 && <span className="text-gray-300">/</span>}
-              <button
-                onClick={() => jumpToCrumb(i)}
+              <button onClick={() => jumpToCrumb(i)}
                 className={`px-1.5 py-0.5 rounded hover:bg-gray-100 ${i === breadcrumb.length - 1 ? 'font-semibold text-gray-700' : 'text-emerald-600 hover:underline'}`}>
                 {crumb.name}
               </button>
@@ -233,12 +257,8 @@ export default function OneDriveBrowser({ currentUser }) {
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-            {searching ? `Search results` : 'OneDrive'}
-          </div>
-          <div className="text-xs text-gray-400">
-            {connectedEmail && `Connected — ${connectedEmail}`}
-          </div>
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{searching ? 'Search results' : 'OneDrive'}</div>
+          <div className="text-xs text-gray-400">{connectedEmail && `Connected — ${connectedEmail}`}</div>
         </div>
 
         {error && <div className="px-4 py-3 text-xs text-red-600 bg-red-50 border-b border-red-100">{error}</div>}
@@ -246,19 +266,14 @@ export default function OneDriveBrowser({ currentUser }) {
         {loading ? (
           <div className="px-4 py-8 text-center text-xs text-gray-400">Loading...</div>
         ) : items.length === 0 ? (
-          <div className="px-4 py-8 text-center text-xs text-gray-400">
-            {searching ? 'No files match your search.' : 'This folder is empty.'}
-          </div>
+          <div className="px-4 py-8 text-center text-xs text-gray-400">{searching ? 'No files match your search.' : 'This folder is empty.'}</div>
         ) : (
           items.map(item => {
             const icon = fileIcon(item.name, item.isFolder)
             return (
-              <div key={item.id}
-                onClick={() => handleOpen(item)}
+              <div key={item.id} onClick={() => handleOpen(item)}
                 className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 last:border-0 cursor-pointer hover:bg-gray-50 transition-colors">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-semibold flex-shrink-0 ${icon.color}`}>
-                  {icon.label}
-                </div>
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-semibold flex-shrink-0 ${icon.color}`}>{icon.label}</div>
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-medium truncate">{item.name}</div>
                   <div className="text-xs text-gray-400">

@@ -1,7 +1,6 @@
 // supabase/functions/ms-graph/index.ts
 // Microsoft 365 / OneDrive integration for QPlan.
-// Actions: callback, status, disconnect, list, search
-// Reuses OUTLOOK_CLIENT_ID / OUTLOOK_CLIENT_SECRET secrets (same Azure app, expanded scopes).
+// Actions: callback, status, disconnect, list, search, preview
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -59,7 +58,6 @@ async function refreshToken(refresh_token: string) {
   return res.json()
 }
 
-// Returns a valid access token for the company, refreshing if within 5 min of expiry.
 async function getValidToken(company_id: string): Promise<string | null> {
   const { data } = await supabase
     .from('msgraph_tokens')
@@ -90,6 +88,15 @@ async function graphGet(token: string, path: string) {
   return res.json()
 }
 
+async function graphPost(token: string, path: string, body: unknown) {
+  const res = await fetch(`${GRAPH}${path}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body ?? {}),
+  })
+  return res.json()
+}
+
 function mapItems(value: any[]) {
   return (value || []).map((item: any) => ({
     id: item.id,
@@ -115,7 +122,6 @@ Deno.serve(async (req) => {
   const { company_id } = body
 
   try {
-    // ---- OAuth callback: exchange code, store tokens per company ----
     if (action === 'callback') {
       const { code, username } = body
       if (!code || !company_id) return json({ success: false, error: 'Missing code or company_id' }, 400)
@@ -128,7 +134,7 @@ Deno.serve(async (req) => {
       const me = await graphGet(tokens.access_token, '/me')
       const email = me.mail || me.userPrincipalName || ''
 
-      await supabase.from('msgraph_tokens').upsert({
+      const { error } = await supabase.from('msgraph_tokens').upsert({
         company_id,
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token,
@@ -137,10 +143,10 @@ Deno.serve(async (req) => {
         connected_by: username || null,
       }, { onConflict: 'company_id' })
 
+      if (error) return json({ success: false, error: `Could not save connection: ${error.message}` }, 500)
       return json({ success: true, email })
     }
 
-    // ---- Connection status ----
     if (action === 'status') {
       if (!company_id) return json({ connected: false })
       const { data } = await supabase
@@ -151,14 +157,12 @@ Deno.serve(async (req) => {
       return json({ connected: !!data, email: data?.email || null, connected_by: data?.connected_by || null })
     }
 
-    // ---- Disconnect ----
     if (action === 'disconnect') {
       if (!company_id) return json({ success: false }, 400)
       await supabase.from('msgraph_tokens').delete().eq('company_id', company_id)
       return json({ success: true })
     }
 
-    // ---- List folder contents (root if no folder_id) ----
     if (action === 'list') {
       const token = await getValidToken(company_id)
       if (!token) return json({ success: false, error: 'Not connected' }, 401)
@@ -173,7 +177,6 @@ Deno.serve(async (req) => {
       return json({ success: true, items: mapItems(result.value) })
     }
 
-    // ---- Search whole drive ----
     if (action === 'search') {
       const token = await getValidToken(company_id)
       if (!token) return json({ success: false, error: 'Not connected' }, 401)
@@ -185,6 +188,20 @@ Deno.serve(async (req) => {
       if (result.error) return json({ success: false, error: result.error.message }, 400)
 
       return json({ success: true, items: mapItems(result.value) })
+    }
+
+    // Embeddable read-only preview URL for a file (Microsoft allows this one in iframes)
+    if (action === 'preview') {
+      const token = await getValidToken(company_id)
+      if (!token) return json({ success: false, error: 'Not connected' }, 401)
+      const itemId = body.item_id
+      if (!itemId) return json({ success: false, error: 'Missing item_id' }, 400)
+
+      const result = await graphPost(token, `/me/drive/items/${itemId}/preview`, { viewer: null, chromeless: true })
+      if (result.error) return json({ success: false, error: result.error.message }, 400)
+      if (!result.getUrl) return json({ success: false, error: 'No preview available for this file' }, 400)
+
+      return json({ success: true, url: result.getUrl })
     }
 
     return json({ success: false, error: 'Unknown action' }, 400)
