@@ -3,6 +3,7 @@ import { supabase } from './supabase'
 const XERO_CLIENT_ID = import.meta.env.VITE_XERO_CLIENT_ID
 const REDIRECT_URI = 'https://planflow-beige.vercel.app/xero/callback'
 const EDGE_FUNCTION_URL = 'https://sltaaiumviyzgdsdkkbe.supabase.co/functions/v1/xero-auth'
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdGFhaXVtdml5emdkc2Rra2JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MTYyNTMsImV4cCI6MjA5MDQ5MjI1M30.xqWqvx8vdofj119nXDpasQ8xVD67YJU0RrjTrxycTGo'
 
 // Xero granular scopes (apps created after 2 March 2026 must use these)
 const XERO_SCOPES = [
@@ -11,6 +12,12 @@ const XERO_SCOPES = [
   'accounting.invoices',
   'accounting.contacts'
 ].join(' ')
+
+const fnHeaders = {
+  'Content-Type': 'application/json',
+  'Authorization': `Bearer ${ANON_KEY}`,
+  'apikey': ANON_KEY,
+}
 
 export function getXeroAuthUrl(companyId) {
   const state = btoa(JSON.stringify({ company_id: companyId }))
@@ -27,16 +34,21 @@ export function getXeroAuthUrl(companyId) {
 export async function handleXeroCallback(code, companyId) {
   const res = await fetch(`${EDGE_FUNCTION_URL}?action=callback`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: fnHeaders,
     body: JSON.stringify({ code, company_id: companyId }),
   })
-  return res.json()
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok || !data.success) {
+    console.error('Xero callback failed:', res.status, data)
+    alert(`Xero connection failed: ${data.error || data.msg || `HTTP ${res.status}`}`)
+  }
+  return data
 }
 
 export async function getXeroToken(companyId) {
   const res = await fetch(`${EDGE_FUNCTION_URL}?action=get_token`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: fnHeaders,
     body: JSON.stringify({ company_id: companyId }),
   })
   return res.json()
@@ -45,7 +57,7 @@ export async function getXeroToken(companyId) {
 export async function disconnectXero(companyId) {
   const res = await fetch(`${EDGE_FUNCTION_URL}?action=disconnect`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: fnHeaders,
     body: JSON.stringify({ company_id: companyId }),
   })
   return res.json()
