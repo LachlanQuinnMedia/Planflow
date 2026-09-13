@@ -5,11 +5,10 @@ const REDIRECT_URI = 'https://planflow-beige.vercel.app/xero/callback'
 const EDGE_FUNCTION_URL = 'https://sltaaiumviyzgdsdkkbe.supabase.co/functions/v1/xero-auth'
 
 const XERO_SCOPES = [
-  'openid', 'profile', 'email',
+  'openid',
+  'offline_access',
   'accounting.transactions',
-  'accounting.contacts',
-  'accounting.settings',
-  'offline_access'
+  'accounting.contacts'
 ].join(' ')
 
 export function getXeroAuthUrl(companyId) {
@@ -56,7 +55,7 @@ export async function isXeroConnected(companyId) {
     .from('xero_tokens')
     .select('id, tenant_name')
     .eq('company_id', companyId)
-    .single()
+    .maybeSingle()
   return data ? { connected: true, tenantName: data.tenant_name } : { connected: false }
 }
 
