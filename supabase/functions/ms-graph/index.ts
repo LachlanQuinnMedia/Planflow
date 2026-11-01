@@ -1,6 +1,10 @@
 // supabase/functions/ms-graph/index.ts
-// Microsoft 365 / OneDrive integration for QPlan.
-// Actions: callback, status, disconnect, list, search, preview
+// Microsoft 365 / OneDrive / SharePoint integration for QPlan.
+// Actions: callback, status, disconnect, drives, list, search, preview, item
+//
+// Every file action accepts an optional drive_id. Without it, the connected
+// user's own OneDrive (/me/drive) is used. With it, any drive the connected
+// user can reach is used (another person's OneDrive or a SharePoint library).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -11,6 +15,7 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const REDIRECT_URI = 'https://planflow-beige.vercel.app'
 const TOKEN_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/token'
 const GRAPH = 'https://graph.microsoft.com/v1.0'
+const SCOPES = 'Files.ReadWrite.All Sites.Read.All offline_access User.Read'
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
 
@@ -37,12 +42,13 @@ async function exchangeCode(code: string) {
       code,
       redirect_uri: REDIRECT_URI,
       grant_type: 'authorization_code',
-      scope: 'Files.ReadWrite.All offline_access User.Read',
+      scope: SCOPES,
     }),
   })
   return res.json()
 }
 
+// No scope on refresh: Microsoft reuses whatever was consented at connect time.
 async function refreshToken(refresh_token: string) {
   const res = await fetch(TOKEN_URL, {
     method: 'POST',
@@ -52,7 +58,6 @@ async function refreshToken(refresh_token: string) {
       client_secret: CLIENT_SECRET,
       refresh_token,
       grant_type: 'refresh_token',
-      scope: 'Files.ReadWrite.All offline_access User.Read',
     }),
   })
   return res.json()
@@ -97,6 +102,18 @@ async function graphPost(token: string, path: string, body: unknown) {
   return res.json()
 }
 
+// Base path for a drive: the connected user's own OneDrive, or a specific drive by id
+function driveBase(driveId?: string | null) {
+  return driveId ? `/drives/${encodeURIComponent(driveId)}` : '/me/drive'
+}
+
+// Human-readable folder path from Graph's parentReference ("/drive/root:/Jobs/2026" -> "Jobs/2026")
+function cleanPath(parentPath?: string | null, name?: string | null) {
+  const base = (parentPath || '').replace(/^\/drives\/[^/]+\/root:?/, '').replace(/^\/drive\/root:?/, '')
+  const parts = [base.replace(/^\//, ''), name || ''].filter(Boolean)
+  return decodeURIComponent(parts.join('/'))
+}
+
 function mapItems(value: any[]) {
   return (value || []).map((item: any) => ({
     id: item.id,
@@ -109,6 +126,8 @@ function mapItems(value: any[]) {
     lastModifiedBy: item.lastModifiedBy?.user?.displayName ?? null,
     mimeType: item.file?.mimeType ?? null,
     parentId: item.parentReference?.id ?? null,
+    driveId: item.parentReference?.driveId ?? null,
+    path: cleanPath(item.parentReference?.path, item.name),
   }))
 }
 
@@ -120,6 +139,7 @@ Deno.serve(async (req) => {
   let body: any = {}
   try { body = await req.json() } catch { /* no body */ }
   const { company_id } = body
+  const driveId: string | null = body.drive_id || null
 
   try {
     if (action === 'callback') {
@@ -163,14 +183,47 @@ Deno.serve(async (req) => {
       return json({ success: true })
     }
 
+    // All the places files can live: the connected user's OneDrive plus any SharePoint
+    // document libraries they can reach. SharePoint lookup failing (e.g. personal
+    // Microsoft account) is not an error: the OneDrive entry is always returned.
+    if (action === 'drives') {
+      const token = await getValidToken(company_id)
+      if (!token) return json({ success: false, error: 'Not connected' }, 401)
+
+      const drives: any[] = []
+      const me = await graphGet(token, '/me/drive?$select=id,name,owner,webUrl')
+      if (me?.id) {
+        drives.push({ id: me.id, name: 'OneDrive', kind: 'onedrive', owner: me.owner?.user?.displayName || null, webUrl: me.webUrl || null })
+      }
+
+      let sharepointError: string | null = null
+      const sites = await graphGet(token, '/sites?search=*&$select=id,displayName,webUrl&$top=25')
+      if (sites?.error) {
+        sharepointError = sites.error.message
+      } else {
+        const siteList = (sites.value || []).slice(0, 25)
+        const results = await Promise.all(siteList.map((s: any) => graphGet(token, `/sites/${s.id}/drives?$select=id,name,webUrl,driveType`)))
+        results.forEach((r: any, i: number) => {
+          const site = siteList[i]
+          for (const d of r?.value || []) {
+            if (d.driveType && d.driveType !== 'documentLibrary') continue
+            drives.push({ id: d.id, name: `${site.displayName} / ${d.name}`, kind: 'sharepoint', siteName: site.displayName, webUrl: d.webUrl || null })
+          }
+        })
+      }
+
+      return json({ success: true, drives, sharepointError })
+    }
+
     if (action === 'list') {
       const token = await getValidToken(company_id)
       if (!token) return json({ success: false, error: 'Not connected' }, 401)
 
       const folderId = body.folder_id
+      const base = driveBase(driveId)
       const path = folderId
-        ? `/me/drive/items/${folderId}/children?$top=200&$orderby=name`
-        : '/me/drive/root/children?$top=200&$orderby=name'
+        ? `${base}/items/${folderId}/children?$top=200&$orderby=name`
+        : `${base}/root/children?$top=200&$orderby=name`
       const result = await graphGet(token, path)
       if (result.error) return json({ success: false, error: result.error.message }, 400)
 
@@ -184,7 +237,9 @@ Deno.serve(async (req) => {
       const q = (body.query || '').replace(/'/g, "''")
       if (!q) return json({ success: true, items: [] })
 
-      const result = await graphGet(token, `/me/drive/root/search(q='${encodeURIComponent(q)}')?$top=100`)
+      // Search inside a specific folder when given, otherwise the whole drive
+      const scope = body.folder_id ? `/items/${body.folder_id}` : '/root'
+      const result = await graphGet(token, `${driveBase(driveId)}${scope}/search(q='${encodeURIComponent(q)}')?$top=100`)
       if (result.error) return json({ success: false, error: result.error.message }, 400)
 
       return json({ success: true, items: mapItems(result.value) })
@@ -197,11 +252,24 @@ Deno.serve(async (req) => {
       const itemId = body.item_id
       if (!itemId) return json({ success: false, error: 'Missing item_id' }, 400)
 
-      const result = await graphPost(token, `/me/drive/items/${itemId}/preview`, { viewer: null, chromeless: true })
+      const result = await graphPost(token, `${driveBase(driveId)}/items/${itemId}/preview`, { viewer: null, chromeless: true })
       if (result.error) return json({ success: false, error: result.error.message }, 400)
       if (!result.getUrl) return json({ success: false, error: 'No preview available for this file' }, 400)
 
       return json({ success: true, url: result.getUrl })
+    }
+
+    // Details for one item (used when linking a folder to a job, and to check a link still works)
+    if (action === 'item') {
+      const token = await getValidToken(company_id)
+      if (!token) return json({ success: false, error: 'Not connected' }, 401)
+      const itemId = body.item_id
+      const base = driveBase(driveId)
+      const path = itemId ? `${base}/items/${itemId}` : `${base}/root`
+      const result = await graphGet(token, `${path}?$select=id,name,webUrl,folder,parentReference,lastModifiedDateTime`)
+      if (result.error) return json({ success: false, error: result.error.message }, 400)
+      const [item] = mapItems([result])
+      return json({ success: true, item })
     }
 
     return json({ success: false, error: 'Unknown action' }, 400)

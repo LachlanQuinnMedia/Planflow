@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabase'
 import { generateFromTemplate } from './templateFiller'
+import OneDriveBrowser, { OneDriveFolderPicker } from './OneDriveBrowser'
 
 // Today's date as YYYY-MM-DD in Brisbane time (not UTC)
 function todayLocal() {
@@ -1139,11 +1140,14 @@ function TimeBudgetTab({ job, currentUser, onHistoryAdd }) {
   )
 }
 
-function DocumentsTab({ job, currentUser, onHistoryAdd }) {
+function DocumentsTab({ job, currentUser, onHistoryAdd, onJobUpdated }) {
   const [docs, setDocs] = useState([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [dragOver, setDragOver] = useState(false)
+  const [showPicker, setShowPicker] = useState(false)
+  const [linking, setLinking] = useState(false)
+  const [showAttachments, setShowAttachments] = useState(false)
   const fileRef = useRef(null)
 
   useEffect(() => { fetchDocs() }, [job.id])
@@ -1155,6 +1159,48 @@ function DocumentsTab({ job, currentUser, onHistoryAdd }) {
     setLoading(false)
   }
 
+  // ---- OneDrive / SharePoint folder link ----
+  const linked = !!job.onedrive_folder_id || !!job.onedrive_drive_id
+  const linkedRoot = linked ? {
+    driveId: job.onedrive_drive_id || null,
+    folderId: job.onedrive_folder_id || null,
+    name: job.onedrive_folder_name || 'Job folder',
+    path: job.onedrive_folder_path || '',
+    webUrl: job.onedrive_folder_url || null,
+  } : null
+
+  const handlePickFolder = async (folder) => {
+    setLinking(true)
+    const update = {
+      onedrive_drive_id: folder.driveId || null,
+      onedrive_folder_id: folder.folderId || null,
+      onedrive_folder_name: folder.name || 'Job folder',
+      onedrive_folder_path: folder.path || '',
+      onedrive_folder_url: folder.webUrl || null,
+      onedrive_linked_by: currentUser?.username || null,
+      onedrive_linked_at: new Date().toISOString(),
+    }
+    const { error } = await supabase.from('jobs').update(update).eq('id', job.id)
+    setLinking(false)
+    if (error) { alert('Could not link folder: ' + error.message); return }
+    setShowPicker(false)
+    onJobUpdated?.(update)
+    await onHistoryAdd(`OneDrive folder linked: ${folder.driveName ? folder.driveName + ' / ' : ''}${folder.path || folder.name}`)
+  }
+
+  const handleUnlink = async () => {
+    if (!window.confirm('Unlink this folder from the job? Nothing in OneDrive is deleted.')) return
+    const update = {
+      onedrive_drive_id: null, onedrive_folder_id: null, onedrive_folder_name: null,
+      onedrive_folder_path: null, onedrive_folder_url: null, onedrive_linked_by: null, onedrive_linked_at: null,
+    }
+    const { error } = await supabase.from('jobs').update(update).eq('id', job.id)
+    if (error) { alert('Could not unlink: ' + error.message); return }
+    onJobUpdated?.(update)
+    await onHistoryAdd('OneDrive folder unlinked')
+  }
+
+  // ---- QPlan storage attachments (kept for anything not in OneDrive) ----
   const handleUpload = async (files) => {
     if (!files || files.length === 0) return
     setUploading(true)
@@ -1199,43 +1245,105 @@ function DocumentsTab({ job, currentUser, onHistoryAdd }) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   }
 
+  const attachmentsOpen = showAttachments || !linked
+
   return (
     <div className="space-y-4">
-      <div onDragOver={e => { e.preventDefault(); setDragOver(true) }} onDragLeave={() => setDragOver(false)}
-        onDrop={e => { e.preventDefault(); setDragOver(false); handleUpload(e.dataTransfer.files) }}
-        onClick={() => fileRef.current?.click()}
-        className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${dragOver ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200 hover:border-emerald-300 hover:bg-gray-50'}`}>
-        <input ref={fileRef} type="file" multiple className="hidden" onChange={e => handleUpload(e.target.files)} />
-        {uploading ? <div className="text-xs text-emerald-600 font-medium">Uploading...</div> : (
-          <><div className="text-2xl mb-2">☁️</div>
-            <div className="text-xs font-medium text-gray-600">Drop files here or click to upload</div>
-            <div className="text-xs text-gray-400 mt-1">PDF, Word, Excel, images — any file type</div></>
+      {showPicker && (
+        <OneDriveFolderPicker
+          currentUser={currentUser}
+          jobLabel={job.code}
+          onPick={handlePickFolder}
+          onClose={() => setShowPicker(false)}
+        />
+      )}
+
+      {/* OneDrive / SharePoint: the job's live folder */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+          <div className="min-w-0">
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Job folder · Microsoft 365</div>
+            {linked ? (
+              <div className="text-xs text-gray-500 mt-0.5 truncate" title={job.onedrive_folder_path || ''}>
+                {job.onedrive_folder_path || job.onedrive_folder_name}
+                {job.onedrive_linked_by ? <span className="text-gray-400"> · linked by {job.onedrive_linked_by}</span> : null}
+              </div>
+            ) : (
+              <div className="text-xs text-gray-400 mt-0.5">No OneDrive folder linked to this job yet.</div>
+            )}
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {linked && job.onedrive_folder_url && (
+              <a href={job.onedrive_folder_url} target="_blank" rel="noopener noreferrer"
+                className="px-3 py-1.5 text-xs bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium">Open in OneDrive</a>
+            )}
+            <button onClick={() => setShowPicker(true)} disabled={linking}
+              className={`px-3 py-1.5 text-xs rounded-lg font-medium disabled:opacity-50 ${linked ? 'border border-gray-200 hover:bg-gray-50' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}>
+              {linking ? 'Linking...' : linked ? 'Change folder' : '+ Link OneDrive folder'}
+            </button>
+            {linked && (
+              <button onClick={handleUnlink} className="px-3 py-1.5 text-xs text-red-400 border border-red-100 rounded-lg hover:bg-red-50">Unlink</button>
+            )}
+          </div>
+        </div>
+
+        {linked ? (
+          <OneDriveBrowser
+            key={`${job.onedrive_drive_id || 'me'}-${job.onedrive_folder_id || 'root'}`}
+            currentUser={currentUser}
+            root={linkedRoot}
+            compact
+            title={job.onedrive_folder_name || 'Job folder'}
+          />
+        ) : (
+          <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center">
+            <div className="text-2xl mb-2">📁</div>
+            <div className="text-xs font-medium text-gray-600">Point this job at its folder in OneDrive or SharePoint</div>
+            <div className="text-xs text-gray-400 mt-1 max-w-md mx-auto">
+              Everyone on the team then sees the job's live documents here, with preview and Edit in Word. Files stay in Microsoft 365.
+            </div>
+          </div>
         )}
       </div>
+
+      {/* QPlan storage: optional attachments not kept in OneDrive */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Documents</div>
-          <div className="text-xs text-gray-400">{docs.length} file{docs.length !== 1 ? 's' : ''}</div>
-        </div>
-        {loading ? <div className="px-4 py-6 text-xs text-gray-400 text-center">Loading...</div>
-          : docs.length === 0 ? <div className="px-4 py-8 text-xs text-gray-400 text-center">No documents yet — drag and drop files above.</div>
-          : docs.map(doc => {
-            const icon = getFileIcon(doc.file_type)
-            return (
-              <div key={doc.id} className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 last:border-0 hover:bg-gray-50">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-semibold flex-shrink-0 ${icon.color}`}>{icon.label}</div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-medium truncate">{doc.name}</div>
-                  <div className="text-xs text-gray-400">{formatSize(doc.file_size)} · {doc.uploaded_by} · {new Date(doc.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
-                </div>
-                <div className="flex gap-2 flex-shrink-0">
-                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="px-2 py-1 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Open</a>
-                  <a href={doc.file_url} download={doc.name} className="px-2 py-1 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">↓</a>
-                  <button onClick={() => handleDelete(doc)} className="px-2 py-1 text-xs text-red-400 border border-red-100 rounded-lg hover:bg-red-50">✕</button>
-                </div>
-              </div>
-            )
-          })}
+        <button onClick={() => setShowAttachments(v => !v)} className="w-full flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50 text-left">
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">QPlan attachments</div>
+          <div className="text-xs text-gray-400">{docs.length} file{docs.length !== 1 ? 's' : ''} {linked ? (attachmentsOpen ? '▾' : '▸') : ''}</div>
+        </button>
+        {attachmentsOpen && (
+          <div className="p-4 space-y-3">
+            <div onDragOver={e => { e.preventDefault(); setDragOver(true) }} onDragLeave={() => setDragOver(false)}
+              onDrop={e => { e.preventDefault(); setDragOver(false); handleUpload(e.dataTransfer.files) }}
+              onClick={() => fileRef.current?.click()}
+              className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors ${dragOver ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200 hover:border-emerald-300 hover:bg-gray-50'}`}>
+              <input ref={fileRef} type="file" multiple className="hidden" onChange={e => handleUpload(e.target.files)} />
+              {uploading ? <div className="text-xs text-emerald-600 font-medium">Uploading...</div> : (
+                <div className="text-xs text-gray-500">Drop files here or click to upload an attachment stored in QPlan (not OneDrive)</div>
+              )}
+            </div>
+            {loading ? <div className="py-4 text-xs text-gray-400 text-center">Loading...</div>
+              : docs.length === 0 ? <div className="py-4 text-xs text-gray-400 text-center">No QPlan attachments on this job.</div>
+              : docs.map(doc => {
+                const icon = getFileIcon(doc.file_type)
+                return (
+                  <div key={doc.id} className="flex items-center gap-3 px-1 py-2 border-b border-gray-100 last:border-0">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-semibold flex-shrink-0 ${icon.color}`}>{icon.label}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-medium truncate">{doc.name}</div>
+                      <div className="text-xs text-gray-400">{formatSize(doc.file_size)} · {doc.uploaded_by} · {new Date(doc.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+                    </div>
+                    <div className="flex gap-2 flex-shrink-0">
+                      <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="px-2 py-1 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Open</a>
+                      <a href={doc.file_url} download={doc.name} className="px-2 py-1 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">↓</a>
+                      <button onClick={() => handleDelete(doc)} className="px-2 py-1 text-xs text-red-400 border border-red-100 rounded-lg hover:bg-red-50" title="Delete">✕</button>
+                    </div>
+                  </div>
+                )
+              })}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -1578,7 +1686,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
 
       {activeTab === 'hpc stages' && <HPCStagesTab job={jobData} onHistoryAdd={addHistory} />}
       {activeTab === 'da stages' && <DAStageTracker job={jobData} currentUser={currentUser} onHistoryAdd={addHistory} />}
-      {activeTab === 'documents' && <DocumentsTab job={jobData} currentUser={currentUser} onHistoryAdd={addHistory} />}
+      {activeTab === 'documents' && <DocumentsTab job={jobData} currentUser={currentUser} onHistoryAdd={addHistory} onJobUpdated={patch => setJobData(prev => ({ ...prev, ...patch }))} />}
       {activeTab === 'time & budget' && <TimeBudgetTab job={jobData} currentUser={currentUser} onHistoryAdd={addHistory} />}
 
       {activeTab === 'ir & notes' && (

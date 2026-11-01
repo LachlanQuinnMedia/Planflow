@@ -3,13 +3,29 @@ import { useState, useEffect } from 'react'
 const SUPABASE_URL = 'https://sltaaiumviyzgdsdkkbe.supabase.co'
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdGFhaXVtdml5emdkc2Rra2JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MTYyNTMsImV4cCI6MjA5MDQ5MjI1M30.xqWqvx8vdofj119nXDpasQ8xVD67YJU0RrjTrxycTGo'
 
-async function callGraph(action, payload) {
+// Microsoft scopes requested at connect time. Sites.Read.All lets QPlan list SharePoint
+// document libraries as well as OneDrive. Must match SCOPES in supabase/functions/ms-graph.
+const MS_SCOPES = 'Files.ReadWrite.All Sites.Read.All offline_access User.Read'
+
+export async function callGraph(action, payload) {
   const res = await fetch(`${SUPABASE_URL}/functions/v1/ms-graph?action=${action}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ANON_KEY}` },
     body: JSON.stringify(payload),
   })
   return res.json()
+}
+
+// Drive list is the same for everyone in the company, so fetch it once per page load
+let drivesCache = { companyId: null, drives: null, sharepointError: null }
+
+async function loadDrives(companyId) {
+  if (drivesCache.companyId === companyId && drivesCache.drives) return drivesCache
+  const data = await callGraph('drives', { company_id: companyId })
+  if (data.success) {
+    drivesCache = { companyId, drives: data.drives || [], sharepointError: data.sharepointError || null }
+  }
+  return drivesCache.companyId === companyId ? drivesCache : { companyId, drives: [], sharepointError: data.error || null }
 }
 
 function formatSize(bytes) {
@@ -51,7 +67,7 @@ function DocumentModal({ file, companyId, onClose }) {
   useEffect(() => {
     let cancelled = false
     const load = async () => {
-      const data = await callGraph('preview', { company_id: companyId, item_id: file.id })
+      const data = await callGraph('preview', { company_id: companyId, item_id: file.id, drive_id: file.driveId || null })
       if (cancelled) return
       if (data.success && data.url) { setPreviewUrl(data.url); setState('ready') }
       else setState('failed')
@@ -94,7 +110,7 @@ function DocumentModal({ file, companyId, onClose }) {
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6">
               <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-semibold mb-3 ${icon.color}`}>{icon.label}</div>
               <div className="text-sm font-semibold mb-1">Preview not available for this file</div>
-              <div className="text-xs text-gray-400 max-w-sm mb-4">You can still open it in {app} Online — editing and co-authoring work as normal.</div>
+              <div className="text-xs text-gray-400 max-w-sm mb-4">You can still open it in {app} Online. Editing and co-authoring work as normal.</div>
               <button onClick={openEditor} className="px-4 py-2 text-xs bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium">
                 Open in {app}
               </button>
@@ -103,35 +119,15 @@ function DocumentModal({ file, companyId, onClose }) {
         </div>
 
         <div className="px-4 py-2 border-t border-gray-100 text-xs text-gray-400 flex-shrink-0">
-          This is a read-only preview. Click <span className="font-medium">Edit in {app}</span> to open the live document — multiple planners can edit it at the same time, and changes save straight back to OneDrive.
+          This is a read-only preview. Click <span className="font-medium">Edit in {app}</span> to open the live document. Multiple planners can edit it at the same time, and changes save straight back to Microsoft 365.
         </div>
       </div>
     </div>
   )
 }
 
-export default function OneDriveBrowser({ currentUser }) {
-  const [connected, setConnected] = useState(null)
-  const [connectedEmail, setConnectedEmail] = useState('')
-  const [items, setItems] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [breadcrumb, setBreadcrumb] = useState([{ id: null, name: 'OneDrive' }])
-  const [search, setSearch] = useState('')
-  const [searching, setSearching] = useState(false)
-  const [openFile, setOpenFile] = useState(null)
+function ConnectPrompt({ currentUser, compact }) {
   const isDirector = currentUser?.role === 'director'
-
-  useEffect(() => { checkStatus() }, [currentUser])
-
-  const checkStatus = async () => {
-    if (!currentUser?.company_id) return
-    const data = await callGraph('status', { company_id: currentUser.company_id })
-    setConnected(!!data.connected)
-    setConnectedEmail(data.email || '')
-    if (data.connected) loadFolder(null, [{ id: null, name: 'OneDrive' }])
-  }
-
   const handleConnect = () => {
     const clientId = import.meta.env.VITE_OUTLOOK_CLIENT_ID
     if (!clientId) { alert('Microsoft 365 not configured yet.'); return }
@@ -139,26 +135,101 @@ export default function OneDriveBrowser({ currentUser }) {
       client_id: clientId,
       redirect_uri: 'https://planflow-beige.vercel.app',
       response_type: 'code',
-      scope: 'Files.ReadWrite.All offline_access User.Read',
+      scope: MS_SCOPES,
       prompt: 'select_account',
       state: btoa(JSON.stringify({ provider: 'msgraph', company_id: currentUser.company_id, username: currentUser.username })),
     })
     window.location.href = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params}`
   }
+  return (
+    <div className={`bg-white rounded-xl border border-gray-200 text-center ${compact ? 'p-4' : 'p-6'}`}>
+      <div className="w-12 h-12 bg-blue-700 rounded-xl flex items-center justify-center text-white text-lg font-bold mx-auto mb-3">M</div>
+      <div className="text-sm font-semibold mb-1">Connect Microsoft 365</div>
+      <div className="text-xs text-gray-400 max-w-sm mx-auto mb-4">
+        Link your firm's OneDrive or SharePoint so planners can browse, search and co-edit existing documents directly from QPlan. Files stay where they are. Nothing is moved or copied.
+      </div>
+      {isDirector ? (
+        <button onClick={handleConnect} className="px-4 py-2 text-xs bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium">
+          Connect Microsoft 365
+        </button>
+      ) : (
+        <div className="text-xs text-gray-400">Ask a director to connect Microsoft 365 from the Documents page.</div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * OneDriveBrowser
+ *
+ * Props:
+ *  currentUser   required
+ *  mode          'browse' (default) or 'pick' (choose a folder, files greyed out)
+ *  onPick        pick mode: called with { driveId, driveName, folderId, name, path, webUrl }
+ *  root          optional starting folder { driveId, folderId, name, path, webUrl }.
+ *                The browser starts inside it and the breadcrumb stops there (used on a job).
+ *  compact       smaller chrome for embedding in a tab
+ *  title         header label (default "OneDrive")
+ */
+export default function OneDriveBrowser({ currentUser, mode = 'browse', onPick, root = null, compact = false, title }) {
+  const [connected, setConnected] = useState(null)
+  const [connectedEmail, setConnectedEmail] = useState('')
+  const [drives, setDrives] = useState([])
+  const [sharepointError, setSharepointError] = useState(null)
+  const [driveId, setDriveId] = useState(root?.driveId || null)
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [breadcrumb, setBreadcrumb] = useState([])
+  const [search, setSearch] = useState('')
+  const [searching, setSearching] = useState(false)
+  const [openFile, setOpenFile] = useState(null)
+  const isDirector = currentUser?.role === 'director'
+  const pickMode = mode === 'pick'
+  const companyId = currentUser?.company_id
+
+  useEffect(() => { checkStatus() }, [currentUser, root?.folderId, root?.driveId])
+
+  const rootCrumb = () => {
+    if (root) return { id: root.folderId || null, name: root.name || 'Job folder', path: root.path || '', webUrl: root.webUrl || null }
+    const d = drives.find(x => x.id === driveId)
+    return { id: null, name: d?.name || 'OneDrive', path: '', webUrl: d?.webUrl || null }
+  }
+
+  const checkStatus = async () => {
+    if (!companyId) return
+    const data = await callGraph('status', { company_id: companyId })
+    setConnected(!!data.connected)
+    setConnectedEmail(data.email || '')
+    if (!data.connected) return
+    if (!root) {
+      const cache = await loadDrives(companyId)
+      setDrives(cache.drives || [])
+      setSharepointError(cache.sharepointError || null)
+    }
+    const startDrive = root?.driveId || null
+    const startFolder = root?.folderId || null
+    setDriveId(startDrive)
+    loadFolder(startFolder, [root
+      ? { id: startFolder, name: root.name || 'Job folder', path: root.path || '', webUrl: root.webUrl || null }
+      : { id: null, name: 'OneDrive', path: '', webUrl: null }], startDrive)
+  }
 
   const handleDisconnect = async () => {
-    if (!window.confirm('Disconnect Microsoft 365? Planners will lose access to OneDrive files in QPlan.')) return
-    await callGraph('disconnect', { company_id: currentUser.company_id })
+    if (!window.confirm('Disconnect Microsoft 365? Planners will lose access to OneDrive and SharePoint files in QPlan.')) return
+    await callGraph('disconnect', { company_id: companyId })
+    drivesCache = { companyId: null, drives: null, sharepointError: null }
     setConnected(false)
     setItems([])
   }
 
-  const loadFolder = async (folderId, newBreadcrumb) => {
+  const loadFolder = async (folderId, newBreadcrumb, overrideDriveId) => {
     setLoading(true)
     setError('')
     setSearching(false)
     setSearch('')
-    const data = await callGraph('list', { company_id: currentUser.company_id, folder_id: folderId })
+    const useDrive = overrideDriveId !== undefined ? overrideDriveId : driveId
+    const data = await callGraph('list', { company_id: companyId, folder_id: folderId, drive_id: useDrive })
     if (data.success) {
       setItems(data.items)
       if (newBreadcrumb) setBreadcrumb(newBreadcrumb)
@@ -168,7 +239,13 @@ export default function OneDriveBrowser({ currentUser }) {
     setLoading(false)
   }
 
-  const enterFolder = (item) => loadFolder(item.id, [...breadcrumb, { id: item.id, name: item.name }])
+  const switchDrive = (id) => {
+    const d = drives.find(x => x.id === id)
+    setDriveId(id)
+    loadFolder(null, [{ id: null, name: d?.name || 'OneDrive', path: '', webUrl: d?.webUrl || null }], id)
+  }
+
+  const enterFolder = (item) => loadFolder(item.id, [...breadcrumb, { id: item.id, name: item.name, path: item.path, webUrl: item.webUrl }])
   const jumpToCrumb = (index) => loadFolder(breadcrumb[index].id, breadcrumb.slice(0, index + 1))
 
   const handleSearch = async (e) => {
@@ -176,7 +253,8 @@ export default function OneDriveBrowser({ currentUser }) {
     setLoading(true)
     setError('')
     setSearching(true)
-    const data = await callGraph('search', { company_id: currentUser.company_id, query: search.trim() })
+    // On a job, search only inside the linked folder
+    const data = await callGraph('search', { company_id: companyId, query: search.trim(), drive_id: driveId, folder_id: root?.folderId || null })
     if (data.success) setItems(data.items)
     else setError(data.error || 'Search failed.')
     setLoading(false)
@@ -185,56 +263,67 @@ export default function OneDriveBrowser({ currentUser }) {
   const clearSearch = () => {
     setSearching(false)
     setSearch('')
-    loadFolder(breadcrumb[breadcrumb.length - 1].id)
+    loadFolder(breadcrumb[breadcrumb.length - 1]?.id ?? null)
   }
 
   const handleOpen = (item) => {
     if (item.isFolder) { enterFolder(item); return }
+    if (pickMode) return
     if (!item.webUrl) return
     if (isOfficeFile(item.name) || item.name.toLowerCase().endsWith('.pdf')) setOpenFile(item)
     else window.open(item.webUrl, '_blank', 'noopener')
+  }
+
+  const current = breadcrumb[breadcrumb.length - 1] || rootCrumb()
+  const currentDrive = drives.find(x => x.id === driveId)
+
+  const pickCurrent = () => {
+    if (!onPick) return
+    onPick({
+      driveId: driveId || currentDrive?.id || null,
+      driveName: currentDrive?.name || 'OneDrive',
+      folderId: current.id || null,
+      name: current.name,
+      path: current.path || breadcrumb.slice(1).map(c => c.name).join('/'),
+      webUrl: current.webUrl || currentDrive?.webUrl || null,
+    })
   }
 
   if (connected === null) {
     return <div className="bg-white rounded-xl border border-gray-200 px-4 py-8 text-center text-xs text-gray-400">Checking Microsoft 365 connection...</div>
   }
 
-  if (!connected) {
-    return (
-      <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
-        <div className="w-12 h-12 bg-blue-700 rounded-xl flex items-center justify-center text-white text-lg font-bold mx-auto mb-3">M</div>
-        <div className="text-sm font-semibold mb-1">Connect Microsoft 365</div>
-        <div className="text-xs text-gray-400 max-w-sm mx-auto mb-4">
-          Link your firm's OneDrive so planners can browse, search and co-edit your existing documents directly from QPlan. Files stay in OneDrive — nothing is moved or copied.
-        </div>
-        {isDirector ? (
-          <button onClick={handleConnect} className="px-4 py-2 text-xs bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium">
-            Connect Microsoft 365
-          </button>
-        ) : (
-          <div className="text-xs text-gray-400">Ask a director to connect Microsoft 365 from this page.</div>
-        )}
-      </div>
-    )
-  }
+  if (!connected) return <ConnectPrompt currentUser={currentUser} compact={compact} />
 
   return (
     <div>
-      {openFile && <DocumentModal file={openFile} companyId={currentUser.company_id} onClose={() => setOpenFile(null)} />}
+      {openFile && <DocumentModal file={openFile} companyId={companyId} onClose={() => setOpenFile(null)} />}
 
       <div className="flex items-center gap-2 mb-3 flex-wrap">
+        {!root && drives.length > 1 && (
+          <select value={driveId || drives[0]?.id || ''} onChange={e => switchDrive(e.target.value)}
+            className="px-3 py-2 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-emerald-400 max-w-[260px]"
+            title="Choose where to look: your OneDrive or a SharePoint document library">
+            {drives.map(d => <option key={d.id} value={d.id}>{d.kind === 'sharepoint' ? '🏢 ' : '☁️ '}{d.name}</option>)}
+          </select>
+        )}
         <input
           type="text"
-          placeholder="Search OneDrive... (press Enter)"
+          placeholder={root ? 'Search this job folder... (press Enter)' : 'Search files... (press Enter)'}
           value={search}
           onChange={e => setSearch(e.target.value)}
           onKeyDown={handleSearch}
-          className="flex-1 min-w-[200px] px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-emerald-400"
+          className="flex-1 min-w-[180px] px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-emerald-400"
         />
         {searching && (
           <button onClick={clearSearch} className="px-3 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">✕ Clear search</button>
         )}
-        {isDirector && (
+        {pickMode && !searching && (
+          <button onClick={pickCurrent} className="px-3 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium">
+            ✓ Use this folder
+          </button>
+        )}
+        {isDirector && !compact && !pickMode && (
           <button onClick={handleDisconnect} className="px-3 py-2 text-xs text-red-400 border border-red-100 rounded-lg hover:bg-red-50" title={`Connected as ${connectedEmail}`}>
             Disconnect
           </button>
@@ -256,12 +345,19 @@ export default function OneDriveBrowser({ currentUser }) {
       )}
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{searching ? 'Search results' : 'OneDrive'}</div>
-          <div className="text-xs text-gray-400">{connectedEmail && `Connected — ${connectedEmail}`}</div>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50 gap-3">
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider truncate">
+            {searching ? 'Search results' : (title || currentDrive?.name || 'OneDrive')}
+          </div>
+          <div className="text-xs text-gray-400 truncate">{connectedEmail && `Connected: ${connectedEmail}`}</div>
         </div>
 
         {error && <div className="px-4 py-3 text-xs text-red-600 bg-red-50 border-b border-red-100">{error}</div>}
+        {!root && sharepointError && !compact && (
+          <div className="px-4 py-2 text-xs text-amber-700 bg-amber-50 border-b border-amber-100">
+            SharePoint libraries are not available for this Microsoft account ({sharepointError}). OneDrive still works.
+          </div>
+        )}
 
         {loading ? (
           <div className="px-4 py-8 text-center text-xs text-gray-400">Loading...</div>
@@ -270,19 +366,20 @@ export default function OneDriveBrowser({ currentUser }) {
         ) : (
           items.map(item => {
             const icon = fileIcon(item.name, item.isFolder)
+            const disabled = pickMode && !item.isFolder
             return (
               <div key={item.id} onClick={() => handleOpen(item)}
-                className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 last:border-0 cursor-pointer hover:bg-gray-50 transition-colors">
+                className={`flex items-center gap-3 px-4 py-3 border-b border-gray-100 last:border-0 transition-colors ${disabled ? 'opacity-40 cursor-default' : 'cursor-pointer hover:bg-gray-50'}`}>
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-semibold flex-shrink-0 ${icon.color}`}>{icon.label}</div>
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-medium truncate">{item.name}</div>
-                  <div className="text-xs text-gray-400">
-                    {item.isFolder
+                  <div className="text-xs text-gray-400 truncate">
+                    {searching && item.path ? item.path : item.isFolder
                       ? `${item.childCount ?? 0} item${item.childCount === 1 ? '' : 's'}`
                       : `${item.lastModifiedBy || 'Unknown'}${item.lastModified ? ` · ${new Date(item.lastModified).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}`}
                   </div>
                 </div>
-                {!item.isFolder && isOfficeFile(item.name) && (
+                {!item.isFolder && !pickMode && isOfficeFile(item.name) && (
                   <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex-shrink-0">Co-edit</span>
                 )}
                 <span className="text-xs text-gray-400 flex-shrink-0">{item.isFolder ? '' : formatSize(item.size)}</span>
@@ -290,6 +387,28 @@ export default function OneDriveBrowser({ currentUser }) {
             )
           })
         )}
+      </div>
+    </div>
+  )
+}
+
+// Modal wrapper: pick a OneDrive / SharePoint folder. onPick receives the folder, onClose dismisses.
+export function OneDriveFolderPicker({ currentUser, onPick, onClose, jobLabel }) {
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center pt-8 px-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl border border-gray-200 w-full max-w-3xl mb-8">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div>
+            <div className="text-sm font-semibold">Link a OneDrive or SharePoint folder</div>
+            <div className="text-xs text-gray-400 mt-0.5">
+              {jobLabel ? `${jobLabel}: ` : ''}browse to the job's folder, then click "Use this folder".
+            </div>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 px-2">✕</button>
+        </div>
+        <div className="p-5">
+          <OneDriveBrowser currentUser={currentUser} mode="pick" onPick={onPick} compact />
+        </div>
       </div>
     </div>
   )
