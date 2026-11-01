@@ -19,26 +19,31 @@ const statusBadge = {
   Complete: 'bg-green-100 text-green-700',
   'On Hold': 'bg-red-100 text-red-700',
 }
+// Today's date as YYYY-MM-DD in Brisbane time (not UTC)
+function todayLocal() {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Brisbane', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
+}
+// Whole days between today (Brisbane) and a YYYY-MM-DD date. Negative = in the past.
+function daysUntil(dateStr) {
+  if (!dateStr) return null
+  const target = new Date(String(dateStr).split('T')[0] + 'T00:00:00Z')
+  const today = new Date(todayLocal() + 'T00:00:00Z')
+  return Math.round((target - today) / (1000 * 60 * 60 * 24))
+}
 function isOverdue(job) {
   if (!job.decision_due_date) return false
   if (job.status === 'Complete') return false
-  return new Date(job.decision_due_date) < new Date()
+  return daysUntil(job.decision_due_date) < 0
 }
 function isDueSoon(job) {
   if (!job.decision_due_date) return false
   if (job.status === 'Complete') return false
-  const diff = new Date(job.decision_due_date) - new Date()
-  const days = Math.ceil(diff / (1000 * 60 * 60 * 24))
+  const days = daysUntil(job.decision_due_date)
   return days >= 0 && days <= 7
-}
-function daysUntil(dateStr) {
-  if (!dateStr) return null
-  const diff = new Date(dateStr) - new Date()
-  return Math.ceil(diff / (1000 * 60 * 60 * 24))
 }
 function formatDateShort(dateStr) {
   if (!dateStr) return null
-  return new Date(dateStr).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })
+  return new Date(String(dateStr).split('T')[0] + 'T00:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })
 }
 
 function DeleteConfirmModal({ job, onConfirm, onCancel }) {
@@ -49,7 +54,7 @@ function DeleteConfirmModal({ job, onConfirm, onCancel }) {
         <div className="text-xs text-gray-500 mb-1">Are you sure you want to delete this job?</div>
         <div className="text-xs font-medium text-gray-800 mb-4">{job.code} — {job.name}</div>
         <div className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2 mb-4">
-          This will permanently delete the job and all associated time logs. This cannot be undone.
+          This will permanently delete the job, its time logs and its uploaded documents. This cannot be undone.
         </div>
         <div className="flex gap-2">
           <button onClick={onCancel} className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium">No, keep it</button>
@@ -61,7 +66,7 @@ function DeleteConfirmModal({ job, onConfirm, onCancel }) {
 }
 
 // Push-to-Xero modal: handles not-connected, confirm, pushing, success, error
-function XeroPushModal({ job, companyId, onClose, onGoToXero }) {
+function XeroPushModal({ job, companyId, onClose, onGoToXero, onPushed }) {
   const [stage, setStage] = useState('checking') // checking | notconnected | confirm | pushing | done | error
   const [tenantName, setTenantName] = useState('')
   const [logs, setLogs] = useState([])
@@ -79,6 +84,8 @@ function XeroPushModal({ job, companyId, onClose, onGoToXero }) {
         .eq('job_id', job.id)
         .order('log_date', { ascending: true })
       setLogs(data || [])
+      // Guard against creating a second invoice for the same job
+      if (job.xero_invoice_id) { setStage('alreadypushed'); return }
       setStage('confirm')
     }
     init()
@@ -92,6 +99,13 @@ function XeroPushModal({ job, companyId, onClose, onGoToXero }) {
     try {
       const invoice = await pushInvoiceToXero(companyId, job, logs)
       if (!invoice) throw new Error('Xero did not return an invoice. Check the connection and try again.')
+      // Remember the invoice on the job so it cannot be pushed twice
+      await supabase.from('jobs').update({
+        xero_invoice_id: invoice.InvoiceID || null,
+        xero_invoice_number: invoice.InvoiceNumber || null,
+        xero_pushed_at: new Date().toISOString(),
+      }).eq('id', job.id)
+      onPushed?.(job.id, invoice)
       setResult(invoice)
       setStage('done')
     } catch (e) {
@@ -154,6 +168,20 @@ function XeroPushModal({ job, companyId, onClose, onGoToXero }) {
             </div>
           )}
 
+          {stage === 'alreadypushed' && (
+            <div className="text-center py-2">
+              <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center mx-auto mb-3 text-sm font-bold">X</div>
+              <div className="text-sm font-semibold mb-1">Already invoiced</div>
+              <div className="text-xs text-gray-400 max-w-xs mx-auto">
+                {job.xero_invoice_number ? `Invoice ${job.xero_invoice_number}` : 'A draft invoice'} was already created in Xero for this job
+                {job.xero_pushed_at ? ` on ${new Date(job.xero_pushed_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}.
+                Open it in Xero to edit it rather than creating a duplicate.
+              </div>
+              <a href={`https://go.xero.com/AccountsReceivable/View.aspx?InvoiceID=${job.xero_invoice_id}`} target="_blank" rel="noreferrer"
+                className="inline-block mt-3 px-3 py-1.5 text-xs bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium">Open in Xero</a>
+            </div>
+          )}
+
           {stage === 'pushing' && (
             <div className="text-xs text-gray-400 text-center py-4">Creating draft invoice in Xero...</div>
           )}
@@ -189,7 +217,7 @@ function XeroPushModal({ job, companyId, onClose, onGoToXero }) {
               </button>
             </>
           )}
-          {(stage === 'done' || stage === 'error' || stage === 'checking' || stage === 'pushing') && (
+          {(stage === 'done' || stage === 'error' || stage === 'checking' || stage === 'pushing' || stage === 'alreadypushed') && (
             <button onClick={onClose} disabled={stage === 'pushing'}
               className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium disabled:opacity-50">
               {stage === 'done' ? 'Done' : 'Close'}
@@ -231,8 +259,17 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
   const handleDelete = async () => {
     if (!jobToDelete) return
     setDeleting(true)
+    // Remove the job's uploaded files and document records first (no DB cascade for documents)
+    const { data: docs } = await supabase.from('documents').select('id, file_path').eq('job_id', jobToDelete.id)
+    if (docs && docs.length > 0) {
+      const paths = docs.map(d => d.file_path).filter(Boolean)
+      if (paths.length) await supabase.storage.from('documents').remove(paths)
+      await supabase.from('documents').delete().eq('job_id', jobToDelete.id)
+    }
+    await supabase.from('active_timers').delete().eq('job_id', jobToDelete.id)
     await supabase.from('time_logs').delete().eq('job_id', jobToDelete.id)
-    await supabase.from('jobs').delete().eq('id', jobToDelete.id)
+    const { error } = await supabase.from('jobs').delete().eq('id', jobToDelete.id)
+    if (error) alert('Could not delete job: ' + error.message)
     setJobToDelete(null)
     setDeleting(false)
     fetchJobs()
@@ -263,7 +300,7 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
       className={`flex items-center justify-center gap-1 rounded-lg font-medium transition-colors bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-100 ${compact ? 'px-2 py-1 text-xs' : 'px-2 py-1 text-xs w-full'}`}
       title="Create a draft invoice in Xero from this job's logged time"
     >
-      <span className="font-bold">X</span> Push to Xero
+      <span className="font-bold">X</span> {job.xero_invoice_id ? 'Invoiced' : 'Push to Xero'}
     </button>
   )
 
@@ -282,6 +319,9 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
           companyId={companyId}
           onClose={() => setXeroJob(null)}
           onGoToXero={() => { setXeroJob(null); onNavigate('xero') }}
+          onPushed={(jobId, invoice) => setJobs(prev => prev.map(j => j.id === jobId
+            ? { ...j, xero_invoice_id: invoice.InvoiceID || null, xero_invoice_number: invoice.InvoiceNumber || null, xero_pushed_at: new Date().toISOString() }
+            : j))}
         />
       )}
 
@@ -379,7 +419,7 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
                       {overdue ? `${Math.abs(days)}d overdue` : `Due ${formatDateShort(job.decision_due_date)}`}
                     </span>
                   )}
-                  <span className="text-xs text-gray-400">{job.planner?.split(' ')[0]} {job.planner?.split(' ')[1]?.[0]}.</span>
+                  <span className="text-xs text-gray-400">{job.planner || '—'}</span>
                 </div>
               </div>
               <XeroButton job={job} />
@@ -440,7 +480,7 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${typeBadge[job.app_type] || 'bg-gray-100 text-gray-500'}`}>{job.app_type}</span>
                 </div>
                 <div className="text-xs text-gray-500 cursor-pointer truncate" onClick={() => onNavigate('jobdetail', job)}>
-                  {job.planner?.split(' ')[0]} {job.planner?.split(' ')[1]?.[0]}.
+                  {job.planner || '—'}
                 </div>
                 <div className="cursor-pointer" onClick={() => onNavigate('jobdetail', job)}>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge[job.status] || 'bg-gray-100 text-gray-500'}`}>{job.status}</span>

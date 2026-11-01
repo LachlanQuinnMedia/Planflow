@@ -2,6 +2,16 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabase'
 import { generateFromTemplate } from './templateFiller'
 
+// Today's date as YYYY-MM-DD in Brisbane time (not UTC)
+function todayLocal() {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Brisbane', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
+}
+
+// Storage keys cannot contain # ? % or similar. Keep letters, numbers, dots, dashes and underscores.
+function safeFileName(name) {
+  return String(name).replace(/[^\w.\-() ]+/g, '_').replace(/\s+/g, ' ').trim()
+}
+
 const COUNCILS = [
   'Balina Shire Council', 'Banana Shire Council', 'Brisbane City Council',
   'Bundaberg Regional Council', 'Cairns Regional Council', 'Cassowary Coast Regional Council',
@@ -472,7 +482,7 @@ function HPCStagesTab({ job, onHistoryAdd }) {
                     <div>
                       <label className="block text-xs text-gray-500 mb-1">Status</label>
                       <select value={data.status}
-                        onChange={e => updateStage(stage.id, { status: e.target.value, completedDate: e.target.value === 'complete' ? new Date().toISOString().split('T')[0] : data.completedDate })}
+                        onChange={e => updateStage(stage.id, { status: e.target.value, completedDate: e.target.value === 'complete' ? todayLocal() : data.completedDate })}
                         className="w-full px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
                         <option value="pending">Not started</option>
                         <option value="active">In progress</option>
@@ -492,7 +502,7 @@ function HPCStagesTab({ job, onHistoryAdd }) {
                           className="flex-1 py-1.5 text-xs bg-amber-500 text-white rounded-lg hover:bg-amber-600">Start stage</button>
                       )}
                       {data.status === 'active' && (
-                        <button onClick={() => updateStage(stage.id, { status: 'complete', completedDate: new Date().toISOString().split('T')[0] })}
+                        <button onClick={() => updateStage(stage.id, { status: 'complete', completedDate: todayLocal() })}
                           className="flex-1 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">Mark complete</button>
                       )}
                     </div>
@@ -564,6 +574,7 @@ function EditJobModal({ job, currentUser, onClose, onSaved }) {
   const [selectedPlanners, setSelectedPlanners] = useState(job.planners || (job.planner ? [job.planner] : []))
   const [staffList, setStaffList] = useState([])
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
   const togglePlanner = (name) => setSelectedPlanners(prev => prev.includes(name) ? prev.filter(p => p !== name) : [...prev, name])
@@ -571,26 +582,26 @@ function EditJobModal({ job, currentUser, onClose, onSaved }) {
   useEffect(() => {
     const fetchStaff = async () => {
       if (!currentUser?.company_id) return
-      const { data: profiles } = await supabase.from('planner_profiles').select('full_name, user_id').eq('company_id', currentUser.company_id)
       const { data: users } = await supabase.from('app_users').select('id, username, role').eq('company_id', currentUser.company_id).eq('is_approved', true).order('username', { ascending: true })
-      if (users) {
-        setStaffList(users.map(u => {
-          const profile = profiles?.find(p => p.user_id === u.id)
-          return { ...u, displayName: profile?.full_name || u.username }
-        }))
-      }
+      // Planners are always stored by username so Dashboard, Workload and time logs all match.
+      if (users) setStaffList(users.map(u => ({ ...u, displayName: u.username })))
     }
     fetchStaff()
   }, [currentUser])
 
   const handleSave = async () => {
-    if (selectedPlanners.length === 0) { alert('Please select at least one planner.'); return }
+    const firstName = (form.firstName || '').trim()
+    const lastName = (form.lastName || '').trim()
+    if (!firstName || !(form.address || '').trim()) { setSaveError('Please fill in client name and address.'); return }
+    if (selectedPlanners.length === 0) { setSaveError('Please select at least one planner.'); return }
+    setSaveError('')
     setSaving(true)
     const leadPlanner = selectedPlanners[0]
-    await supabase.from('jobs').update({
-      client_first_name: form.firstName, client_last_name: form.lastName,
-      client_email: form.email, client_phone: form.phone,
-      address: form.address, lot_reference: form.lot,
+    const clientName = [firstName, lastName].filter(Boolean).join(' ')
+    const { error } = await supabase.from('jobs').update({
+      client_first_name: firstName, client_last_name: lastName || null,
+      client_email: (form.email || '').trim() || null, client_phone: (form.phone || '').trim() || null,
+      address: form.address.trim(), lot_reference: form.lot,
       council: form.council, zone: form.zone,
       app_type: form.appType, assessment_level: form.assessment,
       proposed_use: form.proposedUse, referral_agencies: form.referrals,
@@ -599,9 +610,10 @@ function EditJobModal({ job, currentUser, onClose, onSaved }) {
       budget_hours: parseFloat(form.budget) || 0,
       lodgement_date: form.lodgement || null,
       decision_due_date: form.decisionDue || null,
-      name: `${form.firstName} ${form.lastName} — ${form.appType}`,
+      name: `${clientName} — ${form.appType}`,
     }).eq('id', job.id)
     setSaving(false)
+    if (error) { setSaveError('Could not save: ' + error.message); return }
     onSaved('Job details updated')
     onClose()
   }
@@ -686,7 +698,8 @@ function EditJobModal({ job, currentUser, onClose, onSaved }) {
             </div>
           </div>
         </div>
-        <div className="px-6 py-4 border-t border-gray-100 flex gap-2 justify-end">
+        <div className="px-6 py-4 border-t border-gray-100 flex gap-2 justify-end items-center">
+          {saveError && <div className="text-xs text-red-500 mr-auto">{saveError}</div>}
           <button onClick={onClose} className="px-4 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
           <button onClick={handleSave} disabled={saving} className="px-4 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 font-medium">
             {saving ? 'Saving...' : 'Save changes'}
@@ -749,7 +762,13 @@ function DAStageTracker({ job, currentUser, onHistoryAdd }) {
   useEffect(() => {
     const load = async () => {
       const { data } = await supabase.from('jobs').select('da_stages').eq('id', job.id).single()
-      if (data?.da_stages) { setStages(data.da_stages); checkDeadlines(data.da_stages) }
+      if (data?.da_stages && typeof data.da_stages === 'object') {
+        // Merge with defaults so a partially saved record never leaves a stage undefined
+        const merged = {}
+        for (const s of DA_STAGES) merged[s.id] = { ...initialStageData[s.id], ...(data.da_stages[s.id] || {}) }
+        setStages(merged)
+        checkDeadlines(merged)
+      }
     }
     load()
   }, [job.id])
@@ -769,7 +788,8 @@ function DAStageTracker({ job, currentUser, onHistoryAdd }) {
 
   const saveStages = async () => {
     setSaving(true)
-    await supabase.from('jobs').update({ da_stages: stages }).eq('id', job.id)
+    const { error } = await supabase.from('jobs').update({ da_stages: stages }).eq('id', job.id)
+    if (error) { setSaving(false); alert('Could not save stages: ' + error.message); return }
     await checkDeadlines(stages)
     setSaving(false); setSaved(true)
     onHistoryAdd('DA stages updated')
@@ -893,7 +913,7 @@ function DAStageTracker({ job, currentUser, onHistoryAdd }) {
                           <button onClick={() => resumeClock(stage.id)} className="flex-1 py-1.5 text-xs border border-emerald-300 text-emerald-600 rounded-lg hover:bg-emerald-50">▶ Resume clock</button>
                         )}
                         {data.status === 'active' && <button onClick={() => updateStage(stage.id, { status: 'complete' })} className="flex-1 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">Mark complete</button>}
-                        {data.status === 'pending' && <button onClick={() => updateStage(stage.id, { status: 'active', startDate: new Date().toISOString().split('T')[0] })} className="flex-1 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">Start stage</button>}
+                        {data.status === 'pending' && <button onClick={() => updateStage(stage.id, { status: 'active', startDate: todayLocal() })} className="flex-1 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">Start stage</button>}
                       </div>
                     </div>
                   </div>
@@ -933,14 +953,15 @@ function AddTimeLogModal({ job, currentUser, onClose, onSaved }) {
     const seconds = parseHHMMSS(duration)
     if (seconds <= 0) { setError('Please enter a valid duration.'); return }
     setSaving(true)
-    await supabase.from('time_logs').insert({
+    const { error: insertError } = await supabase.from('time_logs').insert({
       job_id: job.id, job_code: job.code,
       planner: currentUser?.username || 'Unknown',
       task, hours: parseFloat((seconds / 3600).toFixed(4)),
       duration_seconds: seconds, rate: parseFloat(rate) || 0,
-      log_date: new Date().toISOString().split('T')[0],
+      log_date: todayLocal(),
     })
     setSaving(false)
+    if (insertError) { setError('Could not save: ' + insertError.message); return }
     onSaved(`Time log added manually: ${task}`)
     onClose()
   }
@@ -1137,10 +1158,11 @@ function DocumentsTab({ job, currentUser, onHistoryAdd }) {
   const handleUpload = async (files) => {
     if (!files || files.length === 0) return
     setUploading(true)
+    const failed = []
     for (const file of Array.from(files)) {
-      const path = `${job.id}/${Date.now()}_${file.name}`
+      const path = `${job.id}/${Date.now()}_${safeFileName(file.name)}`
       const { error: uploadError } = await supabase.storage.from('documents').upload(path, file, { upsert: false })
-      if (uploadError) { console.error(uploadError); continue }
+      if (uploadError) { failed.push(`${file.name}: ${uploadError.message}`); continue }
       const { data: urlData } = supabase.storage.from('documents').getPublicUrl(path)
       await supabase.from('documents').insert({
         company_id: currentUser?.company_id, job_id: job.id, job_code: job.code,
@@ -1151,6 +1173,7 @@ function DocumentsTab({ job, currentUser, onHistoryAdd }) {
       await onHistoryAdd(`Document uploaded: ${file.name}`)
     }
     setUploading(false)
+    if (failed.length) alert('Some files could not be uploaded:\n\n' + failed.join('\n'))
     fetchDocs()
   }
 
@@ -1228,6 +1251,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
   const [jobStatus, setJobStatus] = useState(job?.status || 'Draft')
   const [statusSaving, setStatusSaving] = useState(false)
   const [editingDates, setEditingDates] = useState(false)
+  const [datesSaving, setDatesSaving] = useState(false)
   const [notes, setNotes] = useState(job?.notes || '')
   const [notesSaving, setNotesSaving] = useState(false)
   const [notesSaved, setNotesSaved] = useState(false)
@@ -1244,6 +1268,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
   })
 
   useEffect(() => {
+    if (!job?.id) return
     const loadHistory = async () => {
       const { data } = await supabase.from('jobs').select('job_history, hpc_stages').eq('id', job.id).single()
       if (data?.job_history && data.job_history.length > 0) setHistory(data.job_history)
@@ -1261,7 +1286,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
       }
     }
     loadHistory()
-  }, [job.id])
+  }, [job?.id])
 
   useEffect(() => {
     const loadPlanner = async () => {
@@ -1290,10 +1315,13 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
   }
 
   const handleStatusChange = async (newStatus) => {
+    const previous = jobStatus
     setJobStatus(newStatus)
     setStatusSaving(true)
-    await supabase.from('jobs').update({ status: newStatus }).eq('id', job.id)
+    const { error } = await supabase.from('jobs').update({ status: newStatus }).eq('id', job.id)
     setStatusSaving(false)
+    if (error) { setJobStatus(previous); alert('Could not change status: ' + error.message); return }
+    setJobData(prev => ({ ...prev, status: newStatus }))
     await addHistory(`Status changed to ${newStatus}`)
   }
 
@@ -1305,10 +1333,39 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
 
   const saveNotes = async () => {
     setNotesSaving(true)
-    await supabase.from('jobs').update({ notes }).eq('id', job.id)
-    setNotesSaving(false); setNotesSaved(true)
+    const { error } = await supabase.from('jobs').update({ notes }).eq('id', job.id)
+    setNotesSaving(false)
+    if (error) { alert('Could not save notes: ' + error.message); return }
+    setNotesSaved(true)
     await addHistory('Notes updated')
     setTimeout(() => setNotesSaved(false), 2000)
+  }
+
+  // Key dates: "Edit dates" toggles editing, "Done" writes the six dates to the job
+  const toggleEditDates = async () => {
+    if (!editingDates) { setEditingDates(true); return }
+    setDatesSaving(true)
+    const { error } = await supabase.from('jobs').update({
+      date_confirmation: dates.confirmation || null,
+      date_ir_response: dates.irResponse || null,
+      date_referral: dates.referral || null,
+      date_public_notice_start: dates.publicNoticeStart || null,
+      date_public_notice_end: dates.publicNoticeEnd || null,
+      date_decision: dates.decision || null,
+    }).eq('id', job.id)
+    setDatesSaving(false)
+    if (error) { alert('Could not save dates: ' + error.message); return }
+    setEditingDates(false)
+    setJobData(prev => ({
+      ...prev,
+      date_confirmation: dates.confirmation || null,
+      date_ir_response: dates.irResponse || null,
+      date_referral: dates.referral || null,
+      date_public_notice_start: dates.publicNoticeStart || null,
+      date_public_notice_end: dates.publicNoticeEnd || null,
+      date_decision: dates.decision || null,
+    }))
+    await addHistory('Key dates updated')
   }
 
   const budgetHrs = jobData.budget_hours || 0
@@ -1345,7 +1402,8 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
         failures.push(`${labelFor(sel)}: ${e.message}`)
       }
     }
-    for (const sel of selectedTemplates) await addHistory(`Document generated: ${labelFor(sel)}`)
+    const succeeded = selectedTemplates.filter(sel => !failures.some(f => f.startsWith(labelFor(sel) + ':')))
+    for (const sel of succeeded) await addHistory(`Document generated: ${labelFor(sel)}`)
     setSelectedTemplates([])
     setGenerating(false)
     if (failures.length) alert('Some documents could not be generated:\n\n' + failures.join('\n'))
@@ -1491,7 +1549,9 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
           <div className="bg-white rounded-xl border border-gray-200 p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Key dates</div>
-              <button onClick={() => setEditingDates(!editingDates)} className="text-xs text-emerald-600 hover:underline">{editingDates ? 'Done' : 'Edit dates'}</button>
+              <button onClick={toggleEditDates} disabled={datesSaving} className={`text-xs hover:underline disabled:opacity-50 ${editingDates ? 'px-2 py-0.5 bg-emerald-600 text-white rounded-lg hover:no-underline hover:bg-emerald-700' : 'text-emerald-600'}`}>
+                {datesSaving ? 'Saving...' : editingDates ? 'Save dates' : 'Edit dates'}
+              </button>
             </div>
             <div className="grid grid-cols-2 gap-x-6">
               {[

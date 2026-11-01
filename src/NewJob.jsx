@@ -242,12 +242,13 @@ export default function NewJob({ onNavigate, currentUser }) {
   useEffect(() => {
     const fetchStaff = async () => {
       if (!currentUser?.company_id) return
-      const { data: profiles } = await supabase.from('planner_profiles').select('full_name, user_id').eq('company_id', currentUser.company_id)
+      const { data: profiles } = await supabase.from('planner_profiles').select('full_name, user_id, hourly_rate').eq('company_id', currentUser.company_id)
       const { data: users } = await supabase.from('app_users').select('id, username, role').eq('company_id', currentUser.company_id).eq('is_approved', true).order('username', { ascending: true })
       if (users) {
+        // Planners are always stored by username so Dashboard, Workload and time logs all match.
         const merged = users.map(u => {
           const profile = profiles?.find(p => p.user_id === u.id)
-          return { ...u, displayName: profile?.full_name || u.username }
+          return { ...u, displayName: u.username, hourlyRate: profile?.hourly_rate || null }
         })
         setStaffList(merged)
         const me = merged.find(s => s.id === currentUser.id)
@@ -272,39 +273,49 @@ export default function NewJob({ onNavigate, currentUser }) {
 
   const update = (field, value) => setForm(f => ({ ...f, [field]: value }))
   const togglePlanner = (name) => setSelectedPlanners(prev => prev.includes(name) ? prev.filter(p => p !== name) : [...prev, name])
-  const generateJobCode = () => `${new Date().getFullYear()}-${Math.floor(Math.random() * 900) + 100}`
+  // Sequential job code: YYYY-001, YYYY-002 ... (next number after the highest existing one this year)
+  const generateJobCode = async () => {
+    const year = new Date().getFullYear()
+    const { data } = await supabase.from('jobs').select('code').like('code', `${year}-%`)
+    let max = 0
+    for (const row of data || []) {
+      const n = parseInt(String(row.code).split('-')[1], 10)
+      if (!isNaN(n) && n > max) max = n
+    }
+    return `${year}-${String(max + 1).padStart(3, '0')}`
+  }
 
   const handleSubmit = async () => {
-    if (!form.firstName || !form.address) { setError('Please fill in client name and address.'); return }
+    const firstName = form.firstName.trim()
+    const lastName = form.lastName.trim()
+    if (!firstName || !form.address.trim()) { setError('Please fill in client name and address.'); return }
     if (selectedPlanners.length === 0) { setError('Please select at least one planner.'); return }
     setError(null)
     setSaving(true)
-    const code = generateJobCode()
-    const jobName = `${form.firstName} ${form.lastName} — ${form.appType.split('—')[0].trim()}`
+    const clientName = [firstName, lastName].filter(Boolean).join(' ')
+    const jobName = `${clientName} — ${form.appType.split('—')[0].trim()}`
     const leadPlanner = selectedPlanners[0]
+    const leadProfile = staffList.find(s => s.username === leadPlanner)
+    const plannerRate = leadProfile?.hourlyRate || 150
 
-    const { error: dbError } = await supabase.from('jobs').insert({
-      code, name: jobName,
-      address: form.address, lot_reference: form.lot,
-      client_first_name: form.firstName, client_last_name: form.lastName,
-      client_email: form.email, client_phone: form.phone,
-      council: form.council, zone: form.zone,
-      app_type: form.appType.split('—')[0].trim(),
-      assessment_level: form.assessment,
-      proposed_use: form.proposedUse, referral_agencies: form.referrals,
-      planner: leadPlanner, planners: selectedPlanners,
-      planner_rate: 150, budget_hours: parseFloat(form.budget) || 0,
-      status: 'Draft', complexity: form.complexity,
-      lodgement_date: form.lodgement || null,
-      decision_due_date: form.decisionDue || null,
-    })
+    let code = await generateJobCode()
+    let attempts = 0
+    let dbError = null
+    // Retry once if two planners create a job at the same moment and the code is taken
+    while (attempts < 3) {
+      const res = await supabase.from('jobs').insert(buildJobRow(code, jobName, clientName, leadPlanner, plannerRate))
+      dbError = res.error
+      if (!dbError) break
+      if (dbError.code === '23505') { code = await generateJobCode(); attempts++; continue }
+      break
+    }
 
     setSaving(false)
     if (dbError) { setError('Error saving job: ' + dbError.message); return }
 
     setCreatedJob({
       code, name: jobName, address: form.address, lot_reference: form.lot,
-      client_first_name: form.firstName, client_last_name: form.lastName,
+      client_first_name: firstName, client_last_name: lastName,
       client_email: form.email, client_phone: form.phone,
       council: form.council, zone: form.zone,
       app_type: form.appType.split('—')[0].trim(),
@@ -313,6 +324,26 @@ export default function NewJob({ onNavigate, currentUser }) {
       budget_hours: parseFloat(form.budget) || 0, complexity: form.complexity,
     })
     setShowDocModal(true)
+  }
+
+  const buildJobRow = (code, jobName, clientName, leadPlanner, plannerRate) => {
+    const firstName = form.firstName.trim()
+    const lastName = form.lastName.trim()
+    return {
+      code, name: jobName,
+      address: form.address.trim(), lot_reference: form.lot,
+      client_first_name: firstName, client_last_name: lastName || null,
+      client_email: form.email.trim() || null, client_phone: form.phone.trim() || null,
+      council: form.council, zone: form.zone,
+      app_type: form.appType.split('—')[0].trim(),
+      assessment_level: form.assessment,
+      proposed_use: form.proposedUse, referral_agencies: form.referrals,
+      planner: leadPlanner, planners: selectedPlanners,
+      planner_rate: plannerRate, budget_hours: parseFloat(form.budget) || 0,
+      status: 'Draft', complexity: form.complexity,
+      lodgement_date: form.lodgement || null,
+      decision_due_date: form.decisionDue || null,
+    }
   }
 
   return (
@@ -328,9 +359,9 @@ export default function NewJob({ onNavigate, currentUser }) {
         <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Client details</div>
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div><label className="text-xs text-gray-500 mb-1 block">First name</label>
-            <input value={form.firstName} onChange={e => update('firstName', e.target.value)} placeholder="Jonas" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+            <input value={form.firstName} onChange={e => update('firstName', e.target.value)} placeholder="First name" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
           <div><label className="text-xs text-gray-500 mb-1 block">Last name / company</label>
-            <input value={form.lastName} onChange={e => update('lastName', e.target.value)} placeholder="Hartmann" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+            <input value={form.lastName} onChange={e => update('lastName', e.target.value)} placeholder="Last name or company" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
         </div>
         <div className="grid grid-cols-2 gap-3 mb-5">
           <div><label className="text-xs text-gray-500 mb-1 block">Email</label>

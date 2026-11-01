@@ -318,11 +318,13 @@ export default function Planners({ currentUser }) {
       .eq('is_approved', true)
       .order('username', { ascending: true })
 
+    // Deactivated staff only. Brand-new registrations awaiting approval are handled from the Notifications panel.
     const { data: inactive } = await supabase
       .from('app_users')
       .select('id, username, role, is_approved')
       .eq('company_id', currentUser.company_id)
       .eq('is_approved', false)
+      .eq('is_active', false)
       .order('username', { ascending: true })
 
     if (active) setActiveStaff(active)
@@ -345,8 +347,9 @@ export default function Planners({ currentUser }) {
   const handleDeactivate = async () => {
     if (!deactivating) return
     setActionLoading(true)
-    await supabase.from('app_users').update({ is_approved: false }).eq('id', deactivating.id)
+    const { error } = await supabase.from('app_users').update({ is_approved: false, is_active: false }).eq('id', deactivating.id)
     setActionLoading(false)
+    if (error) { alert('Could not deactivate: ' + error.message); return }
     setDeactivating(null)
     setSelected(null)
     fetchAll()
@@ -355,8 +358,9 @@ export default function Planners({ currentUser }) {
   const handleReactivate = async () => {
     if (!reactivating) return
     setActionLoading(true)
-    await supabase.from('app_users').update({ is_approved: true }).eq('id', reactivating.id)
+    const { error } = await supabase.from('app_users').update({ is_approved: true, is_active: true }).eq('id', reactivating.id)
     setActionLoading(false)
+    if (error) { alert('Could not reactivate: ' + error.message); return }
     setReactivating(null)
     setSelected(null)
     fetchAll()

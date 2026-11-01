@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import qplanLogo from './assets/plan_logo.PNG'
 import { registerUser } from './auth'
 
 const SECURITY_QUESTIONS = [
@@ -80,8 +81,8 @@ export default function Register({ onBack, onSuccess }) {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="w-full max-w-sm">
           <div className="flex items-center justify-center gap-3 mb-8">
-            <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white font-bold text-sm">PF</div>
-            <span className="text-xl font-semibold">PlanFlow</span>
+            <img src={qplanLogo} alt="QPlan" className="w-12 h-12 object-contain" />
+            <span className="text-2xl font-semibold text-gray-800">QPlan</span>
           </div>
           <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
             <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 text-2xl mx-auto mb-4">✓</div>
@@ -89,7 +90,7 @@ export default function Register({ onBack, onSuccess }) {
             {createdRole === 'director' ? (
               <div className="text-xs text-gray-500 mb-6">Your director account is ready. You can sign in now.</div>
             ) : (
-              <div className="text-xs text-gray-500 mb-6">Your account has been created and is pending approval from a director. You'll be able to sign in once approved. The directors have been notified.</div>
+              <div className="text-xs text-gray-500 mb-6">Your account has been created and is pending approval from a director. A director approves new accounts from the Notifications panel in QPlan. You can sign in as soon as that is done.</div>
             )}
             <button
               onClick={onBack}
@@ -107,8 +108,8 @@ export default function Register({ onBack, onSuccess }) {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white font-bold text-sm">PF</div>
-          <span className="text-xl font-semibold">PlanFlow</span>
+          <img src={qplanLogo} alt="QPlan" className="w-12 h-12 object-contain" />
+          <span className="text-2xl font-semibold text-gray-800">QPlan</span>
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-200 p-8">

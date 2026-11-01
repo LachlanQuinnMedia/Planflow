@@ -33,6 +33,16 @@ function formatTime(hour) {
   return hour < 12 ? `${hour}am` : `${hour - 12}pm`
 }
 
+// "13:00" -> "1:00pm", "09:30" -> "9:30am"
+function formatTime12(hhmm) {
+  if (!hhmm) return ''
+  const [h, m] = String(hhmm).split(':').map(Number)
+  if (isNaN(h)) return hhmm
+  const suffix = h >= 12 ? 'pm' : 'am'
+  const hour12 = h % 12 === 0 ? 12 : h % 12
+  return `${hour12}:${String(m || 0).padStart(2, '0')}${suffix}`
+}
+
 function formatDuration(mins) {
   if (mins < 60) return `${mins}min`
   const h = Math.floor(mins / 60)
@@ -313,7 +323,7 @@ function EditMeetingModal({ booking, onClose, onSave, staffList, jobs }) {
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Start time</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Start time <span className="text-gray-400 font-normal">({formatTime12(startTime)})</span></label>
               <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
             </div>
@@ -423,7 +433,7 @@ function MeetingReviewModal({ booking, onClose, onDelete, onEdit }) {
             <span className="text-gray-400 mt-0.5">📅</span>
             <div>
               <div className="text-xs font-medium text-gray-700">{formatDateFull(booking.date)}</div>
-              <div className="text-xs text-gray-500">{booking.start_time?.slice(0, 5)} · {formatDuration(booking.duration_minutes)}</div>
+              <div className="text-xs text-gray-500">{formatTime12(booking.start_time)} · {formatDuration(booking.duration_minutes)}</div>
             </div>
           </div>
           {booking.attendees?.length > 0 && (
@@ -520,11 +530,11 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
         await supabase.from('notifications').insert({
           company_id: currentUser.company_id,
           type: 'new_meeting',
-          message: `New staff meeting: ${title.trim()} on ${niceDate} at ${startTime} (${attendeeSummary})`,
+          message: `New staff meeting: ${title.trim()} on ${niceDate} at ${formatTime12(startTime)} (${attendeeSummary})`,
           is_read: false,
         })
       } catch (e) {
-        console.log('Could not create meeting notification:', e)
+        // The in-app notification is optional; the meeting itself is already saved.
       }
     }
 
@@ -536,7 +546,7 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ANON_KEY}` },
             body: JSON.stringify({ company_id: currentUser.company_id, username: currentUser.username, booking: newBooking }),
           })
-        } catch (e) { console.log(`${provider} sync skipped`) }
+        } catch (e) { /* external calendar sync is optional */ }
       }
     }
 
@@ -572,7 +582,7 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Start time</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Start time <span className="text-gray-400 font-normal">({formatTime12(startTime)})</span></label>
               <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
             </div>
@@ -854,7 +864,7 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
                               )}
                               {minHeight > 48 && (
                                 <div className="text-xs opacity-60 truncate leading-tight mt-auto">
-                                  {b.start_time?.slice(0, 5)} · {formatDuration(b.duration_minutes)}
+                                  {formatTime12(b.start_time)} · {formatDuration(b.duration_minutes)}
                                 </div>
                               )}
                             </div>
@@ -890,7 +900,7 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
                   {b.client_name ? `${b.client_name} — ${b.title}` : b.title}
                 </div>
                 <div className="text-xs text-gray-400">
-                  {bookingDate && bookingDate.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })} · {b.start_time?.slice(0, 5)} · {formatDuration(b.duration_minutes)}
+                  {bookingDate && bookingDate.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })} · {formatTime12(b.start_time)} · {formatDuration(b.duration_minutes)}
                   {b.attendees?.length > 1 && ` · ${b.attendees.length} attendees`}
                   {b.external_source && ` · via ${b.external_source}`}
                 </div>

@@ -170,7 +170,8 @@ serve(async (req) => {
     if (action === 'contacts') {
       const auth = await getValidToken(supabase, company_id)
       if (!auth) return json({ success: false, error: 'Not connected' }, 401)
-      const r = await xeroApi(auth, `/Contacts?where=${encodeURIComponent('IsCustomer==true')}`)
+      // All active contacts (not just ones already flagged as customers), so existing clients are matched instead of duplicated
+      const r = await xeroApi(auth, `/Contacts?where=${encodeURIComponent('ContactStatus=="ACTIVE"')}`)
       if (!r.ok) return json({ success: false, error: r.data?.Message || r.data?.Detail || `Xero ${r.status}` }, 400)
       return json({ success: true, contacts: r.data.Contacts || [] })
     }

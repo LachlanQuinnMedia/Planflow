@@ -37,8 +37,8 @@ function calcCapacity(jobs) {
 
 function getInitials(name) {
   if (!name) return '??'
-  const parts = name.trim().split(' ')
-  if (parts.length >= 2) return parts[0][0] + parts[1][0]
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
   return parts[0].slice(0, 2).toUpperCase()
 }
 
@@ -259,7 +259,7 @@ export default function Workload({ currentUser }) {
                 <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium flex-shrink-0 ${p.color}`}>
                   {p.initials}
                 </div>
-                <div className="w-20 text-xs font-medium truncate">{p.name.split(' ')[0]} {p.name.split(' ')[1]?.[0] || ''}.</div>
+                <div className="w-20 text-xs font-medium truncate">{p.name}</div>
                 <div className="flex gap-1 flex-shrink-0">
                   {p.jobs.slice(0, 4).map(j => (
                     <span key={j.id} className={`text-xs px-1 py-0.5 rounded font-medium ${COMPLEXITY[j.complexity]?.color || 'bg-gray-100 text-gray-600'}`} style={{ fontSize: '9px' }}>

@@ -304,7 +304,7 @@ function JobSearchPanel({ onNavigate, isDirector, jobs }) {
   const filtered = jobs.filter(j => {
     const matchSearch = search === '' ||
       j.name?.toLowerCase().includes(search.toLowerCase()) ||
-      (j.client_first_name + ' ' + j.client_last_name).toLowerCase().includes(search.toLowerCase()) ||
+      [j.client_first_name, j.client_last_name].filter(Boolean).join(' ').toLowerCase().includes(search.toLowerCase()) ||
       j.address?.toLowerCase().includes(search.toLowerCase()) ||
       j.code?.toLowerCase().includes(search.toLowerCase()) ||
       j.planner?.toLowerCase().includes(search.toLowerCase())
@@ -352,7 +352,7 @@ function JobSearchPanel({ onNavigate, isDirector, jobs }) {
                 <div className="text-xs font-medium truncate">{job.name}</div>
                 <div className="text-xs text-gray-400 truncate">{job.client_first_name} {job.client_last_name} · {job.address}</div>
               </div>
-              <div className="hidden sm:block text-xs text-gray-400 w-20 text-right flex-shrink-0">{job.planner?.split(' ')[0]} {job.planner?.split(' ')[1]?.[0]}.</div>
+              <div className="hidden sm:block text-xs text-gray-400 w-20 text-right flex-shrink-0">{job.planner || '—'}</div>
               <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${typeBadge[job.app_type] || 'bg-gray-100 text-gray-500'}`}>{job.app_type}</span>
               <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${statusBadge[job.status] || 'bg-gray-100 text-gray-500'}`}>{job.status}</span>
             </div>
@@ -541,12 +541,10 @@ function DirectorView({ onNavigate, allJobs, viewingAs }) {
           <div key={job.id} onClick={() => onNavigate('jobdetail', job)} className="grid grid-cols-[80px_1fr_90px_55px_65px_70px_80px] gap-2 py-2 border-b border-gray-100 last:border-0 items-center cursor-pointer hover:bg-gray-50 rounded-lg px-1">
             <div className="text-xs font-medium text-emerald-600">{job.code}</div>
             <div className="text-xs font-medium truncate">{job.name}</div>
-            <div className="text-xs text-gray-500 truncate">{job.planner?.split(' ')[0]} {job.planner?.split(' ')[1]?.[0]}.</div>
+            <div className="text-xs text-gray-500 truncate">{job.planner || '—'}</div>
             <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${typeBadge[job.app_type] || 'bg-gray-100 text-gray-500'}`}>{job.app_type}</span>
             <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${statusBadge[job.status] || 'bg-gray-100 text-gray-500'}`}>{job.status}</span>
-            <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-              <div className="h-full rounded-full bg-emerald-500" style={{ width: '50%' }} />
-            </div>
+            <div className="text-xs text-gray-500">{job.budget_hours ? `${job.budget_hours}h` : '—'}</div>
             <div className="text-xs text-gray-500">{formatDateShort(job.decision_due_date || job.date_decision)}</div>
           </div>
         ))}
@@ -566,7 +564,7 @@ function DirectorView({ onNavigate, allJobs, viewingAs }) {
             </div>
             <div className="text-xs font-medium text-gray-800 mb-0.5">{job.name}</div>
             <div className="flex items-center justify-between mt-1.5">
-              <span className="text-xs text-gray-400">{job.planner?.split(' ')[0]} {job.planner?.split(' ')[1]?.[0]}.</span>
+              <span className="text-xs text-gray-400">{job.planner || '—'}</span>
               <span className="text-xs text-gray-400">Decision: {formatDateShort(job.decision_due_date || job.date_decision)}</span>
             </div>
           </div>

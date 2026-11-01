@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import qplanLogo from './assets/plan_logo.PNG'
 import { getSecurityQuestion, verifySecurityAnswer, resetPassword } from './auth'
 
 export default function ForgotPassword({ onBack }) {
@@ -51,8 +52,8 @@ export default function ForgotPassword({ onBack }) {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white font-bold text-sm">PF</div>
-          <span className="text-xl font-semibold">PlanFlow</span>
+          <img src={qplanLogo} alt="QPlan" className="w-12 h-12 object-contain" />
+          <span className="text-2xl font-semibold text-gray-800">QPlan</span>
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-200 p-8">

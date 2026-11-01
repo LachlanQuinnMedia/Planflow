@@ -4,6 +4,11 @@ import OneDriveBrowser from './OneDriveBrowser'
 
 const DOCS_PER_PAGE = 100
 
+// Storage keys cannot contain # ? % or similar. Keep letters, numbers, dots, dashes and underscores.
+function safeFileName(name) {
+  return String(name).replace(/[^\w.\-() ]+/g, '_').replace(/\s+/g, ' ').trim()
+}
+
 function RenameModal({ doc, onClose, onRename }) {
   const [name, setName] = useState(doc.name)
   const [saving, setSaving] = useState(false)
@@ -181,16 +186,17 @@ export default function Documents({ currentUser }) {
     const fileArray = Array.from(files)
     const total = fileArray.length
     let completed = 0
+    const failed = []
     setUploadProgress(0)
 
     for (const file of fileArray) {
-      const path = `general/${Date.now()}_${file.name}`
+      const path = `general/${Date.now()}_${safeFileName(file.name)}`
       const { error: uploadError } = await supabase.storage
         .from('documents')
         .upload(path, file, { upsert: false })
 
       if (uploadError) {
-        console.error(uploadError)
+        failed.push(`${file.name}: ${uploadError.message}`)
         completed++
         setUploadProgress(Math.round((completed / total) * 100))
         continue
@@ -214,12 +220,14 @@ export default function Documents({ currentUser }) {
     }
 
     setTimeout(() => setUploadProgress(null), 1000)
+    if (failed.length) alert('Some files could not be uploaded:\n\n' + failed.join('\n'))
     fetchDocs()
   }
 
   const performDelete = async (doc) => {
     await supabase.storage.from('documents').remove([doc.file_path])
-    await supabase.from('documents').delete().eq('id', doc.id)
+    const { error } = await supabase.from('documents').delete().eq('id', doc.id)
+    if (error) { alert('Could not delete: ' + error.message); setDeletingDoc(null); return }
     if (selectedDoc?.id === doc.id) setSelectedDoc(null)
     setDeletingDoc(null)
     fetchDocs()

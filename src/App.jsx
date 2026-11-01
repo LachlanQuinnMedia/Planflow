@@ -49,7 +49,12 @@ function formatTimer(seconds) {
   return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
 }
 
-function GlobalTimer({ jobs }) {
+// Today's date as YYYY-MM-DD in Brisbane time (not UTC)
+function todayLocal() {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Brisbane', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
+}
+
+function GlobalTimer({ jobs, currentUser }) {
   const [isRunning, setIsRunning] = useState(false)
   const [displaySeconds, setDisplaySeconds] = useState(0)
   const [selectedJobId, setSelectedJobId] = useState('')
@@ -64,17 +69,22 @@ function GlobalTimer({ jobs }) {
   const selectedJobIdRef = useRef('')
   const taskNameRef = useRef('')
   const jobsRef = useRef([])
+  const startedAtRef = useRef(null)
+  const plannerName = currentUser?.username || 'Unknown'
 
   useEffect(() => { jobsRef.current = jobs }, [jobs])
   useEffect(() => { activeTimerIdRef.current = activeTimerId }, [activeTimerId])
   useEffect(() => { selectedJobIdRef.current = selectedJobId }, [selectedJobId])
   useEffect(() => { taskNameRef.current = taskName }, [taskName])
 
+  // Recover this user's own unfinished timer only (never another planner's)
   useEffect(() => {
-    if (jobs.length === 0 || recoveryDoneRef.current) return
+    if (jobs.length === 0 || recoveryDoneRef.current || !currentUser?.id) return
     recoveryDoneRef.current = true
     const recoverTimer = async () => {
-      const { data, error } = await supabase.from('active_timers').select('*').order('created_at', { ascending: false }).limit(1)
+      const { data, error } = await supabase.from('active_timers').select('*')
+        .eq('user_id', currentUser.id)
+        .order('created_at', { ascending: false }).limit(1)
       if (error || !data || data.length === 0) return
       const record = data[0]
       await supabase.from('active_timers').delete().eq('id', record.id)
@@ -85,15 +95,15 @@ function GlobalTimer({ jobs }) {
       const shouldSave = window.confirm(`You have an unfinished timer for ${record.job_code} — "${record.task}" (${formatTimer(totalSeconds)}). Save it to the time log?`)
       if (shouldSave) {
         await supabase.from('time_logs').insert({
-          job_id: job.id, job_code: job.code, planner: job.planner || 'Unknown',
+          job_id: job.id, job_code: job.code, planner: plannerName,
           task: record.task, hours: parseFloat((totalSeconds / 3600).toFixed(4)),
           duration_seconds: totalSeconds, rate: job.planner_rate || 0,
-          log_date: new Date().toISOString().split('T')[0],
+          log_date: todayLocal(),
         })
       }
     }
     recoverTimer()
-  }, [jobs])
+  }, [jobs, currentUser])
 
   const saveElapsedToSupabase = async () => {
     if (!activeTimerIdRef.current) return
@@ -107,15 +117,21 @@ function GlobalTimer({ jobs }) {
     const job = jobsRef.current.find(j => String(j.id) === String(selectedJobId))
     if (!job) { alert('Job not found.'); return }
     const { data, error } = await supabase.from('active_timers').insert({
-      job_id: job.id, job_code: job.code, planner: job.planner || 'Unknown',
+      job_id: job.id, job_code: job.code, planner: plannerName, user_id: currentUser?.id || null,
       task: taskName, elapsed_seconds: 0, rate: job.planner_rate || 0,
     }).select().single()
     if (error) { alert('Could not start timer.'); return }
     elapsedRef.current = 0
+    startedAtRef.current = Date.now()
     setDisplaySeconds(0)
     setActiveTimerId(data.id)
     setIsRunning(true)
-    intervalRef.current = setInterval(() => { elapsedRef.current += 1; setDisplaySeconds(s => s + 1) }, 1000)
+    // Elapsed is calculated from the real start time so background tabs do not under-count
+    intervalRef.current = setInterval(() => {
+      const secs = Math.floor((Date.now() - startedAtRef.current) / 1000)
+      elapsedRef.current = secs
+      setDisplaySeconds(secs)
+    }, 1000)
     saveIntervalRef.current = setInterval(saveElapsedToSupabase, 5000)
   }
 
@@ -133,14 +149,16 @@ function GlobalTimer({ jobs }) {
     const job = jobsRef.current.find(j => String(j.id) === String(jobId))
     if (timerId) await supabase.from('active_timers').delete().eq('id', timerId)
     if (totalSeconds >= 10 && job) {
-      await supabase.from('time_logs').insert({
-        job_id: job.id, job_code: job.code, planner: job.planner || 'Unknown',
+      const { error } = await supabase.from('time_logs').insert({
+        job_id: job.id, job_code: job.code, planner: plannerName,
         task: task || 'General work', hours: parseFloat((totalSeconds / 3600).toFixed(4)),
         duration_seconds: totalSeconds, rate: job.planner_rate || 0,
-        log_date: new Date().toISOString().split('T')[0],
+        log_date: todayLocal(),
       })
+      if (error) alert('Timer stopped but the time could not be saved: ' + error.message)
     }
     setSaving(false)
+    startedAtRef.current = null
     elapsedRef.current = 0
     setDisplaySeconds(0)
     setActiveTimerId(null)
@@ -185,7 +203,7 @@ function GlobalTimer({ jobs }) {
   )
 }
 
-function NotificationPanel({ notifications, lastSeenAt, onClose, onApprove, onReject, processingId }) {
+function NotificationPanel({ notifications, lastSeenAt, onClose, onApprove, onReject, onDismiss, processingId }) {
   const extractUsername = (message) => {
     const match = message.match(/created:\s*(.+?)\.\s*Awaiting/)
     return match ? match[1].trim() : null
@@ -241,6 +259,15 @@ function NotificationPanel({ notifications, lastSeenAt, onClose, onApprove, onRe
                   </button>
                 </div>
               )}
+              {!(isNewUser && username) && (
+                <button
+                  onClick={() => onDismiss(n)}
+                  disabled={isProcessing}
+                  className="w-full py-1 text-xs text-gray-400 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {isProcessing ? '...' : 'Dismiss'}
+                </button>
+              )}
             </div>
           )
         })
@@ -269,7 +296,12 @@ export default function App() {
 
   useEffect(() => {
     const session = loadSession()
-    if (session) setCurrentUser(session)
+    // Only trust a session that has the fields the app relies on
+    if (session && session.id && session.username && session.company_id) {
+      setCurrentUser(session)
+    } else if (session) {
+      clearSession()
+    }
 
     const params = new URLSearchParams(window.location.search)
     const code = params.get('code')
@@ -351,6 +383,7 @@ export default function App() {
     }
   }, [currentUser])
 
+  // Job list for the timer and sidebar count. Refreshes on every page change so new jobs appear straight away.
   useEffect(() => {
     if (!currentUser) return
     const fetchJobs = async () => {
@@ -361,7 +394,20 @@ export default function App() {
       if (data) { setJobs(data); setJobCount(data.length) }
     }
     fetchJobs()
-  }, [currentUser])
+  }, [currentUser, activePage])
+
+  // If a director deactivates or rejects this account, log the user out on their next load.
+  useEffect(() => {
+    if (!currentUser?.id) return
+    const checkAccount = async () => {
+      const { data, error } = await supabase.from('app_users').select('is_approved').eq('id', currentUser.id).maybeSingle()
+      if (error) return
+      if (!data || data.is_approved === false) handleLogout()
+    }
+    checkAccount()
+    const interval = setInterval(checkAccount, 5 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [currentUser?.id])
 
   // Poll notifications every 20s for directors
   useEffect(() => {
@@ -445,6 +491,13 @@ export default function App() {
     setProcessingNotificationId(null)
   }
 
+  const handleDismiss = async (notification) => {
+    setProcessingNotificationId(notification.id)
+    await supabase.from('notifications').delete().eq('id', notification.id)
+    setNotifications(prev => prev.filter(n => n.id !== notification.id))
+    setProcessingNotificationId(null)
+  }
+
   const handleLogin = (user) => {
     setCurrentUser({
       id: user.id,
@@ -508,7 +561,7 @@ export default function App() {
   const renderPage = () => {
     switch (activePage) {
       case 'dashboard': return <Dashboard onNavigate={handleNavigate} currentUser={currentUser} />
-      case 'jobs': return <Jobs onNavigate={handleNavigate} onJobCountChange={setJobCount} />
+      case 'jobs': return <Jobs onNavigate={handleNavigate} onJobCountChange={setJobCount} currentUser={currentUser} />
       case 'newjob': return <NewJob onNavigate={handleNavigate} currentUser={currentUser} />
       case 'jobdetail': return <JobDetail job={selectedJob} onNavigate={handleNavigate} currentUser={currentUser} />
       case 'workload': return isDirector ? <Workload currentUser={currentUser} /> : <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-sm text-gray-400">Access restricted to directors.</div>
@@ -523,7 +576,7 @@ export default function App() {
       )
       case 'templates': return <Templates currentUser={currentUser} />
       case 'docs': return <Documents currentUser={currentUser} />
-      case 'time': return <TimeBudget />
+      case 'time': return <TimeBudget currentUser={currentUser} />
       case 'planners': return <Planners currentUser={currentUser} />
       default: return <div className="bg-white rounded-xl border border-gray-200 p-6"><p className="text-sm text-gray-400">This page is coming soon.</p></div>
     }
@@ -573,7 +626,7 @@ export default function App() {
           ))}
         </div>
 
-        <GlobalTimer jobs={jobs} />
+        <GlobalTimer jobs={jobs} currentUser={currentUser} />
 
         <div className="p-3 border-t border-gray-200 space-y-2">
           {isDirector && (
@@ -594,6 +647,7 @@ export default function App() {
                   onClose={() => setShowNotifications(false)}
                   onApprove={handleApprove}
                   onReject={handleReject}
+                  onDismiss={handleDismiss}
                   processingId={processingNotificationId}
                 />
               )}

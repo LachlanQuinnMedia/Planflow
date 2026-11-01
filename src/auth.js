@@ -11,6 +11,9 @@ export async function hashString(str) {
 }
 
 export async function registerUser({ username, password, companyCode, directorCode, securityQuestion, securityAnswer }) {
+  username = (username || '').trim()
+  companyCode = (companyCode || '').trim()
+  directorCode = (directorCode || '').trim()
   // Check company code exists
   const { data: company, error: companyError } = await supabase
     .from('companies')
@@ -22,13 +25,13 @@ export async function registerUser({ username, password, companyCode, directorCo
     return { error: 'Invalid company code. Please check with your manager.' }
   }
 
-  // Check if username already exists in this company
+  // Check if username already exists in this company (case-insensitive)
   const { data: existing } = await supabase
     .from('app_users')
     .select('id')
-    .eq('username', username)
+    .ilike('username', username)
     .eq('company_code', companyCode)
-    .single()
+    .maybeSingle()
 
   if (existing) {
     return { error: 'Username already taken for this company.' }
@@ -85,21 +88,27 @@ export async function registerUser({ username, password, companyCode, directorCo
 }
 
 export async function loginUser({ username, password, companyCode }) {
+  username = (username || '').trim()
+  companyCode = (companyCode || '').trim()
   const passwordHash = await hashString(password)
 
+  // Username match is case-insensitive so "murray" and "Murray" are the same person
   const { data: user, error } = await supabase
     .from('app_users')
     .select('*, companies(*)')
-    .eq('username', username)
+    .ilike('username', username)
     .eq('company_code', companyCode)
     .eq('password_hash', passwordHash)
-    .single()
+    .maybeSingle()
 
   if (error || !user) {
     return { error: 'Incorrect username, password, or company code.' }
   }
 
   if (!user.is_approved) {
+    if (user.is_active === false) {
+      return { error: 'Your account has been deactivated. Please speak to a director.' }
+    }
     return { error: 'Your account is pending approval from a director. Please check back soon.' }
   }
 
@@ -112,10 +121,10 @@ export async function verifySecurityAnswer({ username, companyCode, answer }) {
   const { data: user, error } = await supabase
     .from('app_users')
     .select('*')
-    .eq('username', username)
-    .eq('company_code', companyCode)
+    .ilike('username', (username || '').trim())
+    .eq('company_code', (companyCode || '').trim())
     .eq('security_answer_hash', answerHash)
-    .single()
+    .maybeSingle()
 
   if (error || !user) {
     return { error: 'Incorrect answer.' }
@@ -140,9 +149,9 @@ export async function getSecurityQuestion({ username, companyCode }) {
   const { data: user, error } = await supabase
     .from('app_users')
     .select('security_question')
-    .eq('username', username)
-    .eq('company_code', companyCode)
-    .single()
+    .ilike('username', (username || '').trim())
+    .eq('company_code', (companyCode || '').trim())
+    .maybeSingle()
 
   if (error || !user) {
     return { error: 'User not found.' }

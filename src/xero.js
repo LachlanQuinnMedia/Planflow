@@ -76,33 +76,54 @@ export async function createXeroContact(companyId, { firstName, lastName, email,
   return data.contact
 }
 
+// Dates as YYYY-MM-DD in Brisbane time (not UTC)
+function localISODate(d) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Brisbane', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d)
+}
+const norm = (v) => String(v || '').trim().toLowerCase().replace(/\s+/g, ' ')
+
+// Xero sales account and GST code. 200 / OUTPUT2 are the Xero Australia defaults.
+// Change these if the firm's accountant uses a different revenue account.
+export const XERO_SALES_ACCOUNT_CODE = '200'
+export const XERO_GST_TAX_TYPE = 'OUTPUT2'
+
 export async function pushInvoiceToXero(companyId, job, timeLogs) {
   const contacts = await getXeroContacts(companyId)
-  let contact = contacts.find(c =>
-    (job.client_email && c.EmailAddress?.toLowerCase() === job.client_email.toLowerCase()) ||
-    (c.FirstName === job.client_first_name && c.LastName === job.client_last_name)
-  )
+  const first = norm(job.client_first_name)
+  const last = norm(job.client_last_name)
+  const fullName = [first, last].filter(Boolean).join(' ')
+  const email = norm(job.client_email)
+
+  // Match an existing contact by email, then by full name, then by first + last name (case and spacing insensitive)
+  let contact = contacts.find(c => email && norm(c.EmailAddress) === email)
+    || contacts.find(c => fullName && norm(c.Name) === fullName)
+    || contacts.find(c => fullName && [norm(c.FirstName), norm(c.LastName)].filter(Boolean).join(' ') === fullName)
 
   if (!contact) {
     contact = await createXeroContact(companyId, {
-      firstName: job.client_first_name,
-      lastName: job.client_last_name,
-      email: job.client_email,
-      phone: job.client_phone,
+      firstName: (job.client_first_name || '').trim(),
+      lastName: (job.client_last_name || '').trim(),
+      email: job.client_email || undefined,
+      phone: job.client_phone || undefined,
     })
   }
 
-  const lineItems = timeLogs.map(log => {
-    const hours = parseFloat(((log.duration_seconds || 0) / 3600).toFixed(2))
-    return {
-      Description: `${log.task || 'General work'} — ${job.code}`,
-      Quantity: hours,
-      UnitAmount: log.rate || job.planner_rate || 0,
-      AccountCode: '200',
-      TaxType: 'OUTPUT2',
-    }
-  })
+  const lineItems = timeLogs
+    .filter(log => (log.duration_seconds || 0) > 0 || (log.hours || 0) > 0)
+    .map(log => {
+      const seconds = log.duration_seconds || Math.round((log.hours || 0) * 3600)
+      const hours = parseFloat((seconds / 3600).toFixed(2))
+      return {
+        Description: `${log.task || 'General work'} (${job.code}${log.log_date ? `, ${log.log_date}` : ''})`,
+        Quantity: hours,
+        UnitAmount: log.rate || job.planner_rate || 0,
+        AccountCode: XERO_SALES_ACCOUNT_CODE,
+        TaxType: XERO_GST_TAX_TYPE,
+      }
+    })
+  if (lineItems.length === 0) throw new Error('No time with a duration has been logged against this job.')
 
+  const today = new Date()
   const dueDate = new Date()
   dueDate.setDate(dueDate.getDate() + 14)
 
@@ -110,8 +131,8 @@ export async function pushInvoiceToXero(companyId, job, timeLogs) {
     Type: 'ACCREC',
     Contact: { ContactID: contact.ContactID },
     LineItems: lineItems,
-    Date: new Date().toISOString().split('T')[0],
-    DueDate: dueDate.toISOString().split('T')[0],
+    Date: localISODate(today),
+    DueDate: localISODate(dueDate),
     Reference: job.code,
     Status: 'DRAFT',
     LineAmountTypes: 'EXCLUSIVE',

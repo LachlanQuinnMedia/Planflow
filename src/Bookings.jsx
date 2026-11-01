@@ -18,8 +18,31 @@ function formatDateShort(dateStr) {
   })
 }
 
+// Today's date as YYYY-MM-DD in Brisbane time (not UTC)
+function todayLocal() {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Brisbane', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
+}
+
+// "13:00" -> "1:00pm"
+function formatTime12(hhmm) {
+  if (!hhmm) return ''
+  const [h, m] = String(hhmm).split(':').map(Number)
+  if (isNaN(h)) return hhmm
+  const suffix = h >= 12 ? 'pm' : 'am'
+  const hour12 = h % 12 === 0 ? 12 : h % 12
+  return `${hour12}:${String(m || 0).padStart(2, '0')}${suffix}`
+}
+
+// Case-insensitive check: is this user an attendee or the creator of a booking?
+function involves(b, username) {
+  const u = String(username || '').toLowerCase()
+  if (!u) return false
+  if (String(b.created_by || '').toLowerCase() === u) return true
+  return (b.attendees || []).some(a => String(a).toLowerCase() === u)
+}
+
 function StaffBookings({ bookings, loading }) {
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayLocal()
   const upcoming = bookings.filter(b => b.date >= today)
   const past = bookings.filter(b => b.date < today).reverse()
 
@@ -45,7 +68,7 @@ function StaffBookings({ bookings, loading }) {
             <div className="flex-1 min-w-0">
               <div className="text-xs font-semibold text-gray-800 truncate">{b.title}</div>
               <div className="text-xs text-gray-400">
-                {b.start_time?.slice(0, 5)} · {b.duration_minutes}min
+                {formatTime12(b.start_time)} · {b.duration_minutes}min
                 {b.client_name && ` · ${b.client_name}`}
                 {b.attendees?.length > 1 && ` · ${b.attendees.length} attendees`}
               </div>
@@ -77,7 +100,7 @@ function StaffBookings({ bookings, loading }) {
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-semibold text-gray-600 truncate">{b.title}</div>
                 <div className="text-xs text-gray-400">
-                  {formatDateShort(b.date)} · {b.start_time?.slice(0, 5)} · {b.duration_minutes}min
+                  {formatDateShort(b.date)} · {formatTime12(b.start_time)} · {b.duration_minutes}min
                 </div>
               </div>
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${typeColors[b.type] || 'bg-gray-100 text-gray-500'}`}>
@@ -112,7 +135,7 @@ function DirectorBookings({ currentUser }) {
     if (data) {
       setBookings(viewingAs === '__all__'
         ? data
-        : data.filter(b => b.attendees?.includes(viewingAs) || b.created_by === viewingAs)
+        : data.filter(b => involves(b, viewingAs))
       )
     }
     setLoading(false)
@@ -128,7 +151,7 @@ function DirectorBookings({ currentUser }) {
     if (data) setStaffList(data)
   }
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayLocal()
   const upcoming = bookings.filter(b => b.date >= today)
   const past = bookings.filter(b => b.date < today).reverse()
   const clientBookings = bookings.filter(b => b.type === 'client')
@@ -144,7 +167,7 @@ function DirectorBookings({ currentUser }) {
       <div className="flex-1 min-w-0">
         <div className="text-xs font-semibold text-gray-800 truncate">{b.title}</div>
         <div className="text-xs text-gray-400">
-          {faded ? formatDateShort(b.date) : formatDate(b.date)} · {b.start_time?.slice(0, 5)} · {b.duration_minutes}min
+          {faded ? formatDateShort(b.date) : formatDate(b.date)} · {formatTime12(b.start_time)} · {b.duration_minutes}min
           {b.client_name && ` · ${b.client_name}`}
           {showAttendees && b.attendees?.length > 0 && ` · ${b.attendees.join(', ')}`}
         </div>
@@ -283,9 +306,7 @@ export default function Bookings({ onNavigate, currentUser }) {
       .order('date', { ascending: true })
       .order('start_time', { ascending: true })
     if (data) {
-      setMyBookings(data.filter(b =>
-        b.attendees?.includes(currentUser.username) || b.created_by === currentUser.username
-      ))
+      setMyBookings(data.filter(b => involves(b, currentUser.username)))
     }
     setLoading(false)
   }
