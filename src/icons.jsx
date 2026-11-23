@@ -20,6 +20,8 @@ function Svg({ size = 14, className = '', children, filled = false }) {
 
 export const IconPlay = (p) => <Svg filled {...p}><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z" /></Svg>
 export const IconStop = (p) => <Svg filled {...p}><rect x="5" y="5" width="14" height="14" rx="2" /></Svg>
+export const IconRefresh = (p) => <Svg {...p}><path d="M20 11a8 8 0 0 0-14.6-4.2L3.5 9" /><path d="M3.5 4v5h5" /><path d="M4 13a8 8 0 0 0 14.6 4.2l1.9-2.2" /><path d="M20.5 20v-5h-5" /></Svg>
+export const IconChevronDown = (p) => <Svg {...p}><path d="M6 9l6 6 6-6" /></Svg>
 export const IconFolder = (p) => <Svg {...p}><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></Svg>
 export const IconPencil = (p) => <Svg {...p}><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="M13.5 6.5l4 4" /></Svg>
 export const IconCalendar = (p) => <Svg {...p}><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></Svg>

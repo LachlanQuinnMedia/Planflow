@@ -20,7 +20,7 @@ import Xero from './XeroPage'
 import Microsoft365 from './Microsoft365'
 import Logo from './Logo'
 import { timerLabel } from './jobMeta'
-import { IconPlay, IconStop, IconSun, IconMoon, IconAuto } from './icons'
+import { IconPlay, IconStop, IconSun, IconMoon, IconAuto, IconRefresh, IconChevronDown } from './icons'
 import { getThemeChoice, setThemeChoice, watchSystemTheme } from './theme'
 import { InstallAppButton } from './install'
 import Landing from './Landing'
@@ -71,6 +71,28 @@ const pageTitles = {
   templates: 'Templates', planners: 'Planners', jobdetail: 'Job Detail', microsoft: 'Microsoft 365',
 }
 
+// Where this person was last, so a refresh (or the phone reopening the app) lands on the same page.
+const LAST_PAGE_KEY = 'qplan_last_page'
+const LAST_PAGE_MAX_AGE = 4 * 60 * 60 * 1000 // after four hours away, start on the dashboard again
+
+function readLastPage(userId) {
+  try {
+    const v = JSON.parse(localStorage.getItem(LAST_PAGE_KEY) || 'null')
+    if (!v || !userId || v.userId !== userId || !pageTitles[v.page]) return null
+    if (Date.now() - (v.at || 0) > LAST_PAGE_MAX_AGE) return null
+    if (v.page === 'jobdetail' && !v.jobId) return null
+    return v
+  } catch {
+    return null
+  }
+}
+
+function writeLastPage(userId, page, jobId) {
+  try {
+    localStorage.setItem(LAST_PAGE_KEY, JSON.stringify({ userId, page, jobId: jobId || null, at: Date.now() }))
+  } catch { /* storage unavailable */ }
+}
+
 function formatTimer(seconds) {
   const h = Math.floor(seconds / 3600)
   const m = Math.floor((seconds % 3600) / 60)
@@ -83,8 +105,11 @@ function todayLocal() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Brisbane', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
 }
 
-function GlobalTimer({ jobs, currentUser, activeJob }) {
+function GlobalTimer({ jobs, currentUser, activeJob, onRunningChange }) {
   const [isRunning, setIsRunning] = useState(false)
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem('qplan_timer_collapsed') === '1' } catch { return false }
+  })
   const [displaySeconds, setDisplaySeconds] = useState(0)
   const [selectedJobId, setSelectedJobId] = useState('')
   const [taskName, setTaskName] = useState('')
@@ -106,12 +131,36 @@ function GlobalTimer({ jobs, currentUser, activeJob }) {
   const busyRef = useRef(false) // true while a start or stop is being saved, so double clicks do nothing
   const runningJobIdRef = useRef(null) // the job the running timer belongs to
   const activeJobIdRef = useRef(null) // the job page that is open, if any
+  const quietSwitchUntilRef = useRef(0) // just after a refresh, do not ask to switch the timer
   const plannerName = currentUser?.username || 'Unknown'
 
   useEffect(() => { jobsRef.current = jobs }, [jobs])
   useEffect(() => { activeTimerIdRef.current = activeTimerId }, [activeTimerId])
   useEffect(() => { selectedJobIdRef.current = selectedJobId }, [selectedJobId])
   useEffect(() => { taskNameRef.current = taskName }, [taskName])
+  useEffect(() => { onRunningChange?.(isRunning) }, [isRunning, onRunningChange])
+
+  const toggleCollapsed = () => {
+    setCollapsed(prev => {
+      try { localStorage.setItem('qplan_timer_collapsed', prev ? '0' : '1') } catch { /* storage unavailable */ }
+      return !prev
+    })
+  }
+
+  const saveElapsedToSupabase = async () => {
+    if (!activeTimerIdRef.current) return
+    await supabase.from('active_timers').update({ elapsed_seconds: elapsedRef.current }).eq('id', activeTimerIdRef.current)
+  }
+
+  // Elapsed is calculated from the real start time so background tabs do not under-count
+  const beginTicking = () => {
+    intervalRef.current = setInterval(() => {
+      const secs = Math.floor((Date.now() - startedAtRef.current) / 1000)
+      elapsedRef.current = secs
+      setDisplaySeconds(secs)
+    }, 1000)
+    saveIntervalRef.current = setInterval(saveElapsedToSupabase, 5000)
+  }
 
   // Recover this user's own unfinished timer only (never another planner's)
   useEffect(() => {
@@ -123,10 +172,28 @@ function GlobalTimer({ jobs, currentUser, activeJob }) {
         .order('created_at', { ascending: false }).limit(1)
       if (error || !data || data.length === 0) return
       const record = data[0]
-      await supabase.from('active_timers').delete().eq('id', record.id)
       const totalSeconds = record.elapsed_seconds || 0
-      if (totalSeconds < 10) return
       const job = jobsRef.current.find(j => String(j.id) === String(record.job_id))
+      // A timer that was still ticking a moment ago (the page was refreshed, or the app reopened)
+      // carries straight on. The timer saves its progress every 5 seconds, so a short gap means it was live.
+      const gapMs = Date.now() - (new Date(record.created_at).getTime() + totalSeconds * 1000)
+      if (job && !intervalRef.current && !busyRef.current && Number.isFinite(gapMs) && Math.abs(gapMs) <= 120000) {
+        const secs = totalSeconds + Math.max(0, Math.round(gapMs / 1000))
+        quietSwitchUntilRef.current = Date.now() + 8000
+        runningJobIdRef.current = String(job.id)
+        activeTimerIdRef.current = record.id
+        elapsedRef.current = secs
+        startedAtRef.current = Date.now() - secs * 1000
+        setSelectedJobId(String(job.id))
+        setTaskName(record.task || '')
+        setDisplaySeconds(secs)
+        setActiveTimerId(record.id)
+        setIsRunning(true)
+        beginTicking()
+        return
+      }
+      await supabase.from('active_timers').delete().eq('id', record.id)
+      if (totalSeconds < 10) return
       if (!job) return
       const shouldSave = window.confirm(`You have an unfinished timer for ${record.job_code}: "${record.task}" (${formatTimer(totalSeconds)}). Save it to the time log?`)
       if (shouldSave) {
@@ -153,14 +220,11 @@ function GlobalTimer({ jobs, currentUser, activeJob }) {
     }
     if (String(runningJobIdRef.current) === openedId) return
     if (declinedSwitchRef.current === openedId) return
+    // The page has just been refreshed with the timer running: keep it where it was, without asking
+    if (Date.now() < quietSwitchUntilRef.current) { declinedSwitchRef.current = openedId; return }
     setSwitchTask(taskNameRef.current || '')
     setSwitchPrompt(activeJob)
   }, [activeJob?.id])
-
-  const saveElapsedToSupabase = async () => {
-    if (!activeTimerIdRef.current) return
-    await supabase.from('active_timers').update({ elapsed_seconds: elapsedRef.current }).eq('id', activeTimerIdRef.current)
-  }
 
   const startTimerFor = async (job, task) => {
     if (intervalRef.current || busyRef.current) return false
@@ -184,13 +248,7 @@ function GlobalTimer({ jobs, currentUser, activeJob }) {
     setDisplaySeconds(0)
     setActiveTimerId(data.id)
     setIsRunning(true)
-    // Elapsed is calculated from the real start time so background tabs do not under-count
-    intervalRef.current = setInterval(() => {
-      const secs = Math.floor((Date.now() - startedAtRef.current) / 1000)
-      elapsedRef.current = secs
-      setDisplaySeconds(secs)
-    }, 1000)
-    saveIntervalRef.current = setInterval(saveElapsedToSupabase, 5000)
+    beginTicking()
     return true
   }
 
@@ -264,7 +322,7 @@ function GlobalTimer({ jobs, currentUser, activeJob }) {
   const busy = saving || starting
 
   return (
-    <div className="px-3 py-3 border-t border-gray-100">
+    <div className={`px-3 border-t border-gray-100 ${collapsed ? 'py-2' : 'py-3'}`}>
       {/* Rendered on the page body: the sidebar slides with a transform, which would trap a fixed dialog inside it */}
       {switchPrompt && isRunning && createPortal(
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
@@ -292,7 +350,17 @@ function GlobalTimer({ jobs, currentUser, activeJob }) {
         document.body
       )}
 
-      <div className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-2">Time tracker</div>
+      <button type="button" onClick={toggleCollapsed} aria-expanded={!collapsed}
+        aria-label={collapsed ? 'Show time tracker' : 'Hide time tracker'}
+        title={collapsed ? (isRunning && selectedJob ? `Recording ${selectedJob.code}. Show time tracker` : 'Show time tracker') : 'Hide time tracker'}
+        className="w-full flex items-center gap-2 text-left rounded-md -mx-1 px-1 py-0.5 hover:bg-gray-50">
+        <span className="text-xs text-gray-500 uppercase tracking-wider font-semibold whitespace-nowrap">{collapsed && isRunning ? 'Timer' : 'Time tracker'}</span>
+        {isRunning && <span className="qp-rec" data-testid="timer-rec" role="img" aria-label="Recording" />}
+        {isRunning && collapsed && <span className="font-mono text-xs font-semibold text-gray-700">{formatTimer(displaySeconds)}</span>}
+        <IconChevronDown size={14} className={`ml-auto text-gray-500 transition-transform ${collapsed ? 'rotate-180' : ''}`} />
+      </button>
+      {!collapsed && (
+      <div className="mt-2">
       <select value={selectedJobId} onChange={e => setSelectedJobId(e.target.value)} disabled={isRunning || busy}
         className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-emerald-400 mb-2 disabled:bg-gray-50 disabled:text-gray-400">
         <option value="">Select job...</option>
@@ -319,6 +387,8 @@ function GlobalTimer({ jobs, currentUser, activeJob }) {
           {selectedJob.address && <><br /><span className="text-emerald-600">{selectedJob.address}</span></>}
           <br /><span className="text-emerald-500">{taskName}</span>
         </div>
+      )}
+      </div>
       )}
     </div>
   )
@@ -411,8 +481,17 @@ export default function App() {
     }
   })
   const [currentUser, setCurrentUser] = useState(null)
-  const [activePage, setActivePage] = useState('dashboard')
+  // The page this person was on before a refresh, if this browser still knows who they are
+  const [restored] = useState(() => {
+    const s = loadSession()
+    return s && s.id ? readLastPage(s.id) : null
+  })
+  const [activePage, setActivePage] = useState(() => restored?.page || 'dashboard')
   const [selectedJob, setSelectedJob] = useState(null)
+  const [restoreJobId, setRestoreJobId] = useState(() => (restored?.page === 'jobdetail' ? restored.jobId : null))
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [refreshing, setRefreshing] = useState(false)
+  const [timerRunning, setTimerRunning] = useState(false)
   const [jobCount, setJobCount] = useState(0)
   const [jobs, setJobs] = useState([])
   const [notifications, setNotifications] = useState([])
@@ -421,7 +500,7 @@ export default function App() {
   const [lastSeenAt, setLastSeenAt] = useState(() => {
     return localStorage.getItem('qplanLastSeenNotifications') || '1970-01-01T00:00:00.000Z'
   })
-  const [history, setHistory] = useState(['dashboard'])
+  const [history, setHistory] = useState(() => [restored?.page || 'dashboard'])
   const [historyIndex, setHistoryIndex] = useState(0)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [pendingCalendarConnect, setPendingCalendarConnect] = useState(false)
@@ -579,6 +658,31 @@ export default function App() {
     setActivePage('microsoft')
   }, [currentUser])
 
+  // Remember the page for the next refresh. Also stamped when the app goes to the background,
+  // so a phone that closes the app behind the scenes reopens it in the same place.
+  useEffect(() => {
+    if (!currentUser?.id) return
+    if (activePage === 'jobdetail' && !selectedJob?.id) return
+    const save = () => writeLastPage(currentUser.id, activePage, activePage === 'jobdetail' ? selectedJob.id : null)
+    save()
+    const onHide = () => { if (document.visibilityState === 'hidden') save() }
+    document.addEventListener('visibilitychange', onHide)
+    return () => document.removeEventListener('visibilitychange', onHide)
+  }, [currentUser?.id, activePage, selectedJob?.id])
+
+  // After a refresh on a job page, load that job again
+  useEffect(() => {
+    if (!currentUser?.id || !restoreJobId) return
+    let cancelled = false
+    supabase.from('jobs').select('*').eq('id', restoreJobId).maybeSingle().then(({ data }) => {
+      if (cancelled) return
+      if (data) setSelectedJob(data)
+      else setActivePage(p => (p === 'jobdetail' ? 'jobs' : p))
+      setRestoreJobId(null)
+    })
+    return () => { cancelled = true }
+  }, [currentUser?.id, restoreJobId])
+
   // Job list for the timer and sidebar count. Refreshes on every page change so new jobs appear straight away.
   useEffect(() => {
     if (!currentUser) return
@@ -590,7 +694,7 @@ export default function App() {
       if (data) { setJobs(data); setJobCount(data.length) }
     }
     fetchJobs()
-  }, [currentUser, activePage])
+  }, [currentUser, activePage, refreshKey])
 
   // If a director deactivates or rejects this account, log the user out on their next load.
   useEffect(() => {
@@ -696,6 +800,13 @@ export default function App() {
 
   const handleLogin = (user) => {
     try { localStorage.setItem('qplan_known_user', '1') } catch { /* storage unavailable */ }
+    // Back to where this person was if they were signed out part way through; otherwise the dashboard
+    const last = readLastPage(user.id)
+    setActivePage(last?.page || 'dashboard')
+    setHistory([last?.page || 'dashboard'])
+    setHistoryIndex(0)
+    setSelectedJob(null)
+    setRestoreJobId(last?.page === 'jobdetail' ? last.jobId : null)
     setCurrentUser({
       id: user.id,
       username: user.username,
@@ -708,7 +819,10 @@ export default function App() {
 
   const handleLogout = () => {
     clearSession()
+    try { localStorage.removeItem(LAST_PAGE_KEY) } catch { /* storage unavailable */ }
     setCurrentUser(null)
+    setSelectedJob(null)
+    setRestoreJobId(null)
     setActivePage('dashboard')
     setHistory(['dashboard'])
     setHistoryIndex(0)
@@ -743,6 +857,18 @@ export default function App() {
     setActivePage(history[newIndex])
   }
 
+  // Reloads what is on screen without leaving the page or stopping the timer
+  const handleRefresh = async () => {
+    if (refreshing) return
+    setRefreshing(true)
+    if (activePage === 'jobdetail' && selectedJob?.id) {
+      const { data } = await supabase.from('jobs').select('*').eq('id', selectedJob.id).maybeSingle()
+      if (data) setSelectedJob(data)
+    }
+    setRefreshKey(k => k + 1)
+    setTimeout(() => setRefreshing(false), 700)
+  }
+
   const canGoBack = historyIndex > 0
   const canGoForward = historyIndex < history.length - 1
   const isDirector = currentUser?.role === 'director'
@@ -764,7 +890,15 @@ export default function App() {
       case 'dashboard': return <Dashboard onNavigate={handleNavigate} currentUser={currentUser} />
       case 'jobs': return <Jobs onNavigate={handleNavigate} onJobCountChange={setJobCount} currentUser={currentUser} />
       case 'newjob': return <NewJob onNavigate={handleNavigate} currentUser={currentUser} />
-      case 'jobdetail': return <JobDetail job={selectedJob} onNavigate={handleNavigate} currentUser={currentUser} />
+      case 'jobdetail':
+        if (selectedJob) return <JobDetail job={selectedJob} onNavigate={handleNavigate} currentUser={currentUser} />
+        return (
+          <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-sm text-gray-500">
+            {restoreJobId ? 'Loading job...' : (
+              <>That job is not open any more. <button onClick={() => handleNavigate('jobs')} className="text-emerald-600 hover:underline font-medium">Go to All Jobs</button></>
+            )}
+          </div>
+        )
       case 'workload': return isDirector ? <Workload currentUser={currentUser} /> : <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-sm text-gray-500">Access restricted to directors.</div>
       case 'xero': return <Xero currentUser={currentUser} />
       case 'calendly': return <Bookings onNavigate={handleNavigate} currentUser={currentUser} />
@@ -827,7 +961,7 @@ export default function App() {
           ))}
         </div>
 
-        <GlobalTimer jobs={jobs} currentUser={currentUser} activeJob={activePage === 'jobdetail' ? selectedJob : null} />
+        <GlobalTimer jobs={jobs} currentUser={currentUser} activeJob={activePage === 'jobdetail' ? selectedJob : null} onRunningChange={setTimerRunning} />
 
         <div className="p-3 border-t border-gray-200 space-y-2">
           <ThemeSwitch />
@@ -878,9 +1012,10 @@ export default function App() {
         <div className="h-12 bg-white border-b border-gray-200 flex items-center px-4 gap-3 flex-shrink-0">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="lg:hidden p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 flex-shrink-0"
-            aria-label="Open menu"
+            className="lg:hidden relative p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 flex-shrink-0"
+            aria-label={timerRunning ? 'Open menu (timer recording)' : 'Open menu'}
           >
+            {timerRunning && <span className="qp-rec absolute top-0.5 right-0.5" aria-hidden="true" />}
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
               <rect x="2" y="4" width="14" height="1.5" rx="1" fill="currentColor"/>
               <rect x="2" y="8.25" width="14" height="1.5" rx="1" fill="currentColor"/>
@@ -891,10 +1026,16 @@ export default function App() {
           {isDirector && currentUser.companyName && (
             <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-lg hidden sm:block">{currentUser.companyName}</span>
           )}
+          {activePage !== 'newjob' && (
+            <button onClick={handleRefresh} disabled={refreshing} title="Refresh this page" aria-label="Refresh this page"
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 flex-shrink-0 disabled:opacity-60">
+              <IconRefresh size={15} className={refreshing ? 'animate-spin' : ''} />
+            </button>
+          )}
           <button onClick={() => handleNavigate('newjob')} className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex-shrink-0">+ New Job</button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-5">
+        <div key={refreshKey} className="flex-1 overflow-y-auto p-4 md:p-5">
           {renderPage()}
         </div>
       </div>

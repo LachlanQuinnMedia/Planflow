@@ -1566,8 +1566,22 @@ function ShareSummaryModal({ job, currentUser, onClose, onJobUpdated, onHistoryA
   )
 }
 
+// The tab that was open on a job, kept for this browser tab so a refresh comes back to it
+function readJobTab(jobId) {
+  try {
+    const v = JSON.parse(sessionStorage.getItem('qplan_job_tab') || 'null')
+    return v && jobId && String(v.jobId) === String(jobId) && TABS.some(t => t.id === v.tab) ? v.tab : null
+  } catch {
+    return null
+  }
+}
+
 export default function JobDetail({ job, onNavigate, currentUser }) {
-  const [activeTab, setActiveTab] = useState('overview')
+  const [activeTab, setActiveTabState] = useState(() => readJobTab(job?.id) || 'overview')
+  const setActiveTab = (tab) => {
+    setActiveTabState(tab)
+    try { sessionStorage.setItem('qplan_job_tab', JSON.stringify({ jobId: job?.id, tab })) } catch { /* storage unavailable */ }
+  }
   const [showGenerate, setShowGenerate] = useState(false)
   const [showEditJob, setShowEditJob] = useState(false)
   const [showShare, setShowShare] = useState(false)

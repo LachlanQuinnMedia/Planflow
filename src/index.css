@@ -241,3 +241,22 @@ html[data-theme="dark"] body {
 .qp-safe-top { padding-top: env(safe-area-inset-top, 0px); }
 .qp-safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
 .qp-safe-x { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+
+/* The "still recording" light on the time tracker */
+.qp-rec {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: #ef4444;
+  flex-shrink: 0;
+  box-shadow: 0 0 5px 1px rgba(239, 68, 68, 0.7);
+  animation: qp-rec-glow 1.6s ease-in-out infinite;
+}
+@keyframes qp-rec-glow {
+  0%, 100% { box-shadow: 0 0 3px 0 rgba(239, 68, 68, 0.55); opacity: 1; }
+  50% { box-shadow: 0 0 10px 3px rgba(239, 68, 68, 0.95); opacity: 0.8; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .qp-rec { animation: none; }
+}

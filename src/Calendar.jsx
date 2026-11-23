@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase, SUPABASE_URL, fnHeaders, callFunction } from './supabase'
 import { jobTitle } from './jobMeta'
 import { holidayName } from './businessDays'
 import { connectMyCalendar } from './microsoft'
-import { IconCalendar, IconPeople, IconFolder, IconLink } from './icons'
+import { IconCalendar, IconPeople, IconFolder, IconLink, IconRefresh } from './icons'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
@@ -699,6 +699,11 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
   const [loading, setLoading] = useState(true)
   const [outlookEvents, setOutlookEvents] = useState([])
   const [outlookNote, setOutlookNote] = useState('') // '', 'reconnect' or an error message
+  const [refreshing, setRefreshing] = useState(false)
+  const bookingsReqRef = useRef(0) // only the newest answer is used, so a slow one cannot overwrite a newer week
+  const outlookReqRef = useRef(0)
+  const refreshRef = useRef(null)
+  const lastRefreshRef = useRef(0)
   const isDirector = currentUser.role === 'director'
 
   const weekDates = getWeekDates(currentWeek)
@@ -717,22 +722,54 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
     fetchOutlook()
   }, [currentWeek, viewingAs])
 
+  // Keeps the week up to date on its own: every minute while the calendar is on screen,
+  // and straight away when you come back to the tab or reopen the app.
+  const refresh = async () => {
+    lastRefreshRef.current = Date.now()
+    setRefreshing(true)
+    await Promise.all([fetchBookings(true), fetchOutlook()])
+    setRefreshing(false)
+  }
+  useEffect(() => { refreshRef.current = refresh })
+  useEffect(() => {
+    const auto = () => {
+      if (document.visibilityState !== 'visible') return
+      if (Date.now() - lastRefreshRef.current < 10000) return
+      refreshRef.current?.()
+    }
+    const timer = setInterval(auto, 60000)
+    document.addEventListener('visibilitychange', auto)
+    window.addEventListener('focus', auto)
+    window.addEventListener('online', auto)
+    return () => {
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', auto)
+      window.removeEventListener('focus', auto)
+      window.removeEventListener('online', auto)
+    }
+  }, [])
+
   // Your own Outlook calendar, shown alongside QPlan meetings. Only ever your own:
   // when a director looks at someone else's week, their Outlook is not read.
   const fetchOutlook = async () => {
     const mine = (viewingAs || '').toLowerCase() === (currentUser.username || '').toLowerCase()
+    const req = ++outlookReqRef.current
     if (!mine) { setOutlookEvents([]); setOutlookNote(''); return }
     try {
       const res = await callFunction('calendar-outlook', 'events', { start: toLocalISODate(weekDates[0]), end: toLocalISODate(weekDates[6]) })
+      if (req !== outlookReqRef.current) return
       setOutlookEvents(res.success ? (res.events || []) : [])
       setOutlookNote(res.success ? '' : (res.error || 'Could not read Outlook'))
     } catch {
+      if (req !== outlookReqRef.current) return
       setOutlookEvents([]); setOutlookNote('Could not read Outlook')
     }
   }
 
-  const fetchBookings = async () => {
-    setLoading(true)
+  // quiet: a background update, so the list does not flash "Loading..."
+  const fetchBookings = async (quiet = false) => {
+    const req = ++bookingsReqRef.current
+    if (quiet !== true) setLoading(true)
     const startDate = toLocalISODate(weekDates[0])
     const endDate = toLocalISODate(weekDates[6])
     const { data } = await supabase
@@ -740,6 +777,7 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
       .eq('company_id', currentUser.company_id)
       .gte('date', startDate).lte('date', endDate)
       .order('start_time', { ascending: true })
+    if (req !== bookingsReqRef.current) return
     if (data) {
       const lc = (viewingAs || '').toLowerCase()
       setBookings(data.filter(b => {
@@ -790,7 +828,7 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
           currentUser={currentUser} staffList={staffList} jobs={jobs} defaultDate={selectedDate} />
       )}
       {showConnect && (
-        <ConnectCalendarModal onClose={() => setShowConnect(false)} currentUser={currentUser} onConnectionChange={fetchBookings} />
+        <ConnectCalendarModal onClose={() => setShowConnect(false)} currentUser={currentUser} onConnectionChange={refresh} />
       )}
       {showDatePicker && (
         <DatePickerModal currentDate={currentWeek} onSelect={setCurrentWeek} onClose={() => setShowDatePicker(false)} />
@@ -809,6 +847,10 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
           <button onClick={goBack} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 text-lg">‹</button>
           <button onClick={goToday} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Today</button>
           <button onClick={goForward} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 text-lg">›</button>
+          <button onClick={refresh} disabled={refreshing} title="Refresh the calendar. It also updates itself every minute." aria-label="Refresh calendar"
+            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 disabled:opacity-60">
+            <IconRefresh size={14} className={refreshing ? 'animate-spin' : ''} />
+          </button>
           <div className="flex items-center gap-1.5 ml-2">
             <span className="text-sm font-semibold">{formatWeekRange(weekDates)}</span>
             <button onClick={() => setShowDatePicker(true)}
