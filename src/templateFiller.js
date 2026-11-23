@@ -87,7 +87,7 @@ export function buildTemplateData(job = {}, planner = {}) {
  * @param {object} planner       the logged-in planner_profiles row
  * @returns {{ blob: Blob, filename: string }}
  */
-export async function generateFromTemplate(templateFile, job, planner) {
+export async function buildFromTemplate(templateFile, job, planner) {
   // 1. download the template (Supabase Storage, or the app for app-hosted templates)
   const arrayBuffer = await fetchTemplateBuffer(templateFile);
 
@@ -123,10 +123,18 @@ export async function generateFromTemplate(templateFile, job, planner) {
     compression: 'DEFLATE', // keeps the download the same size as the template instead of about three times larger
   });
 
-  // 4. trigger a browser download
   const safe = (s) => (s || '').replace(/[^\w.-]+/g, '_').replace(/^_+|_+$/g, '');
   const base = templateFile.replace(/\.docx$/i, '');
   const filename = `${safe(job?.code) || 'HPC'}_${base}.docx`;
+  return { blob, filename };
+}
+
+/**
+ * Fill a template and download it to this computer.
+ * @returns {{ blob: Blob, filename: string }}
+ */
+export async function generateFromTemplate(templateFile, job, planner) {
+  const { blob, filename } = await buildFromTemplate(templateFile, job, planner);
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

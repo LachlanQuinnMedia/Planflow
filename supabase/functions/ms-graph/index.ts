@@ -1,7 +1,7 @@
 // supabase/functions/ms-graph/index.ts
 // Microsoft 365 / OneDrive / SharePoint integration for QPlan.
 // Actions: callback, status, disconnect, drives, list, search, preview, item,
-//          set_jobs_folder, create_folder
+//          set_jobs_folder, create_folder, upload_file
 //
 // Every file action accepts an optional drive_id. Without it, the connected
 // user's own OneDrive (/me/drive) is used. With it, any drive the connected
@@ -306,6 +306,33 @@ Deno.serve(async (req) => {
 
       const [item] = mapItems([created])
       return json({ success: true, existed: false, item })
+    }
+
+    // Save a file into a folder, for example documents generated when a job is created.
+    // Small files only (Word documents are well under the limit). A file with the same name is kept, and the new one is renamed.
+    if (action === 'upload_file') {
+      const token = await getValidToken(company_id)
+      if (!token) return json({ success: false, error: 'Not connected' }, 401)
+      const parentId = body.parent_id
+      const name = safeFolderName(String(body.name || ''))
+      if (!parentId || !name) return json({ success: false, error: 'Missing folder or file name' }, 400)
+      let bytes: Uint8Array
+      try {
+        bytes = Uint8Array.from(atob(String(body.content_base64 || '')), (c) => c.charCodeAt(0))
+      } catch {
+        return json({ success: false, error: 'The file could not be read' }, 400)
+      }
+      if (!bytes.length) return json({ success: false, error: 'The file is empty' }, 400)
+      if (bytes.length > 4 * 1024 * 1024) return json({ success: false, error: 'The file is larger than 4 MB' }, 400)
+
+      const res = await fetch(
+        `${GRAPH}${driveBase(driveId)}/items/${parentId}:/${encodeURIComponent(name)}:/content?@microsoft.graph.conflictBehavior=rename`,
+        { method: 'PUT', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/octet-stream' }, body: bytes },
+      )
+      const result = await res.json().catch(() => ({}))
+      if (!res.ok || result.error) return json({ success: false, error: result.error?.message || `Microsoft 365 returned ${res.status}` }, 400)
+      const [item] = mapItems([result])
+      return json({ success: true, item })
     }
 
     if (action === 'disconnect') {

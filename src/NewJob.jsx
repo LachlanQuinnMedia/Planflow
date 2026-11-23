@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
-import { generateFromTemplate } from './templateFiller'
+import { generateFromTemplate, buildFromTemplate } from './templateFiller'
+import { saveDocToJob } from './jobDocs'
 import { APP_TYPES, buildJobName, jobTitle, oneDriveFolderName } from './jobMeta'
 import { callGraph, OneDriveFolderPicker } from './OneDriveBrowser'
 
@@ -118,7 +119,7 @@ async function downloadRawTemplate(filename) {
   setTimeout(() => URL.revokeObjectURL(link.href), 1000)
 }
 
-function DocGenerateModal({ job, planner, folderResult, onClose, onNavigate }) {
+function DocGenerateModal({ job, planner, folderResult, docResults, onClose, onNavigate }) {
   const [selected, setSelected] = useState(new Set())
   const [generating, setGenerating] = useState(false)
   const [done, setDone] = useState(false)
@@ -168,11 +169,12 @@ function DocGenerateModal({ job, planner, folderResult, onClose, onNavigate }) {
       <div className="bg-white rounded-xl border border-gray-200 w-full max-w-md max-h-[90vh] flex flex-col">
         <div className="px-5 py-4 border-b border-gray-100">
           <div className="text-sm font-semibold">Job created ✓</div>
-          <div className="text-xs text-gray-500 mt-0.5">{jobTitle(job)} · Generate documents now?</div>
+          <div className="text-xs text-gray-500 mt-0.5">{jobTitle(job)} · {docResults?.saved?.length ? 'Need any more documents? These download to your computer.' : 'Generate documents now?'}</div>
         </div>
 
         <div className="px-5 py-4 overflow-y-auto">
           <FolderResultNote result={folderResult} />
+          <DocResultsNote results={docResults} />
           <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Stage 1</div>
           {STAGE1_TEMPLATES.map(group => (
             <div key={group.group} className="mb-3">
@@ -225,6 +227,29 @@ function DocGenerateModal({ job, planner, folderResult, onClose, onNavigate }) {
   )
 }
 
+// Every template, in the order they are listed on the form
+const ALL_TEMPLATES = [...STAGE1_TEMPLATES, ...STAGE2_TEMPLATES, ...STAGE3_TEMPLATES, ...MISC_TEMPLATES].flatMap(g => g.items)
+
+// What happened to the documents ticked on the form, shown on the "Job created" dialog
+function DocResultsNote({ results }) {
+  if (!results) return null
+  return (
+    <>
+      {results.saved.length > 0 && (
+        <div className="mb-3 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-xs text-emerald-800">
+          <span className="font-medium">{results.saved.length} document{results.saved.length === 1 ? '' : 's'} generated and saved {results.where === 'folder' ? "in the job's folder" : "on the job's Documents tab"}:</span>{' '}
+          {results.saved.join(', ')}
+        </div>
+      )}
+      {results.failed.length > 0 && (
+        <div className="mb-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800 whitespace-pre-line">
+          {results.failed.length} could not be generated. You can generate {results.failed.length === 1 ? 'it' : 'them'} below instead.{'\n'}{results.failed.join('\n')}
+        </div>
+      )}
+    </>
+  )
+}
+
 // How the OneDrive folder step went, shown on the "Job created" dialog
 function FolderResultNote({ result }) {
   if (!result || result.state === 'none') return null
@@ -264,6 +289,9 @@ export default function NewJob({ onNavigate, currentUser }) {
   const [createdJob, setCreatedJob] = useState(null)
   const [folderResult, setFolderResult] = useState(null)
   const [showDocModal, setShowDocModal] = useState(false)
+  const [selectedDocs, setSelectedDocs] = useState(new Set()) // documents ticked before the job is created
+  const [docResults, setDocResults] = useState(null)
+  const [progress, setProgress] = useState('')
   const [currentPlanner, setCurrentPlanner] = useState(null)
 
   // Microsoft 365: is it connected, and where do new job folders go?
@@ -402,7 +430,7 @@ export default function NewJob({ onNavigate, currentUser }) {
       const history = [{ text, time: new Date().toISOString() }, { text: 'Job created', time: job.created_at || new Date().toISOString() }]
       const { error: linkError } = await supabase.from('jobs').update({ ...link, ...stamp, job_history: history }).eq('id', job.id)
       if (linkError) return { state: 'error', message: linkError.message }
-      return { state, path: link.onedrive_folder_path, url: link.onedrive_folder_url }
+      return { state, path: link.onedrive_folder_path, url: link.onedrive_folder_url, link }
     }
 
     if (folderMode === 'create' && ms.jobsFolder) {
@@ -468,9 +496,47 @@ export default function NewJob({ onNavigate, currentUser }) {
     }
 
     const folder = await setUpFolder(saved)
+    const job = { ...saved, ...(folder.link || {}) }
+
+    // Fill in the ticked documents and save them with the job: in its Microsoft 365 folder
+    // if it has one, otherwise in QPlan on the job's Documents tab.
+    let results = null
+    if (selectedDocs.size > 0) {
+      results = { saved: [], failed: [], where: job.onedrive_folder_id ? 'folder' : 'qplan' }
+      const labels = Object.fromEntries(ALL_TEMPLATES.map(t => [t.file, t.label]))
+      let n = 0
+      for (const file of selectedDocs) {
+        n++
+        setProgress(`Generating document ${n} of ${selectedDocs.size}...`)
+        try {
+          let blob, filename
+          if (file.endsWith('.docx')) {
+            ({ blob, filename } = await buildFromTemplate(file, job, currentPlanner || {}))
+          } else {
+            const { data, error: dlError } = await supabase.storage.from('templates').download(file)
+            if (dlError) throw new Error(dlError.message)
+            blob = data
+            filename = `${job.code}_${file}`
+          }
+          await saveDocToJob({ job, currentUser, blob, filename })
+          results.saved.push(labels[file] || file)
+        } catch (e) {
+          results.failed.push(`${labels[file] || file}: ${e.message}`)
+        }
+      }
+      if (results.saved.length) {
+        const { data: fresh } = await supabase.from('jobs').select('job_history').eq('id', job.id).maybeSingle()
+        const now = new Date().toISOString()
+        const added = results.saved.map(label => ({ text: `Document generated: ${label}`, time: now }))
+        await supabase.from('jobs').update({ job_history: [...added, ...(fresh?.job_history || [])] }).eq('id', job.id)
+      }
+    }
+
+    setProgress('')
     setSaving(false)
     setFolderResult(folder)
-    setCreatedJob(saved)
+    setDocResults(results)
+    setCreatedJob(job)
     setShowDocModal(true)
   }
 
@@ -488,7 +554,7 @@ export default function NewJob({ onNavigate, currentUser }) {
   return (
     <div className="max-w-3xl">
       {showDocModal && createdJob && (
-        <DocGenerateModal job={createdJob} planner={currentPlanner} folderResult={folderResult} onClose={() => setShowDocModal(false)} onNavigate={onNavigate} />
+        <DocGenerateModal job={createdJob} planner={currentPlanner} folderResult={folderResult} docResults={docResults} onClose={() => setShowDocModal(false)} onNavigate={onNavigate} />
       )}
       {picker === 'existing' && (
         <OneDriveFolderPicker currentUser={currentUser} onPick={handlePickExisting} onClose={() => setPicker(null)}
@@ -646,14 +712,16 @@ export default function NewJob({ onNavigate, currentUser }) {
               The job is named <span className="font-medium text-gray-600">{hasPreview ? previewName : '[Client Name] - [Address] [job number]'}</span>. Its folder gets the same name.
             </div>
             <div className="space-y-2">
-              <button type="button" disabled={!ms.jobsFolder} onClick={() => ms.jobsFolder && setFolderMode('create')} className={optionClass(folderMode === 'create', !ms.jobsFolder)}>
+              <button type="button" disabled={(!ms.jobsFolder && !isDirector) || savingRoot}
+                onClick={() => { if (ms.jobsFolder) setFolderMode('create'); else if (isDirector) setPicker('root') }}
+                className={optionClass(folderMode === 'create', !ms.jobsFolder && !isDirector)}>
                 <div className="text-xs font-semibold text-gray-700">{folderMode === 'create' ? '● ' : '○ '}Create a new folder for this job</div>
                 <div className="text-xs text-gray-600 mt-0.5">
                   {ms.jobsFolder
                     ? <>Created automatically inside <span className="font-medium">{ms.jobsFolder.path || ms.jobsFolder.name}</span> when you save.</>
                     : isDirector
-                      ? 'First tell QPlan which folder holds your job folders (one-off, below).'
-                      : 'A director needs to set the firm\'s jobs folder first (one-off).'}
+                      ? (savingRoot ? 'Saving...' : 'Click to choose where your job folders live. You only do this once. After that, every new job gets its folder there.')
+                      : 'A director needs to choose where the firm\'s job folders live first (one-off).'}
                 </div>
               </button>
               <button type="button" onClick={() => { if (pickedFolder) setFolderMode('existing'); else setPicker('existing') }} className={optionClass(folderMode === 'existing', false)}>
@@ -673,9 +741,9 @@ export default function NewJob({ onNavigate, currentUser }) {
               {pickedFolder && (
                 <button type="button" onClick={() => setPicker('existing')} className="text-xs text-emerald-600 hover:underline">Choose a different existing folder</button>
               )}
-              {isDirector && (
+              {isDirector && ms.jobsFolder && (
                 <button type="button" disabled={savingRoot} onClick={() => setPicker('root')} className="text-xs text-emerald-600 hover:underline disabled:opacity-50">
-                  {savingRoot ? 'Saving...' : ms.jobsFolder ? 'Change where new job folders are created' : 'Set where new job folders are created'}
+                  {savingRoot ? 'Saving...' : 'Change where new job folders are created'}
                 </button>
               )}
             </div>
@@ -683,18 +751,33 @@ export default function NewJob({ onNavigate, currentUser }) {
         )}
 
         <div className="border-t border-gray-100 mb-5" />
-        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Documents available to generate</div>
-        <div className="text-xs text-gray-500 mb-3">After creating the job you'll be prompted to generate fee proposals, consents, planning reports, IR responses, public notices and more, all pre-filled with job and planner details.</div>
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Documents to generate</div>
+          {selectedDocs.size > 0 && (
+            <button type="button" onClick={() => setSelectedDocs(new Set())} className="text-xs text-gray-500 hover:text-gray-700 hover:underline">Clear {selectedDocs.size} selected</button>
+          )}
+        </div>
+        <div className="text-xs text-gray-500 mb-3">
+          Click the documents you want from the start. Each one is filled in with the job and planner details and saved{' '}
+          {folderMode === 'none' || !ms.connected ? "on the job's Documents tab" : "in the job's folder"} when you create the job. You can generate more at any time.
+        </div>
         <div className="flex flex-wrap gap-2 mb-6">
-          {[...STAGE1_TEMPLATES, ...STAGE2_TEMPLATES, ...STAGE3_TEMPLATES, ...MISC_TEMPLATES].flatMap(g => g.items).map(t => (
-            <span key={t.file} className="px-3 py-1 bg-emerald-50 text-emerald-700 text-xs rounded-full border border-emerald-200">{t.label}</span>
-          ))}
+          {ALL_TEMPLATES.map(t => {
+            const on = selectedDocs.has(t.file)
+            return (
+              <button key={t.file} type="button" aria-pressed={on}
+                onClick={() => setSelectedDocs(prev => { const next = new Set(prev); if (next.has(t.file)) next.delete(t.file); else next.add(t.file); return next })}
+                className={`px-3 py-1 text-xs rounded-full border transition-colors ${on ? 'bg-emerald-600 text-white border-emerald-600 font-medium' : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:border-emerald-400'}`}>
+                {on ? '✓ ' : '+ '}{t.label}
+              </button>
+            )
+          })}
         </div>
 
         <div className="flex justify-end gap-3">
           <button onClick={() => onNavigate('jobs')} className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
           <button onClick={handleSubmit} disabled={saving} className="px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50">
-            {saving ? 'Saving...' : 'Create job & generate docs'}
+            {saving ? (progress || 'Saving...') : selectedDocs.size > 0 ? `Create job and generate ${selectedDocs.size} document${selectedDocs.size === 1 ? '' : 's'}` : 'Create job'}
           </button>
         </div>
       </div>
