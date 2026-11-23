@@ -125,6 +125,23 @@
   --color-rose-900: oklch(94.1% 0.03 12.58);
 }
 
+/* Dropdown menus. When a dropdown is opened, the browser draws the list itself and can ignore
+   the page's dark colours, which left light text on a white list. Giving every option its own
+   background and text colour fixes that in Chrome, Edge, Firefox and Safari. */
+:root[data-theme="dark"] select option,
+:root[data-theme="dark"] select optgroup {
+  background-color: #151d1a;
+  color: #f1f5f3;
+}
+:root[data-theme="dark"] select option:disabled {
+  color: #70807a;
+}
+:root[data-theme="light"] select option,
+:root[data-theme="light"] select optgroup {
+  background-color: #ffffff;
+  color: #111827;
+}
+
 html[data-theme="dark"] body {
   background-color: var(--qp-page);
   color: var(--color-gray-900);
@@ -132,6 +149,10 @@ html[data-theme="dark"] body {
 
 /* A few classes need their own dark value. They sit in the utilities layer with low
    weight, so hover and focus styles on the same element still win. */
+@layer base {
+  :where([data-theme="dark"]) select { background-color: var(--qp-surface); }
+}
+
 @layer utilities {
   :where([data-theme="dark"]) .bg-white { background-color: var(--qp-surface); }
   :where([data-theme="dark"]) .border-white { border-color: var(--qp-surface); }
