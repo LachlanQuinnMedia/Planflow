@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import qplanLogo from './assets/plan_logo.PNG'
+import Logo from './Logo'
 import { registerUser } from './auth'
 
 const SECURITY_QUESTIONS = [
@@ -81,8 +81,7 @@ export default function Register({ onBack, onSuccess }) {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="w-full max-w-sm">
           <div className="flex items-center justify-center gap-3 mb-8">
-            <img src={qplanLogo} alt="QPlan" className="w-12 h-12 object-contain" />
-            <span className="text-2xl font-semibold text-gray-800">QPlan</span>
+            <Logo className="h-11 w-auto" />
           </div>
           <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
             <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 text-2xl mx-auto mb-4">✓</div>
@@ -108,8 +107,7 @@ export default function Register({ onBack, onSuccess }) {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="flex items-center justify-center gap-3 mb-8">
-          <img src={qplanLogo} alt="QPlan" className="w-12 h-12 object-contain" />
-          <span className="text-2xl font-semibold text-gray-800">QPlan</span>
+          <Logo className="h-11 w-auto" />
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-200 p-8">

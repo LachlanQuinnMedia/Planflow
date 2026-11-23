@@ -1,6 +1,10 @@
 @import "tailwindcss";
 
 /* Lets future code write dark: classes, e.g. dark:bg-gray-100 */
+/* Logo colours. The logo follows the theme. */
+:root { --logo-pin: #0E5A43; --logo-text: #0B2A20; --logo-dot: #E9A21B; }
+:root[data-theme="dark"] { --logo-pin: #34D399; --logo-text: #F2F6F4; --logo-dot: #F6B73C; }
+
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 /* ------------------------------------------------------------------

@@ -18,7 +18,7 @@ import TimeBudget from './TimeBudget'
 import Planners from './Planners'
 import Xero from './XeroPage'
 import Microsoft365 from './Microsoft365'
-import qplanLogo from './assets/plan_logo.PNG'
+import Logo from './Logo'
 import { timerLabel } from './jobMeta'
 import { IconPlay, IconStop, IconSun, IconMoon, IconAuto } from './icons'
 import { getThemeChoice, setThemeChoice, watchSystemTheme } from './theme'
@@ -799,8 +799,7 @@ export default function App() {
         lg:translate-x-0
       `}>
         <div className="flex items-center px-3 py-2 border-b border-gray-200 gap-2">
-          <img src={qplanLogo} alt="QPlan" className="w-7 h-7 object-contain flex-shrink-0" />
-          <span className="text-sm font-semibold text-gray-800">QPlan</span>
+          <Logo className="h-6 w-auto" />
           <div className="flex items-center gap-0.5 ml-auto">
             <button onClick={goBack} disabled={!canGoBack}
               className={`w-8 h-8 flex items-center justify-center rounded-md transition-colors ${canGoBack ? 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' : 'text-gray-200 cursor-not-allowed'}`}

@@ -2,7 +2,7 @@
 // The public front page: what QPlan does, a way to ask for access, and Log in in the top right.
 // Everything said here is something the app does today.
 import { useState } from 'react'
-import qplanLogo from './assets/plan_logo.PNG'
+import Logo from './Logo'
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase'
 
 const FEATURES = [
@@ -104,8 +104,7 @@ export default function Landing({ onLogin }) {
       <header className="sticky top-0 z-20 bg-white border-b border-gray-200">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-4">
           <div className="flex items-center gap-2 mr-auto">
-            <img src={qplanLogo} alt="" className="w-8 h-8 object-contain" />
-            <span className="text-lg font-semibold">QPlan</span>
+            <Logo className="h-8 w-auto" />
           </div>
           <button onClick={() => goTo('features')} className="hidden sm:block text-sm text-gray-600 hover:text-gray-900">Features</button>
           <button onClick={() => goTo('demo')} className="hidden sm:block text-sm text-gray-600 hover:text-gray-900">Contact</button>
@@ -200,7 +199,7 @@ export default function Landing({ onLogin }) {
 
       <footer className="bg-[#0B2A20] text-white/80">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
-          <span className="font-semibold text-white">QPlan</span>
+          <Logo className="h-6 w-auto" tone="on-dark" />
           <span>Less Process More Progress</span>
           <button onClick={onLogin} className="ml-auto hover:text-white underline underline-offset-2">Log in</button>
         </div>

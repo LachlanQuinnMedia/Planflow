@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { loginUser, saveSession } from './auth'
-import qplanLogo from './assets/plan_logo.PNG'
+import Logo from './Logo'
 
 export default function Login({ onLogin, onRegister, onForgotPassword, onAbout }) {
   const [username, setUsername] = useState(localStorage.getItem('pf_remember_username') || '')
@@ -39,8 +39,7 @@ export default function Login({ onLogin, onRegister, onForgotPassword, onAbout }
 
         {/* Logo */}
         <div className="flex items-center justify-center gap-3 mb-8">
-          <img src={qplanLogo} alt="QPlan" className="w-12 h-12 object-contain" />
-          <span className="text-2xl font-semibold text-gray-800">QPlan</span>
+          <Logo className="h-11 w-auto" />
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-200 p-8">
