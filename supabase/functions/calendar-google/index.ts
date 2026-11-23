@@ -142,7 +142,7 @@ serve(async (req) => {
       await supabase.from('bookings').update({
         external_id: createdEvent.id,
         external_source: 'google',
-      }).eq('id', booking.id)
+      }).eq('id', booking.id).eq('company_id', company_id)
 
       return new Response(JSON.stringify({ success: true, event_id: createdEvent.id }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

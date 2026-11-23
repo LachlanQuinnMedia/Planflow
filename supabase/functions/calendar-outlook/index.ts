@@ -168,7 +168,7 @@ serve(async (req) => {
       await supabase.from('bookings').update({
         external_id: createdEvent.id,
         external_source: 'outlook',
-      }).eq('id', booking.id)
+      }).eq('id', booking.id).eq('company_id', company_id)
 
       return json({ success: true, event_id: createdEvent.id })
     }

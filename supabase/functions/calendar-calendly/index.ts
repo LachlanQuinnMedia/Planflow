@@ -63,7 +63,6 @@ serve(async (req) => {
       })
 
       const tokens = await tokenRes.json()
-      console.log('Token response:', JSON.stringify(tokens))
 
       if (!tokens.access_token) {
         return new Response(JSON.stringify({ success: false, error: 'No access token', detail: tokens }), {
