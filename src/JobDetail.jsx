@@ -3,7 +3,7 @@ import { supabase } from './supabase'
 import { generateFromTemplate } from './templateFiller'
 import OneDriveBrowser, { OneDriveFolderPicker } from './OneDriveBrowser'
 import { APP_TYPES, appTypeBadge, appTypeFull, buildJobName, clientName, contactName, isCompanyClient, jobTitle } from './jobMeta'
-import { addBusinessDays, businessDaysUntil, businessDaysLabel, skippedHolidays, beyondHolidayData, hasShowHoliday } from './businessDays'
+import { addBusinessDays, deadlineStatus, skippedHolidays, beyondHolidayData, hasShowHoliday, stageDayRules } from './businessDays'
 
 // Today's date as YYYY-MM-DD in Brisbane time (not UTC)
 function todayLocal() {
@@ -277,14 +277,15 @@ function parseHHMMSS(str) {
   return 0
 }
 
-async function sendStageNotifications(job, stageId, stageLabel, daysLeft, companyId) {
+async function sendStageNotifications(job, stageId, stageLabel, status, companyId) {
   try {
-    const notifType = daysLeft < 0 ? 'overdue' : daysLeft <= 3 ? 'due_soon_3' : 'due_soon_7'
-    const message = daysLeft < 0
-      ? `⚠️ OVERDUE: ${job.code} — ${stageLabel} is ${Math.abs(daysLeft)} business day${Math.abs(daysLeft) !== 1 ? 's' : ''} overdue.`
-      : daysLeft === 0
-        ? `⏰ ${job.code} — ${stageLabel} is due today.`
-        : `⏰ ${job.code} — ${stageLabel} is due in ${daysLeft} business day${daysLeft !== 1 ? 's' : ''}.`
+    const daysLeft = status.business || 0
+    const notifType = status.overdue ? 'overdue' : daysLeft <= 3 ? 'due_soon_3' : 'due_soon_7'
+    const message = status.overdue
+      ? `⚠️ OVERDUE: ${job.code} - ${stageLabel} is overdue (end date passed).`
+      : status.dueToday
+        ? `⏰ ${job.code} - ${stageLabel} is due today.`
+        : `⏰ ${job.code} - ${stageLabel}: ${status.label.toLowerCase()}.`
     const { data: existing } = await supabase.from('stage_notifications').select('id').eq('job_id', job.id).eq('stage_id', stageId).eq('notification_type', notifType).single()
     if (existing) return
     await supabase.from('stage_notifications').insert({ job_id: job.id, stage_id: stageId, notification_type: notifType })
@@ -788,7 +789,7 @@ function DAStageTracker({ job, currentUser, onHistoryAdd }) {
   // Weekends, Queensland public holidays, the council's show day and 26 Dec to 1 Jan are skipped.
   const calcEnd = (stage, data) => {
     if (!data.startDate) return ''
-    return addBusinessDays(data.startDate, stage.statutory_days + (Number(data.stoppedDays) || 0), council)
+    return addBusinessDays(data.startDate, stage.statutory_days + (Number(data.stoppedDays) || 0), council, stageDayRules(stage.id))
   }
 
   useEffect(() => {
@@ -797,7 +798,13 @@ function DAStageTracker({ job, currentUser, onHistoryAdd }) {
       if (data?.da_stages && typeof data.da_stages === 'object') {
         // Merge with defaults so a partially saved record never leaves a stage undefined
         const merged = {}
-        for (const s of DA_STAGES) merged[s.id] = { ...initialStageData[s.id], ...(data.da_stages[s.id] || {}) }
+        for (const s of DA_STAGES) {
+          const st = { ...initialStageData[s.id], ...(data.da_stages[s.id] || {}) }
+          // Stages saved before auto-calculation have no flag. Treat a saved end date that
+          // differs from the calculated one as typed by hand, so it is never overwritten.
+          if (st.endDate && st.endDateManual === undefined) st.endDateManual = st.endDate !== calcEnd(s, st)
+          merged[s.id] = st
+        }
         setStages(merged)
         checkDeadlines(merged)
       }
@@ -810,8 +817,8 @@ function DAStageTracker({ job, currentUser, onHistoryAdd }) {
     for (const stage of DA_STAGES) {
       const data = stageData[stage.id]
       if (data.status !== 'active' || !data.endDate || data.isStopped) continue
-      const days = businessDaysUntil(data.endDate, council)
-      if (days !== null && days <= 7) await sendStageNotifications(job, stage.id, stage.label, days, currentUser.company_id)
+      const status = deadlineStatus(data.endDate, council, stageDayRules(stage.id))
+      if (status && (status.overdue || status.business <= 7)) await sendStageNotifications(job, stage.id, stage.label, status, currentUser.company_id)
     }
   }
 
@@ -880,7 +887,7 @@ function DAStageTracker({ job, currentUser, onHistoryAdd }) {
           })}
         </div>
         <div className="text-xs text-gray-400 mt-3 pt-3 border-t border-gray-100">
-          Deadlines are counted in business days for <span className="font-medium text-gray-500">{council || 'this council'}</span>: weekends, Queensland public holidays{hasShowHoliday(council) ? ', the local show holiday' : ''} and 26 December to 1 January are skipped.
+          Deadlines are counted in business days for <span className="font-medium text-gray-500">{council || 'this council'}</span>: weekends, Queensland public holidays{hasShowHoliday(council) ? ', the local show holiday' : ''} and 26 December to 1 January are skipped. Public notification skips 20 December to 5 January instead.
           {!hasShowHoliday(council) && ' No show holiday is on file for this council, so adjust the end date by hand if one falls in a period.'}
         </div>
       </div>
@@ -891,14 +898,15 @@ function DAStageTracker({ job, currentUser, onHistoryAdd }) {
         const isComplete = data.status === 'complete'
         const isPending = data.status === 'pending'
         const isExpanded = expandedStage === stage.id
-        const daysLeft = businessDaysUntil(data.endDate, council)
-        const isUrgent = isActive && daysLeft !== null && daysLeft <= 5
-        const isOverdue = isActive && daysLeft !== null && daysLeft < 0
+        const rules = stageDayRules(stage.id)
+        const status = deadlineStatus(data.endDate, council, rules)
+        const isUrgent = isActive && !!status && status.business <= 5
+        const isOverdue = isActive && !!status && status.overdue
         const period = stage.statutory_days + (Number(data.stoppedDays) || 0)
         const calculated = calcEnd(stage, data)
         const differs = !!data.endDate && !!calculated && data.endDate !== calculated
-        const skipped = data.startDate && data.endDate ? skippedHolidays(data.startDate, data.endDate, council) : []
-        const pastData = beyondHolidayData(data.endDate, council)
+        const skipped = data.startDate && data.endDate ? skippedHolidays(data.startDate, data.endDate, council, rules) : []
+        const pastData = beyondHolidayData(data.endDate, council, data.startDate)
 
         return (
           <div key={stage.id} className={`bg-white rounded-xl border transition-all ${isActive ? 'border-amber-300 shadow-sm' : isComplete ? 'border-gray-200' : 'border-gray-100'}`}>
@@ -916,7 +924,7 @@ function DAStageTracker({ job, currentUser, onHistoryAdd }) {
                 <div className="text-xs text-gray-400">{stage.description}</div>
               </div>
               <div className="text-right flex-shrink-0">
-                {isActive && data.endDate && <div className={`text-xs font-semibold ${isOverdue ? 'text-red-600' : isUrgent ? 'text-amber-600' : 'text-gray-600'}`}>{businessDaysLabel(daysLeft)}</div>}
+                {isActive && data.endDate && <div className={`text-xs font-semibold ${isOverdue ? 'text-red-600' : isUrgent ? 'text-amber-600' : 'text-gray-600'}`}>{status?.label}</div>}
                 {isComplete && <div className="text-xs text-emerald-600 font-medium">Complete</div>}
                 {isPending && <div className="text-xs text-gray-300">Not started</div>}
                 <div className="text-xs text-gray-400">{formatDateShort(data.endDate)}</div>

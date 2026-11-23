@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
 import { sendIRDeadlineAlert } from './notifications'
 import { appTypeBadge, jobListName, jobSearchText } from './jobMeta'
-import { businessDaysUntil, calendarDaysUntil, todayBrisbane } from './businessDays'
+import { businessDaysUntil, calendarDaysUntil, todayBrisbane, stageDayRules } from './businessDays'
 
 const statusBadge = {
   Active: 'bg-emerald-100 text-emerald-700',
@@ -73,7 +73,7 @@ function extractDueDates(job, withinDays = 30) {
   const dates = []
   const today = todayBrisbane()
 
-  const checkDate = (label, dateStr) => {
+  const checkDate = (label, dateStr, rules = {}) => {
     if (!dateStr) return
     const diff = calendarDaysUntil(dateStr, today)
     if (diff === null) return
@@ -83,7 +83,7 @@ function extractDueDates(job, withinDays = 30) {
         date: dateStr,
         daysUntil: diff,
         // Business days left: skips weekends, public holidays, the council's show day and 26 Dec to 1 Jan
-        businessDays: businessDaysUntil(dateStr, job.council, today),
+        businessDays: businessDaysUntil(dateStr, job.council, today, rules),
         jobCode: job.code,
         jobName: jobListName(job),
         planner: job.planner,
@@ -99,7 +99,7 @@ function extractDueDates(job, withinDays = 30) {
   checkDate('IR response', job.date_ir_response)
   checkDate('Referral', job.date_referral)
   checkDate('Public notice start', job.date_public_notice_start)
-  checkDate('Public notice end', job.date_public_notice_end)
+  checkDate('Public notice end', job.date_public_notice_end, stageDayRules('notification'))
   checkDate('Decision', job.date_decision)
 
   // DA stage end dates
@@ -114,7 +114,7 @@ function extractDueDates(job, withinDays = 30) {
     for (const [key, label] of Object.entries(stageLabels)) {
       const stage = job.da_stages[key]
       if (stage?.status === 'active' && stage?.endDate) {
-        checkDate(label, stage.endDate)
+        checkDate(label, stage.endDate, stageDayRules(key))
       }
     }
   }

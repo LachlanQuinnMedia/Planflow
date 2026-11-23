@@ -5,7 +5,7 @@ Built from HPC Planning's handwritten notes (3 November 2026) and Lachlan's answ
 ## What changed, item by item
 
 ### 1. Public holidays and business days
-- DA stage deadlines are now counted in business days. Weekends, Queensland public holidays, the council's show holiday and 26 December to 1 January are skipped.
+- DA stage deadlines are now counted in business days. Weekends, Queensland public holidays, the council's show holiday and 26 December to 1 January are skipped. The public notification stage skips 20 December to 5 January instead (Planning Act 2016 s 53(12)).
 - Where: a job's **DA Stages** tab. Start a stage (or set its start date) and the end date fills in by itself. Each stage shows "X business days remaining" and lists the holidays it skipped.
 - The end date can still be typed by hand. QPlan then shows what the calculated date would be, with a "Use calculated date" link.
 - Stopping the clock for N business days pushes the end date out by N business days.

@@ -80,7 +80,8 @@ export function jobListName(job) {
 // Time tracker label: Job number and address
 export function timerLabel(job) {
   if (!job) return ''
-  const parts = [clean(job.code), clean(job.address)].filter(Boolean)
+  // Falls back to the client's name when a job has no address yet
+  const parts = [clean(job.code), clean(job.address) || clientName(job)].filter(Boolean)
   return parts.length ? parts.join(' · ') : clean(job.name)
 }
 

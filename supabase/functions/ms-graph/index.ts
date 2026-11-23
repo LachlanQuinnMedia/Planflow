@@ -70,7 +70,7 @@ async function getValidToken(company_id: string): Promise<string | null> {
     .select('*')
     .eq('company_id', company_id)
     .maybeSingle()
-  if (!data) return null
+  if (!data || !data.access_token) return null
 
   const expiresAt = new Date(data.expires_at).getTime()
   if (expiresAt - Date.now() > 5 * 60 * 1000) return data.access_token
@@ -205,14 +205,14 @@ Deno.serve(async (req) => {
       if (!company_id) return json({ connected: false })
       const { data } = await supabase
         .from('msgraph_tokens')
-        .select('email, connected_by, jobs_drive_id, jobs_folder_id, jobs_folder_name, jobs_folder_path, jobs_folder_url, jobs_folder_set_by')
+        .select('email, connected_by, access_token, jobs_drive_id, jobs_folder_id, jobs_folder_name, jobs_folder_path, jobs_folder_url, jobs_folder_set_by')
         .eq('company_id', company_id)
         .maybeSingle()
       return json({
-        connected: !!data,
-        email: data?.email || null,
-        connected_by: data?.connected_by || null,
-        jobsFolder: jobsFolderOf(data),
+        connected: !!data?.access_token,
+        email: data?.access_token ? data.email || null : null,
+        connected_by: data?.access_token ? data.connected_by || null : null,
+        jobsFolder: data?.access_token ? jobsFolderOf(data) : null,
       })
     }
 
@@ -220,8 +220,8 @@ Deno.serve(async (req) => {
     if (action === 'set_jobs_folder') {
       if (!company_id) return json({ success: false, error: 'Missing company_id' }, 400)
       const { data: row } = await supabase
-        .from('msgraph_tokens').select('company_id').eq('company_id', company_id).maybeSingle()
-      if (!row) return json({ success: false, error: 'Not connected' }, 401)
+        .from('msgraph_tokens').select('company_id, access_token').eq('company_id', company_id).maybeSingle()
+      if (!row?.access_token) return json({ success: false, error: 'Not connected' }, 401)
 
       const clear = body.clear === true
       const update = clear ? {
@@ -288,7 +288,12 @@ Deno.serve(async (req) => {
 
     if (action === 'disconnect') {
       if (!company_id) return json({ success: false }, 400)
-      await supabase.from('msgraph_tokens').delete().eq('company_id', company_id)
+      // Keep the row (email and jobs folder) so reconnecting the same account keeps the jobs folder.
+      // The tokens are wiped, so nothing can reach Microsoft 365 until someone connects again.
+      const { error } = await supabase.from('msgraph_tokens')
+        .update({ access_token: '', refresh_token: '', expires_at: new Date(0).toISOString() })
+        .eq('company_id', company_id)
+      if (error) return json({ success: false, error: error.message }, 500)
       return json({ success: true })
     }
 

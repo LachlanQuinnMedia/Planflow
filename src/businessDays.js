@@ -9,6 +9,10 @@
 //     "business day does not include a day between 26 December of a year and
 //     1 January of the next year")
 //
+// Public notification has a longer Christmas break. Planning Act 2016 s 53(12):
+// "business day does not include a day between 20 December of a year and
+// 5 January of the next year". Pass { publicNotice: true } to use that rule.
+//
 // Sources, checked 23 November 2026:
 //   Public holidays  https://www.qld.gov.au/recreation/travel/holidays/public
 //   Show holidays    https://www.qld.gov.au/recreation/travel/holidays/show
@@ -20,6 +24,7 @@
 // Christmas Eve (24 December) is a public holiday only from 6pm, so it is counted
 // as a business day.
 
+export const HOLIDAY_DATA_START = '2026-01-01'
 export const HOLIDAY_DATA_END = '2028-12-31'
 export const SHOW_DATA_END = '2027-12-31'
 
@@ -139,9 +144,15 @@ export function hasShowHoliday(council) {
   return !!showSetFor(council)
 }
 
-function isChristmasClosure(dateStr) {
+// opts.publicNotice: use the public notification break (20 Dec to 5 Jan, s 53(12))
+function isChristmasClosure(dateStr, opts = {}) {
   const md = dateStr.slice(5, 10)
-  return (md >= '12-26' && md <= '12-31') || md === '01-01'
+  if (opts.publicNotice) return md >= '12-20' || md <= '01-05'
+  return md >= '12-26' || md === '01-01'
+}
+
+function closureLabel(opts = {}) {
+  return opts.publicNotice ? 'Christmas break for public notification, 20 Dec to 5 Jan' : 'Christmas period, 26 Dec to 1 Jan'
 }
 
 // Name of the public or show holiday on this date for this council, or null
@@ -154,24 +165,24 @@ export function holidayName(dateStr, council) {
 }
 
 // Why a date is not a business day (string), or null when it is a business day
-export function nonBusinessReason(dateStr, council) {
+export function nonBusinessReason(dateStr, council, opts = {}) {
   const d = String(dateStr).slice(0, 10)
   const dow = new Date(toUTC(d)).getUTCDay()
   if (dow === 6) return 'Saturday'
   if (dow === 0) return 'Sunday'
   const holiday = holidayName(d, council)
   if (holiday) return holiday
-  if (isChristmasClosure(d)) return 'Christmas period (26 Dec to 1 Jan)'
+  if (isChristmasClosure(d, opts)) return closureLabel(opts)
   return null
 }
 
-export function isBusinessDay(dateStr, council) {
-  return nonBusinessReason(dateStr, council) === null
+export function isBusinessDay(dateStr, council, opts = {}) {
+  return nonBusinessReason(dateStr, council, opts) === null
 }
 
 // The date that is `days` business days after `startStr`. The start date itself is
 // not counted (a period "within 10 business days after" a day starts the next day).
-export function addBusinessDays(startStr, days, council) {
+export function addBusinessDays(startStr, days, council, opts = {}) {
   if (!isValidDateStr(startStr)) return ''
   const n = Math.max(0, Math.round(Number(days) || 0))
   let t = toUTC(startStr)
@@ -180,14 +191,15 @@ export function addBusinessDays(startStr, days, council) {
   while (counted < n && guard < 5000) {
     t += DAY_MS
     guard++
-    if (isBusinessDay(fromUTC(t), council)) counted++
+    if (isBusinessDay(fromUTC(t), council, opts)) counted++
   }
   return fromUTC(t)
 }
 
 // Business days from `fromStr` (default today in Brisbane) to `endStr`.
 // Positive = days remaining, 0 = due today, negative = business days overdue.
-export function businessDaysUntil(endStr, council, fromStr = todayBrisbane()) {
+export function businessDaysUntil(endStr, council, fromStr, opts = {}) {
+  if (!fromStr) fromStr = todayBrisbane()
   if (!isValidDateStr(endStr) || !isValidDateStr(fromStr)) return null
   const end = toUTC(endStr)
   const from = toUTC(fromStr)
@@ -200,14 +212,14 @@ export function businessDaysUntil(endStr, council, fromStr = todayBrisbane()) {
   while (t < stop && guard < 5000) {
     t += DAY_MS
     guard++
-    if (isBusinessDay(fromUTC(t), council)) count++
+    if (isBusinessDay(fromUTC(t), council, opts)) count++
   }
   return forward ? count : -count
 }
 
 // Weekday holidays and closure days skipped between two dates (start excluded, end included).
 // Returns [{ date, name, closure? }], with the Christmas period collapsed into one entry (closure: true).
-export function skippedHolidays(startStr, endStr, council) {
+export function skippedHolidays(startStr, endStr, council, opts = {}) {
   if (!isValidDateStr(startStr) || !isValidDateStr(endStr)) return []
   const out = []
   let closureAdded = false
@@ -220,22 +232,46 @@ export function skippedHolidays(startStr, endStr, council) {
     const d = fromUTC(t)
     const dow = new Date(t).getUTCDay()
     if (dow === 0 || dow === 6) continue
-    const holiday = holidayName(d, council)
-    if (holiday) { out.push({ date: d, name: holiday }); continue }
-    if (isChristmasClosure(d) && !closureAdded) {
-      out.push({ date: d, name: 'Christmas period, 26 Dec to 1 Jan', closure: true })
-      closureAdded = true
+    // Holidays inside the Christmas break are covered by the one closure entry
+    if (isChristmasClosure(d, opts)) {
+      if (!closureAdded) { out.push({ date: d, name: closureLabel(opts), closure: true }); closureAdded = true }
+      continue
     }
+    const holiday = holidayName(d, council)
+    if (holiday) out.push({ date: d, name: holiday })
   }
   return out
 }
 
-// True when a date range runs past the holiday dates loaded above
-export function beyondHolidayData(endStr, council) {
+// True when a date range falls outside the holiday dates loaded above
+export function beyondHolidayData(endStr, council, startStr) {
+  if (isValidDateStr(startStr) && String(startStr).slice(0, 10) < HOLIDAY_DATA_START) return true
   if (!isValidDateStr(endStr)) return false
   const d = String(endStr).slice(0, 10)
-  if (d > HOLIDAY_DATA_END) return true
+  if (d < HOLIDAY_DATA_START || d > HOLIDAY_DATA_END) return true
   return hasShowHoliday(council) && d > SHOW_DATA_END
+}
+
+// Counting rules for a DA stage. Public notification uses the longer Christmas break
+// (Planning Act 2016 s 53(12)); every other stage uses the schedule 2 definition.
+export function stageDayRules(stageId) {
+  return stageId === 'notification' ? { publicNotice: true } : {}
+}
+
+// Where a deadline stands. "Due today" and "overdue" go by the calendar; the count is in business days.
+// Returns { calendar, business, overdue, dueToday, label } or null when there is no valid date.
+export function deadlineStatus(endStr, council, opts = {}, fromStr) {
+  if (!fromStr) fromStr = todayBrisbane()
+  const calendar = calendarDaysUntil(endStr, fromStr)
+  if (calendar === null) return null
+  const business = businessDaysUntil(endStr, council, fromStr, opts)
+  const abs = Math.abs(business || 0)
+  const unit = `business day${abs === 1 ? '' : 's'}`
+  let label
+  if (calendar === 0) label = 'Due today'
+  else if (calendar < 0) label = abs === 0 ? 'Overdue' : `${abs} ${unit} overdue`
+  else label = abs === 0 ? 'No business days left' : `${abs} ${unit} remaining`
+  return { calendar, business, overdue: calendar < 0, dueToday: calendar === 0, label }
 }
 
 // "3 business days remaining" / "Due today" / "2 business days overdue"

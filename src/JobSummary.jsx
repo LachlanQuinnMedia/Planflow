@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
 import { DA_STAGES, HPC_STAGES } from './JobDetail'
 import { appTypeFull, buildJobName, clientName, contactName, isCompanyClient } from './jobMeta'
-import { businessDaysUntil, businessDaysLabel } from './businessDays'
+import { deadlineStatus, stageDayRules } from './businessDays'
 
 const statusColors = {
   Draft: 'bg-gray-200 text-gray-700',
@@ -251,7 +251,7 @@ export default function JobSummary({ token }) {
             {DA_STAGES.map(stage => {
               const data = daStages[stage.id] || {}
               const tone = stageTone[data.status] || stageTone.pending
-              const left = data.status === 'active' && data.endDate && !data.isStopped ? businessDaysUntil(data.endDate, council) : null
+              const left = data.status === 'active' && data.endDate && !data.isStopped ? deadlineStatus(data.endDate, council, stageDayRules(stage.id)) : null
               return (
                 <div key={stage.id} className="flex items-start gap-2 py-2 border-b border-gray-50 last:border-0">
                   <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${tone.dot}`} />
@@ -268,7 +268,7 @@ export default function JobSummary({ token }) {
                         {[data.startDate && formatDate(data.startDate), data.endDate && formatDate(data.endDate)].filter(Boolean).join(' to ')}
                       </div>
                     )}
-                    {left !== null && <div className={`text-xs ${left < 0 ? 'text-red-600' : 'text-gray-500'}`}>{businessDaysLabel(left)}</div>}
+                    {left && <div className={`text-xs ${left.overdue ? 'text-red-600' : 'text-gray-500'}`}>{left.label}</div>}
                   </div>
                 </div>
               )
