@@ -495,7 +495,7 @@ export default function Planners({ currentUser }) {
       </div>
 
       {/* Active planners */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div data-tour="planners-list" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {activeStaff.map(staff => (
           <PlannerCard key={staff.id} staff={staff} isInactive={false} />
         ))}

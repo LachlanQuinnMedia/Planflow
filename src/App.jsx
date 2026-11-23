@@ -501,6 +501,7 @@ export default function App() {
   const [isMaster, setIsMaster] = useState(false) // the QPlan master account, not a planner at the firm
   const [jobCount, setJobCount] = useState(0)
   const [jobs, setJobs] = useState([])
+  const [jobsLoaded, setJobsLoaded] = useState(false)
   const [notifications, setNotifications] = useState([])
   const [showNotifications, setShowNotifications] = useState(false)
   const [processingNotificationId, setProcessingNotificationId] = useState(null)
@@ -668,13 +669,14 @@ export default function App() {
   }, [currentUser])
 
   // First time this person uses QPlan on this device: show the tutorial once the screen has settled
+  // (the job list has to be in first: the tutorial opens a real job to explain its tabs)
   useEffect(() => {
-    if (!currentUser?.id || tourSeen(currentUser.id)) return
+    if (!currentUser?.id || !jobsLoaded || tourSeen(currentUser.id, currentUser.role)) return
     // Not on the way back from a Microsoft, Google, Calendly or Xero sign-in. That screen comes first.
     if (sessionStorage.getItem('oauth_callback') || sessionStorage.getItem('ms_notice')) return
-    const t = setTimeout(() => setTourOpen(true), 900)
+    const t = setTimeout(() => setTourOpen(true), 700)
     return () => clearTimeout(t)
-  }, [currentUser?.id])
+  }, [currentUser?.id, currentUser?.role, jobsLoaded])
 
   // Remember the page for the next refresh. Also stamped when the app goes to the background,
   // so a phone that closes the app behind the scenes reopens it in the same place.
@@ -710,6 +712,7 @@ export default function App() {
         .select('id, code, name, address, planner, planner_rate, budget_hours, client_type, client_company, client_first_name, client_last_name')
         .order('created_at', { ascending: false })
       if (data) { setJobs(data); setJobCount(data.length) }
+      setJobsLoaded(true)
     }
     fetchJobs()
   }, [currentUser, activePage, refreshKey])
@@ -848,6 +851,7 @@ export default function App() {
     setHistory(['dashboard'])
     setHistoryIndex(0)
     setJobs([])
+    setJobsLoaded(false)
     setNotifications([])
     setPendingCalendarConnect(false)
     sessionStorage.removeItem('oauth_callback')
@@ -890,6 +894,15 @@ export default function App() {
     }
     setRefreshKey(k => k + 1)
     setTimeout(() => setRefreshing(false), 700)
+  }
+
+  // The tutorial opens a real job to explain its tabs: the one it was pointing at, or the newest
+  const openJobForTour = async (jobId) => {
+    const id = jobId || jobs[0]?.id
+    if (!id) return
+    const { data } = await supabase.from('jobs').select('*').eq('id', id).maybeSingle()
+    if (!data) return
+    handleNavigate('jobdetail', data)
   }
 
   const canGoBack = historyIndex > 0
@@ -986,7 +999,7 @@ export default function App() {
           ))}
         </div>
 
-        <GlobalTimer jobs={jobs} currentUser={currentUser} activeJob={activePage === 'jobdetail' ? selectedJob : null} onRunningChange={setTimerRunning} />
+        <GlobalTimer jobs={jobs} currentUser={currentUser} activeJob={activePage === 'jobdetail' && !tourOpen ? selectedJob : null} onRunningChange={setTimerRunning} />
 
         <div className="p-3 border-t border-gray-200 space-y-2">
           <ThemeSwitch />
@@ -1069,8 +1082,8 @@ export default function App() {
         </div>
       </div>
       {tourOpen && (
-        <Tour currentUser={currentUser} isDirector={isDirector} activePage={activePage}
-          onNavigate={handleNavigate} setSidebarOpen={setSidebarOpen}
+        <Tour currentUser={currentUser} isDirector={isDirector} activePage={activePage} hasJobs={jobs.length > 0}
+          onNavigate={handleNavigate} onOpenJob={openJobForTour} setSidebarOpen={setSidebarOpen}
           onClose={() => { setTourOpen(false); setSidebarOpen(false); if (activePage !== 'dashboard') handleNavigate('dashboard') }} />
       )}
     </div>

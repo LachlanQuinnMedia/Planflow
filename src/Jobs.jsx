@@ -368,13 +368,14 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
           <div className="bg-white rounded-xl border border-gray-200 px-4 py-8 text-center text-sm text-gray-500">
             {jobs.length === 0 ? 'No jobs yet. Create your first job.' : 'No jobs match your search.'}
           </div>
-        ) : sorted.map(job => {
+        ) : sorted.map((job, jobIndex) => {
           const overdue = isOverdue(job)
           const dueSoon = !overdue && isDueSoon(job)
           const days = daysUntil(job.decision_due_date)
           return (
             <div
               key={job.id}
+              data-tour={jobIndex === 0 ? 'jobs-first' : undefined} data-job-id={job.id}
               onClick={() => onNavigate('jobdetail', job)}
               className={`bg-white rounded-xl border px-4 py-3 cursor-pointer active:bg-gray-50 ${
                 overdue ? 'border-red-300 bg-red-50' : dueSoon ? 'border-amber-300 bg-amber-50' : 'border-gray-200'
@@ -439,13 +440,14 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
             {jobs.length === 0 ? 'No jobs yet. Create your first job.' : 'No jobs match your search.'}
           </div>
         ) : (
-          sorted.map(job => {
+          sorted.map((job, jobIndex) => {
             const overdue = isOverdue(job)
             const dueSoon = !overdue && isDueSoon(job)
             const days = daysUntil(job.decision_due_date)
             return (
               <div
                 key={job.id}
+                data-tour={jobIndex === 0 ? 'jobs-first' : undefined} data-job-id={job.id}
                 className={`qp-row min-w-[960px] grid grid-cols-[70px_1fr_90px_55px_65px_70px_100px_110px_50px] gap-3 px-4 py-3 border-b border-gray-100 last:border-0 items-center ${
                   overdue ? 'bg-red-50 border-l-4 border-l-red-400' : dueSoon ? 'bg-amber-50 border-l-4 border-l-amber-400' : 'hover:bg-gray-50'
                 }`}

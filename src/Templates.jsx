@@ -391,7 +391,7 @@ export default function Templates({ currentUser }) {
         />
       )}
 
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-start justify-between mb-4 gap-3">
+      <div data-tour="templates-top" className="flex flex-col sm:flex-row items-stretch sm:items-start justify-between mb-4 gap-3">
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 flex-1">
           <div className="text-xs font-medium text-emerald-700 mb-0.5">Generate documents</div>
           <div className="text-xs text-emerald-600">Tick the templates you want, then click <span className="font-medium">Generate</span> at the top. A modal lets you pick a job to auto-fill, or skip the job and just fill your planner details. Excel and Illustrator files download blank.</div>

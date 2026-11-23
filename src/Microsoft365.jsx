@@ -166,7 +166,7 @@ export default function Microsoft365({ currentUser, notice, onNoticeShown }) {
   const connectedCount = team.filter(u => { const c = calendarFor(u.username); return c && !c.needs_reconnect }).length
 
   return (
-    <div className="max-w-3xl space-y-4">
+    <div data-tour="ms-main" className="max-w-3xl space-y-4">
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <div className="text-sm font-semibold text-gray-800 mb-1">Microsoft 365</div>
         <div className="text-xs text-gray-600 leading-relaxed">

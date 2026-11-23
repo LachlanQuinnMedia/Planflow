@@ -1,127 +1,30 @@
 // src/Tour.jsx
-// The first-time tutorial. Ten short cards, each one pointing at the thing it explains.
-// Nothing has to be typed: read, then press Next or click the part of the menu that lights up.
+// The first-time tutorial: a run of short cards, each one pointing at the thing it explains.
+// Nothing has to be typed: read, then press Next or click the thing that lights up.
+// Directors and staff get different tutorials. The words are in tourSteps.js.
 //
 // How it works:
 //  - Pages mark the things worth pointing at with data-tour="name".
-//  - Each step names the page it needs and the things to light up. The tour opens that page itself.
+//  - Each card names the page it needs and the things to light up. The tour opens that page itself,
+//    including a real job and each of its tabs.
 //  - While it runs, the app underneath cannot be clicked, so nothing can be changed by accident.
-//  - Whether someone has seen it is remembered on their device, per person.
+//  - Whether someone has seen it is remembered on their device, per person and per role.
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useId } from 'react'
 import { createPortal } from 'react-dom'
 import { markTourSeen } from './tourState'
+import { directorTour, staffTour, MENU_LABELS, JOB_TAB_LABELS, jobTabAnchor } from './tourSteps'
 
-// Menu names, for "Now click ... in the menu"
-const MENU_LABELS = {
-  dashboard: 'Dashboard', jobs: 'Jobs', newjob: 'New Job', docs: 'Documents', time: 'Time & Budget',
-  calendar: 'Calendar', workload: 'Workloads', xero: 'Xero', templates: 'Templates',
-}
-
-function buildSteps({ firstName, isDirector, isPhone }) {
-  return [
-    {
-      id: 'welcome', page: 'dashboard',
-      title: `Welcome to QPlan${firstName ? `, ${firstName}` : ''}`,
-      body: [
-        'This two minute tour shows you where everything is.',
-        isPhone
-          ? 'You do not need to type anything. Read each card, then tap Next.'
-          : 'You do not need to type anything. Read each card, then click Next, or click the part of the menu that lights up.',
-      ],
-      nextLabel: 'Start the tour',
-    },
-    {
-      id: 'dashboard', page: 'dashboard', targets: ['dash-stats'],
-      title: isDirector ? 'Dashboard: the firm at a glance' : 'Dashboard: your day at a glance',
-      body: [
-        isDirector
-          ? 'These cards count the firm\'s active jobs, the planners on them, and the dates due this week and in the next 30 days.'
-          : 'These cards show your active jobs, the hours you have logged this week and what is due soon.',
-        isDirector
-          ? 'Underneath you can search every job, and see firm-wide deadlines and all active jobs by planner.'
-          : 'Underneath are your jobs and your upcoming deadlines.',
-        ...(isPhone ? ['On a phone, the button at the top left opens the menu.'] : []),
-      ],
-    },
-    {
-      id: 'jobs', page: 'jobs', targets: ['jobs-search', 'jobs-list'], maxHeight: 300,
-      title: 'Jobs: every job in one list',
-      body: [
-        'Search or filter to find a job, then click it to open it.',
-        'Inside a job you will find its stages, key dates, documents, time, notes and a summary link you can send to the client.',
-      ],
-    },
-    {
-      id: 'newjob', page: 'newjob', targets: ['newjob-form'], maxHeight: 320,
-      title: 'New Job: set a job up once',
-      body: [
-        'Enter the client and site details here. QPlan reuses them everywhere, so you never type them twice.',
-        'Further down you can tick the documents you want. QPlan fills them in and saves them with the job, and can create the job folder for you.',
-      ],
-    },
-    {
-      id: 'docs', page: 'docs', targets: ['docs-source', 'docs-upload'],
-      title: 'Documents: all your files',
-      body: [
-        'Drop a file here to upload it, or click the box to choose one.',
-        'The second button opens the firm\'s Microsoft 365 folders. Below, you can search by name, job code or who uploaded it.',
-      ],
-    },
-    {
-      id: 'time', page: 'time', targets: ['time-tabs'],
-      title: 'Time & Budget: hours against budget',
-      body: [
-        'Overview shows the hours logged on each job against its budget.',
-        'Time Log lists every entry. Log Time adds one by hand if you forgot to run the timer.',
-      ],
-    },
-    {
-      id: 'timer', page: 'time', targets: ['timer'], sidebar: true, prefer: 'right',
-      title: 'Time tracker: record as you work',
-      body: [
-        'Pick a job, say what you are working on and press play. Press stop and the time is saved to that job.',
-        'A red light shows while it is recording, on every page. The small arrow tucks the tracker away.',
-      ],
-    },
-    {
-      id: 'calendar', page: 'calendar', targets: ['calendar-tools', 'calendar-grid'], maxHeight: 300,
-      title: 'Calendar: your week',
-      body: [
-        'Click an empty slot to add a meeting. Click a meeting to see its time, address, attendees and purpose.',
-        isDirector
-          ? '"Connect calendar" brings in your Outlook meetings. Bookings, just above Calendar in the menu, lists every meeting across the team.'
-          : '"Connect calendar" brings in your Outlook meetings, and puts QPlan meetings into your Outlook.',
-      ],
-    },
-    isDirector
-      ? {
-        id: 'workload', page: 'workload', targets: ['workload-stats'],
-        title: 'Workloads and Xero',
-        body: [
-          'Workloads shows how busy each planner is, so you can share jobs out evenly.',
-          'Xero, next in the menu, shows your invoices and builds new ones from the time logged on a job.',
-        ],
-      }
-      : {
-        id: 'xero', page: 'xero', targets: ['xero-main'], maxHeight: 260,
-        title: 'Xero: invoices',
-        body: [
-          'When the firm\'s Xero is connected, its invoices show here.',
-          'An invoice can be built straight from the time logged on a job.',
-        ],
-      },
-    {
-      id: 'settings', page: 'templates', targets: ['nav-section-settings'], sidebar: true, prefer: 'right',
-      title: 'Settings, and you are done',
-      body: [
-        isDirector
-          ? 'Templates holds the letters and reports QPlan fills in. Planners holds each person\'s details and rates. Microsoft 365 connects the firm\'s files and calendars.'
-          : 'Templates holds the letters and reports QPlan fills in. Planners holds your details. "Connect my Outlook" links your calendar.',
-        'That is the tour. You can run it again any time with the ? button at the top of the screen.',
-      ],
-      nextLabel: 'Finish',
-    },
-  ]
+// What lights up to be clicked next, if anything: the next page in the menu, the first job in the
+// list, or the next tab on the job page. Not on a phone, where the menu is tucked away.
+function clickNext(step, next, isPhone) {
+  if (!next || isPhone) return null
+  if (next.page === 'jobdetail') {
+    if (step.page !== 'jobdetail') return { name: 'jobs-first', kind: 'row', label: 'the first job', where: 'in the list' }
+    if (next.jobTab && next.jobTab !== step.jobTab) return { name: jobTabAnchor(next.jobTab), kind: 'tab', label: JOB_TAB_LABELS[next.jobTab], where: 'tab' }
+    return null
+  }
+  if (next.page && next.page !== step.page && MENU_LABELS[next.page]) return { name: `nav-${next.page}`, kind: 'menu', label: MENU_LABELS[next.page], where: 'in the menu' }
+  return null
 }
 
 // The box around every visible thing with these names, in window coordinates.
@@ -210,7 +113,7 @@ function layOut(raw, step, card, vw, vh, minLeft) {
   return { spot: t, left, top, side, arrow }
 }
 
-export default function Tour({ currentUser, isDirector, activePage, onNavigate, setSidebarOpen, onClose }) {
+export default function Tour({ currentUser, isDirector, activePage, hasJobs, onNavigate, onOpenJob, setSidebarOpen, onClose }) {
   const [index, setIndex] = useState(0)
   const [vp, setVp] = useState({ w: window.innerWidth, h: window.innerHeight })
   const [found, setFound] = useState({ index: -1, target: null, hot: null, ready: false })
@@ -220,18 +123,23 @@ export default function Tour({ currentUser, isDirector, activePage, onNavigate, 
   const nextRef = useRef(null)
   const spotRef = useRef(null)
   const glideRef = useRef(0)
+  const jobIdRef = useRef(null) // the job the tour was pointing at in the list, which is the one it opens
+  // Fixed when the tour starts, so the number of cards cannot change half way through
+  const [withJobs] = useState(hasJobs)
   const maskId = `qp-tour-mask-${useId().replace(/[^a-zA-Z0-9]/g, '')}`
 
   const isPhone = vp.w < 1024 // below this the menu is tucked away
   const firstName = String(currentUser?.username || '').trim().split(/\s+/)[0] || ''
-  const steps = useMemo(() => buildSteps({ firstName, isDirector, isPhone }), [firstName, isDirector, isPhone])
+  const steps = useMemo(
+    () => (isDirector ? directorTour : staffTour)({ firstName, isPhone, hasJobs: withJobs }),
+    [firstName, isDirector, isPhone, withJobs])
   const step = steps[index]
   const nextStep = steps[index + 1]
   const isLast = index === steps.length - 1
-  // The next page's name in the menu lights up, and clicking it moves on. Not on a phone, where the menu is hidden.
-  const hotPage = !isPhone && nextStep && nextStep.page !== step.page && MENU_LABELS[nextStep.page] ? nextStep.page : null
+  const click = clickNext(step, nextStep, isPhone)
+  const clickName = click?.name || null
 
-  const finish = () => { markTourSeen(currentUser.id); onClose() }
+  const finish = () => { markTourSeen(currentUser.id, currentUser.role); onClose() }
   const goNext = () => { if (isLast) finish(); else setIndex(i => Math.min(i + 1, steps.length - 1)) }
   const goBack = () => setIndex(i => Math.max(i - 1, 0))
 
@@ -260,7 +168,8 @@ export default function Tour({ currentUser, isDirector, activePage, onNavigate, 
 
   // Open the page this step is about. On a phone, slide the menu out when the step is about the menu.
   useEffect(() => {
-    if (activePage !== step.page) onNavigate(step.page)
+    if (step.page === 'jobdetail') { if (activePage !== 'jobdetail') onOpenJob(jobIdRef.current) }
+    else if (step.page && activePage !== step.page) onNavigate(step.page)
     if (isPhone) setSidebarOpen(!!step.sidebar)
     // Only when the step changes. The app's own navigation must not re-trigger it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -269,9 +178,19 @@ export default function Tour({ currentUser, isDirector, activePage, onNavigate, 
   // Find the things this step points at. Pages load their data after they open, so keep looking.
   useEffect(() => {
     const started = Date.now()
-    let scrolled = false, hotScrolled = false
+    let scrolled = false, hotScrolled = false, tabShown = false
     const look = () => {
       const waited = Date.now() - started
+      // Remember which job is first in the list: that is the one the tour opens
+      const firstJob = document.querySelector('[data-tour="jobs-first"]')
+      if (firstJob?.dataset.jobId) jobIdRef.current = firstJob.dataset.jobId
+      // On the job page, open the tab this card is about
+      if (step.jobTab) {
+        const tab = document.querySelector(`[data-tour="${jobTabAnchor(step.jobTab)}"]`)
+        if (tab && tab.dataset.active !== 'true') window.dispatchEvent(new CustomEvent('qplan:job-tab', { detail: step.jobTab }))
+        // On a narrow screen the row of tabs scrolls sideways: bring this one into view
+        if (tab && !tabShown) { tabShown = true; const row = tab.parentElement; if (row) row.scrollLeft = Math.max(0, tab.offsetLeft - row.offsetLeft - (row.clientWidth - tab.offsetWidth) / 2) }
+      }
       let target = boxOf(step.targets, window.innerWidth)
       // Nothing by that name on the page (still loading, or an empty state): point at the page itself
       if (!target && step.targets && waited > 900) target = boxOf(['page'], window.innerWidth)
@@ -280,10 +199,10 @@ export default function Tour({ currentUser, isDirector, activePage, onNavigate, 
         if (reveal(target.el, !!step.sidebar)) target = boxOf(step.targets, window.innerWidth) || target
       }
       if (target?.hidden) target = null
-      let hot = hotPage ? boxOf([`nav-${hotPage}`], window.innerWidth) : null
+      let hot = clickName ? boxOf([clickName], window.innerWidth) : null
       if (hot && !hotScrolled) {
         hotScrolled = true
-        if (reveal(hot.el, true)) hot = boxOf([`nav-${hotPage}`], window.innerWidth)
+        if (reveal(hot.el, true)) hot = boxOf([clickName], window.innerWidth)
       }
       if (hot?.hidden) hot = null
       // Wait a moment for the page to settle before showing the card, but never keep anyone waiting long
@@ -296,7 +215,7 @@ export default function Tour({ currentUser, isDirector, activePage, onNavigate, 
     return () => clearInterval(timer)
     // step comes from steps and index, which are listed
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index, steps, hotPage, vp.w, vp.h])
+  }, [index, steps, clickName, vp.w, vp.h])
 
   const current = found.index === index && found.ready ? found : null
 
@@ -305,7 +224,7 @@ export default function Tour({ currentUser, isDirector, activePage, onNavigate, 
     if (!current || !cardRef.current) return
     const r = cardRef.current.getBoundingClientRect()
     // Keep the card off the menu when the menu holds the next thing to click
-    const minLeft = current.hot ? Math.max(EDGE, current.hot.right + 110) : EDGE
+    const minLeft = current.hot && click?.kind === 'menu' ? Math.max(EDGE, current.hot.right + 110) : EDGE
     const next = layOut(current.target, step, { w: r.width, h: r.height }, vp.w, vp.h, minLeft)
     setLayout(prev => (prev && prev.index === index && prev.side === next.side
       && Math.abs(prev.left - next.left) < 0.75 && Math.abs(prev.top - next.top) < 0.75
@@ -345,14 +264,22 @@ export default function Tour({ currentUser, isDirector, activePage, onNavigate, 
   }, [placed?.index])
 
   const hot = placed ? current.hot : null
-  // The "Click here" flag sits just right of the menu item. If that would cover the thing being
-  // explained, it sits on the end of the menu item instead. If the card is in the way, it is left out.
+  // The "Click here" flag. Beside a menu item it sits just to the right, or on the end of the item if
+  // that would cover the thing being explained. Over a tab it sits above, pointing down.
+  // If the card is in the way, it is left out: the card says what to click anyway.
   const hits = (a, b) => !!a && !!b && a.left < b.right + 6 && a.right > b.left - 6 && a.top < b.bottom + 6 && a.bottom > b.top - 6
   let tagBox = null, tagInside = false
+  const tagAbove = click?.kind === 'tab'
   if (hot) {
-    const mid = (hot.top + hot.bottom) / 2
-    tagBox = { left: hot.right + 12, right: hot.right + 12 + 96, top: mid - 13, bottom: mid + 13 }
-    if (hits(tagBox, placed.spot)) { tagInside = true; tagBox = { left: hot.right - 8 - 96, right: hot.right - 8, top: mid - 13, bottom: mid + 13 } }
+    const mid = (hot.top + hot.bottom) / 2, cx = (hot.left + hot.right) / 2
+    if (tagAbove) {
+      const left = clamp(cx - 48, 4, vp.w - 100)
+      tagBox = { left, right: left + 96, top: hot.top - 38, bottom: hot.top - 12 }
+      if (tagBox.top < 4) tagBox = null
+    } else {
+      tagBox = { left: hot.right + 12, right: hot.right + 12 + 96, top: mid - 13, bottom: mid + 13 }
+      if (hits(tagBox, placed.spot) || tagBox.right > vp.w - 4) { tagInside = true; tagBox = { left: hot.right - 8 - 96, right: hot.right - 8, top: mid - 13, bottom: mid + 13 } }
+    }
     if (hits(tagBox, { left: placed.left, top: placed.top, right: placed.left + placed.w, bottom: placed.top + placed.h })) tagBox = null
   }
   const showTag = !!tagBox
@@ -385,14 +312,16 @@ export default function Tour({ currentUser, isDirector, activePage, onNavigate, 
 
       {hot && (
         <>
-          <button type="button" onClick={goNext} data-testid="tour-hot" aria-label={`Open ${MENU_LABELS[hotPage]}`}
+          <button type="button" onClick={goNext} data-testid="tour-hot" aria-label={`Open ${click.label}`}
             className="qp-tour-hot absolute rounded-[10px] cursor-pointer"
             style={{ left: hot.left - 3, top: hot.top - 3, width: hot.right - hot.left + 6, height: hot.bottom - hot.top + 6 }} />
           {showTag && (
             <div data-testid="tour-tag" data-inside={tagInside ? 'yes' : 'no'} className="absolute pointer-events-none"
               style={tagInside ? { left: tagBox.right, top: tagBox.top, transform: 'translateX(-100%)' } : { left: tagBox.left, top: tagBox.top }}>
-              <div className="qp-tour-tag flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-600 text-white text-xs font-semibold shadow-lg whitespace-nowrap">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" /></svg>
+              <div className={`${tagAbove ? 'qp-tour-tag-down' : 'qp-tour-tag'} flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-600 text-white text-xs font-semibold shadow-lg whitespace-nowrap`}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  {tagAbove ? <path d="M12 5v14M6 13l6 6 6-6" /> : <path d="M19 12H5M11 6l-6 6 6 6" />}
+                </svg>
                 Click here
               </div>
             </div>
@@ -408,13 +337,12 @@ export default function Tour({ currentUser, isDirector, activePage, onNavigate, 
             <span data-testid="tour-arrow" data-side={placed.side} className={`qp-tour-arrow qp-tour-arrow-${placed.side} absolute w-5 h-5 bg-emerald-500`} style={arrowStyle} />
           )}
           <div className="relative bg-white rounded-[10px] px-4 pt-3.5 pb-3">
-            <div className="flex items-center justify-between gap-3 mb-2">
-              <div className="flex items-center gap-1" aria-hidden="true">
-                {steps.map((s, i) => (
-                  <span key={s.id} className={`h-1.5 rounded-full transition-all duration-300 ${i === index ? 'w-5 bg-emerald-500' : i < index ? 'w-1.5 bg-emerald-300' : 'w-1.5 bg-gray-200'}`} />
-                ))}
-              </div>
+            <div className="flex items-center justify-between gap-3 mb-1.5">
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700" data-testid="tour-chapter">{step.chapter}</div>
               <div className="text-[11px] text-gray-500 flex-shrink-0">{index + 1} of {steps.length}</div>
+            </div>
+            <div className="h-1 rounded-full bg-gray-200 overflow-hidden mb-2.5" role="progressbar" aria-valuemin={1} aria-valuemax={steps.length} aria-valuenow={index + 1} aria-label="Tutorial progress">
+              <div className="h-full rounded-full bg-emerald-500 transition-all duration-300" style={{ width: `${((index + 1) / steps.length) * 100}%` }} />
             </div>
             <div id="qp-tour-title" className="text-sm font-semibold text-gray-900 mb-1.5">{step.title}</div>
             <div className="space-y-1.5">
@@ -423,8 +351,10 @@ export default function Tour({ currentUser, isDirector, activePage, onNavigate, 
             {!isLast && index > 0 && (
               <div className="mt-2.5 flex items-center gap-2 text-xs font-medium text-emerald-700 bg-emerald-50 rounded-lg px-2.5 py-1.5">
                 <span className="qp-tour-dot w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
-                {hotPage && current?.hot
-                  ? <span>Now click <span className="font-semibold">{MENU_LABELS[hotPage]}</span> in the menu, or press Next.</span>
+                {click && current?.hot
+                  ? (click.kind === 'tab'
+                    ? <span>Now click the <span className="font-semibold">{click.label}</span> tab, or press Next.</span>
+                    : <span>Now click <span className="font-semibold">{click.label}</span> {click.where}, or press Next.</span>)
                   : <span>{isPhone ? 'Tap' : 'Click'} Next to carry on.</span>}
               </div>
             )}

@@ -307,10 +307,12 @@ html[data-theme="dark"] body {
   70%, 100% { box-shadow: 0 0 0 10px rgba(52, 211, 153, 0); }
 }
 .qp-tour-tag { animation: qp-tour-tag 1s ease-in-out infinite; }
+.qp-tour-tag-down { animation: qp-tour-tag-down 1s ease-in-out infinite; }
+@keyframes qp-tour-tag-down { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(4px); } }
 @keyframes qp-tour-tag { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-5px); } }
 .qp-tour-dot { animation: qp-tour-dot 1.2s ease-in-out infinite; }
 @keyframes qp-tour-dot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }
 @media (prefers-reduced-motion: reduce) {
-  .qp-tour-card, .qp-tour-ring, .qp-tour-hot, .qp-tour-tag, .qp-tour-dot,
+  .qp-tour-card, .qp-tour-ring, .qp-tour-hot, .qp-tour-tag, .qp-tour-tag-down, .qp-tour-dot,
   .qp-tour-arrow-bottom, .qp-tour-arrow-top, .qp-tour-arrow-right, .qp-tour-arrow-left { animation: none; }
 }

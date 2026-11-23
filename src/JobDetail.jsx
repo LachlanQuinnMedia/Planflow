@@ -1607,6 +1607,13 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
     decision: job?.date_decision || '',
   })
 
+  // The tutorial opens each tab in turn to explain it. It does not save which tab was open.
+  useEffect(() => {
+    const onTourTab = (e) => { if (TABS.some(t => t.id === e.detail)) setActiveTabState(e.detail) }
+    window.addEventListener('qplan:job-tab', onTourTab)
+    return () => window.removeEventListener('qplan:job-tab', onTourTab)
+  }, [])
+
   useEffect(() => {
     if (!job?.id) return
     const loadHistory = async () => {
@@ -1792,7 +1799,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
           onJobUpdated={patch => setJobData(prev => ({ ...prev, ...patch }))} onHistoryAdd={addHistory} />
       )}
 
-      <div className="flex items-center gap-3 mb-4 flex-wrap">
+      <div data-tour="job-header" className="flex items-center gap-3 mb-4 flex-wrap">
         <button onClick={() => onNavigate('jobs')} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">← Back</button>
         <div className="basis-full lg:basis-0 flex-1 min-w-0 order-first lg:order-none">
           <div className="text-base font-semibold lg:truncate" title={jobTitle(jobData)}>{jobTitle(jobData)}</div>
@@ -1869,15 +1876,17 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
         </div>
       )}
 
-      <div className="flex gap-1 border-b border-gray-200 mb-4 overflow-x-auto">
+      <div data-tour="job-tabs" className="flex gap-1 border-b border-gray-200 mb-4 overflow-x-auto">
         {TABS.map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+            data-active={activeTab === tab.id} data-tour={`jobtab-${tab.id.replace(/[^a-z]+/g, '-')}`}
             className={`px-4 py-2 text-xs border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id ? 'border-emerald-500 text-emerald-600 font-medium' : 'border-transparent text-gray-600 hover:text-gray-700'}`}>
             {tab.label}
           </button>
         ))}
       </div>
 
+      <div data-tour="job-body">
       {activeTab === 'overview' && (
         <div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
@@ -1991,6 +2000,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }
