@@ -26,6 +26,7 @@ import { InstallAppButton } from './install'
 import Landing from './Landing'
 import Tour from './Tour'
 import { SeasonStrip, SeasonSticker, SeasonParticles } from './Seasonal'
+import { buildDemoJob } from './tourDemoJob'
 import { tourSeen } from './tourState'
 
 // Light / Dark / Seasonal. Seasonal changes its look each month by itself. Remembered on this device.
@@ -683,13 +684,13 @@ export default function App() {
   // so a phone that closes the app behind the scenes reopens it in the same place.
   useEffect(() => {
     if (!currentUser?.id) return
-    if (activePage === 'jobdetail' && !selectedJob?.id) return
+    if (activePage === 'jobdetail' && (!selectedJob?.id || selectedJob.demo)) return // never the tutorial's example job
     const save = () => writeLastPage(currentUser.id, activePage, activePage === 'jobdetail' ? selectedJob.id : null)
     save()
     const onHide = () => { if (document.visibilityState === 'hidden') save() }
     document.addEventListener('visibilitychange', onHide)
     return () => document.removeEventListener('visibilitychange', onHide)
-  }, [currentUser?.id, activePage, selectedJob?.id])
+  }, [currentUser?.id, activePage, selectedJob?.id, selectedJob?.demo])
 
   // After a refresh on a job page, load that job again
   useEffect(() => {
@@ -897,13 +898,25 @@ export default function App() {
     setTimeout(() => setRefreshing(false), 700)
   }
 
-  // The tutorial opens a real job to explain its tabs: the one it was pointing at, or the newest
+  // The tutorial opens a job to explain its tabs: the one it was pointing at, or the newest.
+  // A firm with no jobs yet gets a built-in example job, which is never saved.
   const openJobForTour = async (jobId) => {
     const id = jobId || jobs[0]?.id
-    if (!id) return
-    const { data } = await supabase.from('jobs').select('*').eq('id', id).maybeSingle()
-    if (!data) return
-    handleNavigate('jobdetail', data)
+    const { data } = id ? await supabase.from('jobs').select('*').eq('id', id).maybeSingle() : { data: null }
+    handleNavigate('jobdetail', data || buildDemoJob(currentUser))
+  }
+
+  // When the tutorial ends: back to the Dashboard, and the example job is forgotten so the
+  // back button can never return to it
+  const closeTour = () => {
+    setTourOpen(false)
+    setSidebarOpen(false)
+    if (selectedJob?.demo) {
+      setSelectedJob(null)
+      setActivePage('dashboard')
+      setHistory(['dashboard'])
+      setHistoryIndex(0)
+    } else if (activePage !== 'dashboard') handleNavigate('dashboard')
   }
 
   const canGoBack = historyIndex > 0
@@ -960,13 +973,13 @@ export default function App() {
   const initials = currentUser.username.slice(0, 2).toUpperCase()
 
   return (
-    <div className="isolate flex h-dvh bg-gray-100 dark:bg-[var(--qp-page)] font-sans overflow-hidden qp-safe-x qp-safe-bottom">
+    <div className="qp-app isolate flex h-dvh bg-gray-100 dark:bg-[var(--qp-page)] font-sans overflow-hidden qp-safe-x qp-safe-bottom">
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/30 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
       <div className={`
-        fixed lg:relative z-40 h-full w-52 bg-white border-r border-gray-200 flex flex-col flex-shrink-0
+        qp-sidebar fixed lg:relative z-40 h-full w-52 bg-white border-r border-gray-200 flex flex-col flex-shrink-0
         transition-transform duration-200 ease-in-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         lg:translate-x-0
@@ -1052,10 +1065,11 @@ export default function App() {
         {/* Seasonal snow, petals and so on drift behind the page: above the page colour, below everything else.
             Nothing here is given its own layer, so pop-up boxes on a page still cover the menu. */}
         <SeasonParticles />
-        <div className="h-12 bg-white border-b border-gray-200 flex items-center px-4 gap-3 flex-shrink-0">
+        {/* In the Seasonal theme the top bar takes the season's colour (see "Seasonal frame" in index.css) */}
+        <div className="qp-topbar h-12 bg-white border-b border-gray-200 flex items-center px-4 gap-3 flex-shrink-0">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="lg:hidden relative p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 flex-shrink-0"
+            className="qp-topbar-btn lg:hidden relative p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 flex-shrink-0"
             aria-label={timerRunning ? 'Open menu (timer recording)' : 'Open menu'}
           >
             {timerRunning && <span className="qp-rec absolute top-0.5 right-0.5" aria-hidden="true" />}
@@ -1067,19 +1081,19 @@ export default function App() {
           </button>
           <div className="flex-1 text-sm font-medium truncate">{pageTitles[activePage]}</div>
           {isDirector && currentUser.companyName && (
-            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-lg hidden sm:block">{currentUser.companyName}</span>
+            <span className="qp-topbar-chip text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-lg hidden sm:block">{currentUser.companyName}</span>
           )}
           <button onClick={() => setTourOpen(true)} title="Show the tutorial" aria-label="Show the tutorial" data-tour="help-button"
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 flex-shrink-0 text-sm font-semibold">
+            className="qp-topbar-btn w-8 h-8 flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 flex-shrink-0 text-sm font-semibold">
             ?
           </button>
           {activePage !== 'newjob' && (
             <button onClick={handleRefresh} disabled={refreshing} title="Refresh this page" aria-label="Refresh this page"
-              className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 flex-shrink-0 disabled:opacity-60">
+              className="qp-topbar-btn w-8 h-8 flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 flex-shrink-0 disabled:opacity-60">
               <IconRefresh size={15} className={refreshing ? 'animate-spin' : ''} />
             </button>
           )}
-          <button onClick={() => handleNavigate('newjob')} className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex-shrink-0">+ New Job</button>
+          <button onClick={() => handleNavigate('newjob')} className="qp-topbar-cta px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex-shrink-0">+ New Job</button>
         </div>
 
         <div key={refreshKey} className="flex-1 overflow-y-auto p-4 md:p-5">
@@ -1090,7 +1104,7 @@ export default function App() {
       {tourOpen && (
         <Tour currentUser={currentUser} isDirector={isDirector} activePage={activePage} hasJobs={jobs.length > 0}
           onNavigate={handleNavigate} onOpenJob={openJobForTour} setSidebarOpen={setSidebarOpen}
-          onClose={() => { setTourOpen(false); setSidebarOpen(false); if (activePage !== 'dashboard') handleNavigate('dashboard') }} />
+          onClose={closeTour} />
       )}
     </div>
   )

@@ -93,7 +93,7 @@ function layOut(raw, step, card, vw, vh, minLeft) {
   if (!side) {
     // A tall thing: show the top part of it and put the card underneath
     const fit = vh - EDGE - card.h - GAP - t.top
-    if (fit >= 96) { t = { ...t, bottom: t.top + fit }; side = 'bottom' }
+    if (fit >= 64) { t = { ...t, bottom: t.top + fit }; side = 'bottom' }
   }
   const cx = (t.left + t.right) / 2, cy = (t.top + t.bottom) / 2
   let left, top, arrow = 0

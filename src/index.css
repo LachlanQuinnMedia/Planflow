@@ -220,6 +220,34 @@ html[data-theme="dark"] body {
 }
 
 /* ------------------------------------------------------------------
+   Seasonal frame
+   In the Seasonal theme the app's frame takes the season's colours, so each month is
+   plainly its own: the page behind the cards, the menu, and the top bar with its trim.
+   The colours come from src/seasons-palette.css (written by scripts/seasons-css.mjs,
+   which checks the text is readable). Cards stay white so nothing on them changes.
+   These only apply when a season is on. Light and Dark are untouched.
+   ------------------------------------------------------------------ */
+:root[data-season] .qp-app { background-color: var(--qp-s-page); }
+html[data-season] body { background-color: var(--qp-s-page); }
+:root[data-season] .qp-sidebar { background-color: var(--qp-s-side); border-right-color: var(--qp-s-side-line); }
+:root[data-season] .qp-sidebar > .border-b, :root[data-season] .qp-sidebar > .border-t { border-color: var(--qp-s-side-line); }
+:root[data-season] .qp-topbar {
+  background-color: var(--qp-s-bar);
+  color: var(--qp-s-bar-text);
+  border-bottom: 3px solid var(--qp-s-line);
+}
+:root[data-season] .qp-topbar .qp-topbar-btn { color: var(--qp-s-bar-text); }
+:root[data-season] .qp-topbar .qp-topbar-btn:hover { background-color: color-mix(in oklab, var(--qp-s-bar-text) 16%, transparent); color: var(--qp-s-bar-text); }
+:root[data-season] .qp-topbar .qp-topbar-chip {
+  background-color: transparent;
+  color: var(--qp-s-bar-text);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--qp-s-bar-text) 45%, transparent);
+}
+/* The New Job button is the bar turned inside out, so it stands out on any season's colour */
+:root[data-season] .qp-topbar .qp-topbar-cta { background-color: var(--qp-s-bar-text); color: var(--qp-s-bar); font-weight: 600; }
+:root[data-season] .qp-topbar .qp-topbar-cta:hover { background-color: color-mix(in oklab, var(--qp-s-bar-text) 86%, var(--qp-s-bar)); }
+
+/* ------------------------------------------------------------------
    Small screens
    ------------------------------------------------------------------ */
 

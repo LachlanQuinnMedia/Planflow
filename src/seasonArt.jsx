@@ -525,11 +525,12 @@ const SCENES = {
       {/* the grandstand and the crowd */}
       <path d="M0 40Q240 20 480 40V72H0z" fill="#9aa9bf" /><path d="M0 40Q240 20 480 40v4Q240 24 0 44z" fill="#7c8ca5" /><path d="M0 56Q240 38 480 56v2Q240 40 0 58z" fill="#7c8ca5" opacity="0.7" />
       {range(3).map(row => range(40).map(i => { const x = 8 + i * 11.800 + (row % 2) * 5; const y = 48 - 18 * Math.sin((x / 480) * Math.PI) + row * 8.500 + 6; return <circle key={`${row}${i}`} cx={x} cy={y} r="2.100" fill={['#f1c9a5', '#d9a47c', '#f5d7bd', '#b97f5a'][(i + row) % 4]} /> }))}
-      {[[44, 0, '#7b1e3a', '#f2b632'], [96, 1, '#1e3a6e', '#d93a3a'], [150, 2, '#23272e', '#f3f4f6'], [208, 0, '#1f6fb5', '#f6cf2f'], [262, 1, '#1f7a4d', '#f6c945'], [318, 2, '#7b1e3a', '#f2b632'], [372, 0, '#1e3a6e', '#d93a3a'], [428, 1, '#23272e', '#f3f4f6']].map(([x, row, a, b], i) => {
+      {[[44, 0, 'broncos'], [96, 1, 'lions'], [150, 2, 'titans'], [208, 0, 'suns'], [262, 1, 'dolphins'], [318, 2, 'cowboys'], [372, 0, 'storm'], [428, 1, 'rabbitohs']].map(([x, row, club], i) => {
+        const [a, b, c] = CLUBS[club]
         const y = 48 - 18 * Math.sin((x / 480) * Math.PI) + row * 8.500 - 3
         return (
           <g key={x} transform={`translate(${x} ${y})`}><g className="qp-s-sway-base" style={{ animationDelay: `${i * 0.35}s`, animationDuration: '2.6s' }}>
-            <path d="M-8 6v-6M8 6v-6" stroke="#d9a47c" strokeWidth="1.300" strokeLinecap="round" /><rect x="-10" y="-5" width="20" height="5.500" rx="1" fill={a} />{[-7, -1.500, 4].map(d => <rect key={d} x={d} y="-5" width="2.700" height="5.500" fill={b} />)}
+            <path d="M-8 6v-6M8 6v-6" stroke="#d9a47c" strokeWidth="1.300" strokeLinecap="round" /><rect x="-10" y="-5" width="20" height="5.500" rx="1" fill={a} />{[-7, -1.500, 4].map((d, n) => <rect key={d} x={d} y="-5" width="2.700" height="5.500" fill={n === 1 ? c : b} />)}
           </g></g>
         )
       })}
@@ -538,12 +539,12 @@ const SCENES = {
       <path d="M0 72h480" stroke="#fff" strokeWidth="1.300" opacity="0.9" /><ellipse cx="240" cy="104" rx="46" ry="10" fill="none" stroke="#fff" strokeWidth="1" opacity="0.6" />
       {/* league-style posts, with a kick going over */}
       <g fill="none" strokeLinecap="round"><path d="M92 92V14M132 92V14M92 56h40" stroke="#7c8ca5" strokeWidth="4" /><path d="M92 92V14M132 92V14M92 56h40" stroke="#fbfcfe" strokeWidth="2.500" /></g>
-      <rect x="88.500" y="78" width="7" height="14" rx="2.500" fill="#7b1e3a" /><rect x="128.500" y="78" width="7" height="14" rx="2.500" fill="#7b1e3a" />
+      <rect x="88.500" y="78" width="7" height="14" rx="2.500" fill={CLUBS.broncos[0]} /><rect x="128.500" y="78" width="7" height="14" rx="2.500" fill={CLUBS.broncos[0]} />
       <path d="M40 104Q84 8 150 34" fill="none" stroke="#fff" strokeWidth="1.100" strokeDasharray="2 4.500" strokeLinecap="round" opacity="0.9" />
       <g className="qp-s-bob"><BallPale x={112} y={36} s={0.95} rot={-30} /></g>
       {/* rules-style posts, with a ball sailing through the middle */}
       <g fill="none" strokeLinecap="round"><path d="M352 92V10M376 92V10M334 92V34M394 92V34" stroke="#7c8ca5" strokeWidth="3.600" /><path d="M352 92V10M376 92V10M334 92V34M394 92V34" stroke="#fbfcfe" strokeWidth="2.200" /></g>
-      {[352, 376, 334, 394].map(x => <rect key={x} x={x - 3} y="80" width="6" height="12" rx="2.300" fill="#1e3a6e" />)}
+      {[352, 376, 334, 394].map(x => <rect key={x} x={x - 3} y="80" width="6" height="12" rx="2.300" fill={CLUBS.lions[1]} />)}
       <path d="M452 104Q420 4 352 30" fill="none" stroke="#fff" strokeWidth="1.100" strokeDasharray="2 4.500" strokeLinecap="round" opacity="0.9" />
       <g className="qp-s-bob" style={{ animationDelay: '0.8s' }}><BallRed x={364} y={28} s={0.95} rot={24} /></g>
       {/* the cup */}
@@ -553,7 +554,7 @@ const SCENES = {
       <path d="M227 54h26c0 16-4 27-13 28-9-1-13-12-13-28z" fill={`url(#${u}cup)`} /><ellipse cx="240" cy="54" rx="13" ry="2.600" fill="#c98b16" />
       <path d="M227 58c-9-2-11 12 2 15M253 58c9-2 11 12-2 15" fill="none" stroke="#e2a92c" strokeWidth="2.300" strokeLinecap="round" /><path d="M232 59c0 9 1.500 15 4 19" fill="none" stroke="#fff" strokeWidth="1.800" strokeLinecap="round" opacity="0.6" />
       <Sparkle x={258} y={50} s={0.8} fill="#fff" /><Sparkle x={222} y={64} s={0.55} fill="#fff" delay={0.9} /><Sparkle x={246} y={44} s={0.5} delay={1.500} />
-      {[[190, 26, '#7b1e3a'], [204, 40, '#f2b632'], [280, 30, '#1e3a6e'], [296, 44, '#d93a3a'], [218, 18, '#1f6fb5'], [266, 16, '#f6cf2f'], [176, 44, '#f3f4f6'], [306, 24, '#1f7a4d']].map(([x, y, c], i) => <rect key={`${x}${y}`} className="qp-s-twinkle" style={{ animationDelay: `${i * 0.3}s` }} x={x} y={y} width="5" height="2.200" rx="0.6" fill={c} transform={`rotate(${i * 41} ${x} ${y})`} />)}
+      {[[190, 26, CLUBS.broncos[0]], [204, 40, CLUBS.broncos[1]], [280, 30, CLUBS.lions[1]], [296, 44, CLUBS.suns[0]], [218, 18, CLUBS.titans[0]], [266, 16, CLUBS.suns[1]], [176, 44, '#f3f4f6'], [306, 24, CLUBS.storm[0]]].map(([x, y, c], i) => <rect key={`${x}${y}`} className="qp-s-twinkle" style={{ animationDelay: `${i * 0.3}s` }} x={x} y={y} width="5" height="2.200" rx="0.6" fill={c} transform={`rotate(${i * 41} ${x} ${y})`} />)}
     </>
   ),
 
@@ -631,10 +632,22 @@ export function SeasonScene({ seasonId, year, className, style }) {
 // ------------------------------------------------------------------
 // The garlands. Each is one tile, 30 high, repeated across the page.
 // ------------------------------------------------------------------
+// Footy finals: real club colours, Queensland's clubs first. Colours only: no names, logos or badges.
+// [main, stripe, second stripe]
+const CLUBS = {
+  broncos: ['#6f1d3b', '#f8b416', '#ffffff'],   // maroon, gold and white
+  lions: ['#7a0c3e', '#0054a4', '#fdbe57'],     // maroon, blue and gold
+  titans: ['#1695d3', '#f9a51a', '#0b2a55'],    // blue, gold and navy
+  suns: ['#e21e31', '#ffd200', '#e21e31'],      // red and gold
+  dolphins: ['#e0121d', '#f6b21b', '#ffffff'],  // red, gold and white
+  cowboys: ['#12284c', '#ffd100', '#ffffff'],   // navy, yellow and white
+  storm: ['#4f2683', '#f8c300', '#1b1b5e'],     // purple, gold and navy
+  rabbitohs: ['#c8102e', '#00693e', '#c8102e'], // cardinal red and myrtle green
+}
 const rope = (w, dip) => `M0 4Q${w / 2} ${4 + dip * 2} ${w} 4`
-const pennant = (x, y, a, b) => (
+const pennant = (x, y, a, b, c) => (
   <g key={x} transform={`translate(${x} ${y})`}>
-    <path d="M0 0h16l-8 17z" fill={a} />{b && <path d="M3.300 0h3.200l-1.300 11.500zM9.500 0h3.200L10.800 11.500z" fill={b} />}
+    <path d="M0 0h16l-8 17z" fill={a} />{b && <path d="M3.300 0h3.200l-1.300 11.500z" fill={b} />}{b && <path d="M9.500 0h3.200L10.800 11.500z" fill={c || b} />}
   </g>
 )
 const bulb = (x, y, c, i) => (
@@ -742,7 +755,7 @@ const GARLANDS = {
   footy: { w: 180, tile: (
     <>
       <path d={rope(180, 3)} fill="none" stroke="#8b94a1" strokeWidth="1" />
-      {[[2, 5, '#7b1e3a', '#f2b632'], [22, 6.500, '#1e3a6e', '#d93a3a'], [42, 7.500, '#23272e', '#f3f4f6'], [100, 7.500, '#1f6fb5', '#f6cf2f'], [120, 7.500, '#1f7a4d', '#f6c945'], [140, 6.500, '#7b1e3a', '#f3f4f6'], [160, 5, '#1e3a6e', '#f6cf2f']].map(([x, y, a, b]) => pennant(x, y, a, b))}
+      {[[2, 5, 'broncos'], [22, 6.500, 'lions'], [42, 7.500, 'titans'], [100, 7.500, 'suns'], [120, 7.500, 'dolphins'], [140, 6.500, 'cowboys'], [160, 5, 'storm']].map(([x, y, club]) => pennant(x, y, ...CLUBS[club]))}
       <path d="M80 8v4" stroke="#8b94a1" strokeWidth="0.8" /><BallPale x={80} y={18} s={0.62} rot={-20} />
     </>
   ) },

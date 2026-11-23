@@ -302,7 +302,8 @@ function HPCStagesTab({ job, onHistoryAdd }) {
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase.from('jobs').select('hpc_stages').eq('id', job.id).single()
+      // The tutorial's example job is not in the database: its stages come with it
+      const { data } = job.demo ? { data: job } : await supabase.from('jobs').select('hpc_stages').eq('id', job.id).maybeSingle()
       if (data?.hpc_stages && Object.keys(data.hpc_stages).length > 0) {
         const merged = {}
         for (const s of HPC_STAGES) {
@@ -316,6 +317,8 @@ function HPCStagesTab({ job, onHistoryAdd }) {
       }
     }
     load()
+    // Only when a different job is opened. Re-running on every change to the job would wipe unsaved ticks.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [job.id])
 
   const updateStage = (id, updates) => {
@@ -795,7 +798,7 @@ function DAStageTracker({ job, currentUser, onHistoryAdd }) {
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase.from('jobs').select('da_stages').eq('id', job.id).single()
+      const { data } = job.demo ? { data: job } : await supabase.from('jobs').select('da_stages').eq('id', job.id).maybeSingle()
       if (data?.da_stages && typeof data.da_stages === 'object') {
         // Merge with defaults so a partially saved record never leaves a stage undefined
         const merged = {}
@@ -807,7 +810,7 @@ function DAStageTracker({ job, currentUser, onHistoryAdd }) {
           merged[s.id] = st
         }
         setStages(merged)
-        checkDeadlines(merged)
+        if (!job.demo) checkDeadlines(merged) // the example job never raises a notification
       }
     }
     load()
@@ -1134,6 +1137,7 @@ function TimeBudgetTab({ job, currentUser, onHistoryAdd }) {
 
   const fetchLogs = async () => {
     setLoading(true)
+    if (job.demo) { setTimeLogs(job.demo_time_logs || []); setLoading(false); return }
     const { data } = await supabase.from('time_logs').select('*').eq('job_id', job.id).order('created_at', { ascending: false })
     if (data) setTimeLogs(data)
     setLoading(false)
@@ -1238,6 +1242,7 @@ function DocumentsTab({ job, currentUser, onHistoryAdd, onJobUpdated }) {
 
   const fetchDocs = async () => {
     setLoading(true)
+    if (job.demo) { setDocs([]); setLoading(false); return }
     const { data } = await supabase.from('documents').select('*').eq('job_id', job.id).order('created_at', { ascending: false })
     if (data) setDocs(data)
     setLoading(false)
@@ -1617,7 +1622,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
   useEffect(() => {
     if (!job?.id) return
     const loadHistory = async () => {
-      const { data } = await supabase.from('jobs').select('job_history, hpc_stages').eq('id', job.id).single()
+      const { data } = job.demo ? { data: job } : await supabase.from('jobs').select('job_history, hpc_stages').eq('id', job.id).maybeSingle()
       if (data?.job_history && data.job_history.length > 0) setHistory(data.job_history)
       else setHistory([{ text: 'Job created', time: job.created_at }])
       if (data?.hpc_stages && Object.keys(data.hpc_stages).length > 0) {
@@ -1651,7 +1656,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
   // Load the latest copy of the job (the list it was opened from may be stale), and bring
   // the stored name of older jobs into the naming format: [Client Name] - [Address] [Job Number]
   useEffect(() => {
-    if (!job?.id) return
+    if (!job?.id || job.demo) return
     let cancelled = false
     const refresh = async () => {
       const { data } = await supabase.from('jobs').select('*').eq('id', job.id).maybeSingle()
@@ -1667,7 +1672,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
     }
     refresh()
     return () => { cancelled = true }
-  }, [job?.id])
+  }, [job?.id, job?.demo])
 
   if (!job) return (
     <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
@@ -1799,6 +1804,11 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
           onJobUpdated={patch => setJobData(prev => ({ ...prev, ...patch }))} onHistoryAdd={addHistory} />
       )}
 
+      {job.demo && (
+        <div data-testid="demo-job-note" className="mb-3 px-3 py-2 rounded-lg border border-amber-200 bg-amber-50 text-xs text-amber-800">
+          <span className="font-semibold">Example job.</span> It is here for the tutorial only. It is not one of your jobs and nothing on it is saved.
+        </div>
+      )}
       <div data-tour="job-header" className="flex items-center gap-3 mb-4 flex-wrap">
         <button onClick={() => onNavigate('jobs')} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">← Back</button>
         <div className="basis-full lg:basis-0 flex-1 min-w-0 order-first lg:order-none">

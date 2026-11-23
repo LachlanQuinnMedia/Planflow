@@ -2,7 +2,7 @@
 // The words of the two tutorials. One for directors, one for staff.
 //
 // Each card names:
-//   page      the page to open ('jobdetail' opens a real job, null stays where it is)
+//   page      the page to open ('jobdetail' opens a job: a real one, or the example job if there are none; null stays where it is)
 //   jobTab    on the job page, the tab to open
 //   targets   the things to light up (data-tour names). The card points at them.
 //   sidebar   true when the thing is in the menu (on a phone the menu slides out for it)
@@ -33,25 +33,20 @@ const tabCard = (tab, title, body) => ({
 // Cards both tutorials share. The job page works the same way for everyone.
 // ------------------------------------------------------------------
 
+// A firm with no jobs yet still gets every card: the tour opens a built-in example job
+// (src/tourDemoJob.js) and says so on the first card.
 function jobCards(hasJobs) {
-  if (!hasJobs) {
-    return [{
-      id: 'job-none', page: 'jobs', chapter: 'Inside a job', targets: ['jobs-search', 'jobs-list'], maxHeight: 260,
-      title: 'Inside a job',
-      body: [
-        'There are no jobs yet. Once there is one, click it in this list to open it.',
-        'A job has seven tabs: Overview, HPC Stages, DA Stages, Documents, Time & Budget, IR & Notes and History.',
-        'Run this tutorial again from the ? button once you have a job, and it will walk through each tab.',
-      ],
-    }]
-  }
   return [
     {
       id: 'job-header', page: 'jobdetail', jobTab: 'overview', chapter: 'Inside a job', targets: ['job-header'],
       title: 'A job, from the top',
-      body: [
+      body: hasJobs ? [
         'This row stays put on every tab. Change the status, edit the job\'s details, or share a read-only summary with the client.',
         '"Generate docs" fills your templates in from this job.',
+        'The tabs underneath hold everything else. We will go through them one at a time.',
+      ] : [
+        'You have no jobs yet, so this is an example job. It is not saved, and it goes away when the tour ends.',
+        'This row stays put on every tab. Change the status, edit the details, share a summary with the client, or generate documents.',
         'The tabs underneath hold everything else. We will go through them one at a time.',
       ],
     },

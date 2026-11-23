@@ -5,25 +5,55 @@
 // Each season has:
 //   base     'light' or 'dark': which of the two ordinary themes it is built on
 //   accent   the hue and strength of the main colour (buttons, links, the selected menu item)
-//   tint     the faint hue of the page and card backgrounds
+//   page     the colour behind the cards (hue and strength). Light pink for Women's Day, and so on.
+//   side     the menu's tint, when it differs from the page (optional)
+//   bar      the top bar: lightness, strength and hue. Its text colour is picked to be readable.
+//   line     the thin trim under the top bar
+//   tint     dark seasons only: the hue of the dark backgrounds
 // The colours themselves are worked out from these in scripts/seasons-css.mjs, which writes
-// src/seasons.css. Run `node scripts/seasons-css.mjs` after changing a number here.
-// The pictures are in src/Seasonal.jsx.
+// src/seasons-palette.css. Run `node scripts/seasons-css.mjs` after changing a number here.
+// The pictures are in src/seasonArt.jsx and src/Seasonal.jsx.
 
 export const SEASONS = [
-  { id: 'newyear', month: 1, name: 'New Year', greeting: 'Happy New Year', base: 'dark', accent: { h: 285, c: 0.15 }, tint: { h: 270, c: 0.03 } },
-  { id: 'superbowl', month: 2, toDay: 14, name: 'Super Bowl', greeting: 'Super Bowl season', base: 'light', accent: { h: 150, c: 0.13 }, tint: { h: 140, c: 0.008 } },
-  { id: 'lunar', month: 2, fromDay: 15, name: 'Lunar New Year', greeting: 'Happy Lunar New Year', base: 'light', accent: { h: 172, c: 0.105 }, tint: { h: 62, c: 0.011 } },
-  { id: 'womens', month: 3, name: "International Women's Day", greeting: "International Women's Day", base: 'light', accent: { h: 352, c: 0.17 }, tint: { h: 350, c: 0.012 } },
-  { id: 'easter', month: 4, name: 'Easter', greeting: 'Happy Easter', base: 'light', accent: { h: 295, c: 0.13 }, tint: { h: 305, c: 0.009 } },
-  { id: 'labour', month: 5, name: 'Labour Day', greeting: 'Labour Day', base: 'light', accent: { h: 252, c: 0.085 }, tint: { h: 250, c: 0.007 } },
-  { id: 'environment', month: 6, name: 'World Environment Day', greeting: 'World Environment Day', base: 'light', accent: { h: 142, c: 0.14 }, tint: { h: 120, c: 0.012 } },
-  { id: 'tour', month: 7, name: 'Tour de France', greeting: 'Tour de France', base: 'light', accent: { h: 258, c: 0.16 }, tint: { h: 245, c: 0.008 } },
-  { id: 'ekka', month: 8, name: 'Ekka', greeting: 'Ekka time', base: 'light', accent: { h: 208, c: 0.105 }, tint: { h: 78, c: 0.010 } },
-  { id: 'footy', month: 9, name: 'Footy finals', greeting: 'Finals footy', base: 'light', accent: { h: 158, c: 0.12 }, tint: { h: 140, c: 0.008 } },
-  { id: 'halloween', month: 10, name: 'Halloween', greeting: 'Happy Halloween', base: 'dark', accent: { h: 52, c: 0.16 }, tint: { h: 305, c: 0.03 } },
-  { id: 'remembrance', month: 11, name: 'Remembrance Day', greeting: 'Lest we forget', base: 'light', accent: { h: 155, c: 0.05 }, tint: { h: 85, c: 0.008 } },
-  { id: 'christmas', month: 12, name: 'Christmas', greeting: 'Merry Christmas', base: 'light', accent: { h: 158, c: 0.125 }, tint: { h: 80, c: 0.009 } },
+  // Midnight violet and gold
+  { id: 'newyear', month: 1, name: 'New Year', greeting: 'Happy New Year', base: 'dark', accent: { h: 285, c: 0.15 }, tint: { h: 278, c: 0.05 },
+    bar: { l: 0.33, c: 0.14, h: 295 }, line: { l: 0.82, c: 0.14, h: 88 } },
+  // Football leather and lace white, over turf green
+  { id: 'superbowl', month: 2, toDay: 14, name: 'Super Bowl', greeting: 'Super Bowl season', base: 'light', accent: { h: 150, c: 0.13 }, page: { h: 145, c: 0.03 },
+    bar: { l: 0.39, c: 0.075, h: 48 }, line: { l: 0.96, c: 0.015, h: 90 } },
+  // Red and gold, with jade buttons
+  { id: 'lunar', month: 2, fromDay: 15, name: 'Lunar New Year', greeting: 'Happy Lunar New Year', base: 'light', accent: { h: 172, c: 0.105 }, page: { h: 30, c: 0.026 }, side: { h: 85, c: 0.045 },
+    bar: { l: 0.5, c: 0.19, h: 27 }, line: { l: 0.83, c: 0.15, h: 88 } },
+  // Pink, with the purple of International Women's Day
+  { id: 'womens', month: 3, name: "International Women's Day", greeting: "International Women's Day", base: 'light', accent: { h: 352, c: 0.17 }, page: { h: 350, c: 0.034 },
+    bar: { l: 0.52, c: 0.19, h: 354 }, line: { l: 0.6, c: 0.17, h: 305 } },
+  // Pastels: lilac, mint and butter yellow
+  { id: 'easter', month: 4, name: 'Easter', greeting: 'Happy Easter', base: 'light', accent: { h: 295, c: 0.13 }, page: { h: 305, c: 0.03 }, side: { h: 168, c: 0.045 },
+    bar: { l: 0.8, c: 0.1, h: 300 }, line: { l: 0.9, c: 0.13, h: 98 } },
+  // Denim blue and hi-vis orange
+  { id: 'labour', month: 5, name: 'Labour Day', greeting: 'Labour Day', base: 'light', accent: { h: 252, c: 0.085 }, page: { h: 250, c: 0.024 },
+    bar: { l: 0.43, c: 0.085, h: 252 }, line: { l: 0.76, c: 0.17, h: 60 } },
+  // Forest green and new-leaf green
+  { id: 'environment', month: 6, name: 'World Environment Day', greeting: 'World Environment Day', base: 'light', accent: { h: 142, c: 0.14 }, page: { h: 125, c: 0.04 },
+    bar: { l: 0.4, c: 0.1, h: 148 }, line: { l: 0.82, c: 0.18, h: 125 } },
+  // The yellow jersey, with French blue
+  { id: 'tour', month: 7, name: 'Tour de France', greeting: 'Tour de France', base: 'light', accent: { h: 258, c: 0.16 }, page: { h: 98, c: 0.05 },
+    bar: { l: 0.89, c: 0.17, h: 99 }, line: { l: 0.48, c: 0.17, h: 258 } },
+  // Strawberry sundae: strawberry, cream and showbag teal
+  { id: 'ekka', month: 8, name: 'Ekka', greeting: 'Ekka time', base: 'light', accent: { h: 208, c: 0.105 }, page: { h: 78, c: 0.034 }, side: { h: 8, c: 0.04 },
+    bar: { l: 0.53, c: 0.17, h: 10 }, line: { l: 0.93, c: 0.06, h: 92 } },
+  // Navy and gold over grass green
+  { id: 'footy', month: 9, name: 'Footy finals', greeting: 'Finals footy', base: 'light', accent: { h: 158, c: 0.12 }, page: { h: 140, c: 0.03 },
+    bar: { l: 0.31, c: 0.08, h: 262 }, line: { l: 0.81, c: 0.15, h: 85 } },
+  // Black and orange
+  { id: 'halloween', month: 10, name: 'Halloween', greeting: 'Happy Halloween', base: 'dark', accent: { h: 52, c: 0.16 }, tint: { h: 60, c: 0.008 },
+    bar: { l: 0.66, c: 0.17, h: 52 }, line: { l: 0.2, c: 0.01, h: 60 } },
+  // Quiet: charcoal, sage and a line of poppy red
+  { id: 'remembrance', month: 11, name: 'Remembrance Day', greeting: 'Lest we forget', base: 'light', accent: { h: 155, c: 0.05 }, page: { h: 100, c: 0.02 },
+    bar: { l: 0.31, c: 0.012, h: 150 }, line: { l: 0.55, c: 0.21, h: 27 } },
+  // Velvet maroon and pine green, on cream
+  { id: 'christmas', month: 12, name: 'Christmas', greeting: 'Merry Christmas', base: 'light', accent: { h: 160, c: 0.1 }, page: { h: 78, c: 0.032 }, side: { h: 152, c: 0.062 },
+    bar: { l: 0.36, c: 0.125, h: 17 }, line: { l: 0.8, c: 0.13, h: 85 } },
 ]
 
 export const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
