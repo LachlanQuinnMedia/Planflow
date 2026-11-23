@@ -61,7 +61,9 @@ const navItems = [
   { id: 'xero', label: 'Xero', section: 'tools' },
   { id: 'templates', label: 'Templates', section: 'settings' },
   { id: 'planners', label: 'Planners', section: 'settings' },
-  { id: 'microsoft', label: 'Microsoft 365', section: 'settings' },
+  { id: 'microsoft', label: 'Microsoft 365', section: 'settings', directorOnly: true },
+  // Staff do not see the firm's Microsoft 365 set-up, but each person can still connect their own Outlook
+  { id: 'connectoutlook', label: 'Connect my Outlook', section: 'settings', staffOnly: true },
 ]
 
 const pageTitles = {
@@ -75,10 +77,11 @@ const pageTitles = {
 const LAST_PAGE_KEY = 'qplan_last_page'
 const LAST_PAGE_MAX_AGE = 4 * 60 * 60 * 1000 // after four hours away, start on the dashboard again
 
-function readLastPage(userId) {
+function readLastPage(userId, role) {
   try {
     const v = JSON.parse(localStorage.getItem(LAST_PAGE_KEY) || 'null')
     if (!v || !userId || v.userId !== userId || !pageTitles[v.page]) return null
+    if (role !== 'director' && navItems.some(i => i.id === v.page && i.directorOnly)) return null
     if (Date.now() - (v.at || 0) > LAST_PAGE_MAX_AGE) return null
     if (v.page === 'jobdetail' && !v.jobId) return null
     return v
@@ -484,7 +487,7 @@ export default function App() {
   // The page this person was on before a refresh, if this browser still knows who they are
   const [restored] = useState(() => {
     const s = loadSession()
-    return s && s.id ? readLastPage(s.id) : null
+    return s && s.id ? readLastPage(s.id, s.role) : null
   })
   const [activePage, setActivePage] = useState(() => restored?.page || 'dashboard')
   const [selectedJob, setSelectedJob] = useState(null)
@@ -655,6 +658,7 @@ export default function App() {
     const stored = sessionStorage.getItem('ms_notice')
     if (!stored) return
     sessionStorage.removeItem('ms_notice')
+    if (currentUser.role !== 'director') return
     try { setMsNotice(JSON.parse(stored)) } catch { /* ignore */ }
     setActivePage('microsoft')
   }, [currentUser])
@@ -803,7 +807,7 @@ export default function App() {
   const handleLogin = (user) => {
     try { localStorage.setItem('qplan_known_user', '1') } catch { /* storage unavailable */ }
     // Back to where this person was if they were signed out part way through; otherwise the dashboard
-    const last = readLastPage(user.id)
+    const last = readLastPage(user.id, user.role)
     setActivePage(last?.page || 'dashboard')
     setHistory([last?.page || 'dashboard'])
     setHistoryIndex(0)
@@ -836,6 +840,8 @@ export default function App() {
   }
 
   const handleNavigate = (page, job = null) => {
+    // Not a page of its own: it opens the Calendar with the connect box showing
+    if (page === 'connectoutlook') { setPendingCalendarConnect(true); page = 'calendar' }
     if (job) setSelectedJob(job)
     setActivePage(page)
     setSidebarOpen(false)
@@ -886,7 +892,7 @@ export default function App() {
     return <Login onLogin={handleLogin} onRegister={() => setAuthPage('register')} onForgotPassword={() => setAuthPage('forgot')} onAbout={() => setAuthPage('landing')} />
   }
 
-  const visibleNavItems = navItems.filter(item => !item.directorOnly || isDirector)
+  const visibleNavItems = navItems.filter(item => (!item.directorOnly || isDirector) && (!item.staffOnly || !isDirector))
 
   const renderPage = () => {
     switch (activePage) {
@@ -916,7 +922,9 @@ export default function App() {
       case 'docs': return <Documents currentUser={currentUser} />
       case 'time': return <TimeBudget currentUser={currentUser} />
       case 'planners': return <Planners currentUser={currentUser} />
-      case 'microsoft': return <Microsoft365 currentUser={currentUser} notice={msNotice} onNoticeShown={() => setMsNotice(null)} />
+      case 'microsoft': return !isDirector
+        ? <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-sm text-gray-500">Microsoft 365 is set up by a director. To connect your own Outlook, open Calendar and choose Connect calendar.</div>
+        : <Microsoft365 currentUser={currentUser} notice={msNotice} onNoticeShown={() => setMsNotice(null)} />
       default: return <div className="bg-white rounded-xl border border-gray-200 p-6"><p className="text-sm text-gray-500">This page is coming soon.</p></div>
     }
   }

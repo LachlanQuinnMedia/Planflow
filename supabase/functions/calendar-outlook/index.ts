@@ -113,7 +113,7 @@ serve(async (req) => {
         .maybeSingle()
 
       if (!conn) return json({ success: false, error: 'Not connected' })
-      if (conn.needs_reconnect) return json({ success: false, error: 'reconnect', message: 'Reconnect your calendar in Settings > Microsoft 365.' })
+      if (conn.needs_reconnect) return json({ success: false, error: 'reconnect', message: 'Reconnect your calendar from Calendar > Connect calendar.' })
 
       let accessToken = conn.access_token
       // Refresh a few minutes early so a token never expires mid-request
@@ -131,7 +131,7 @@ serve(async (req) => {
         const refreshed = await refreshRes.json()
         if (!refreshed.access_token) {
           await supabase.from('calendar_connections').update({ needs_reconnect: true }).eq('id', conn.id)
-          return json({ success: false, error: 'reconnect', message: 'Microsoft signed this calendar out. Reconnect it in Settings > Microsoft 365.' })
+          return json({ success: false, error: 'reconnect', message: 'Microsoft signed this calendar out. Reconnect it from Calendar > Connect calendar.' })
         }
         accessToken = refreshed.access_token
         await supabase.from('calendar_connections').update({
@@ -221,7 +221,7 @@ serve(async (req) => {
       const query = new URLSearchParams({
         startDateTime: `${start}T00:00:00+10:00`,
         endDateTime: `${end}T23:59:59+10:00`,
-        $select: 'id,subject,start,end,isAllDay,isCancelled,location,webLink,showAs',
+        $select: 'id,subject,start,end,isAllDay,isCancelled,location,webLink,showAs,attendees,organizer,bodyPreview',
         $orderby: 'start/dateTime',
         $top: '200',
       })
@@ -240,6 +240,10 @@ serve(async (req) => {
         location: e.location?.displayName || '',
         webLink: e.webLink || null,
         showAs: e.showAs || null,
+        // For the meeting summary box: names only, and a short plain-text preview of the description
+        attendees: (e.attendees || []).map((a: any) => a.emailAddress?.name || a.emailAddress?.address || '').filter(Boolean).slice(0, 40),
+        organizer: e.organizer?.emailAddress?.name || e.organizer?.emailAddress?.address || '',
+        preview: String(e.bodyPreview || '').trim().slice(0, 500),
       }))
       return json({ success: true, connected: true, events })
     }

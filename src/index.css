@@ -260,3 +260,11 @@ html[data-theme="dark"] body {
 @media (prefers-reduced-motion: reduce) {
   .qp-rec { animation: none; }
 }
+
+/* While the theme is being switched, nothing fades: the whole page changes at once */
+.qp-theme-switching,
+.qp-theme-switching *,
+.qp-theme-switching *::before,
+.qp-theme-switching *::after {
+  transition: none !important;
+}

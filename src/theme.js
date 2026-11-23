@@ -18,7 +18,18 @@ export function getThemeChoice() {
 
 export function applyTheme(choice = getThemeChoice()) {
   const dark = choice === 'dark' || (choice === 'auto' && systemDark())
-  document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+  const root = document.documentElement
+  const next = dark ? 'dark' : 'light'
+  if (root.dataset.theme !== next) {
+    // Change every colour in the same instant. Buttons and rows have their own short colour fades,
+    // and left alone they lag behind the rest of the page, which looks like a flash.
+    root.classList.add('qp-theme-switching')
+    root.dataset.theme = next
+    void root.offsetHeight // apply the new colours now, while the fades are off
+    const done = () => root.classList.remove('qp-theme-switching')
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => requestAnimationFrame(done))
+    else setTimeout(done, 50)
+  }
   // The phone's status bar and the installed app's title bar follow the theme
   const bar = document.querySelector('meta[name="theme-color"]')
   if (bar) bar.setAttribute('content', dark ? '#151d1a' : '#ffffff')

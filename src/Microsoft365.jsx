@@ -288,7 +288,7 @@ export default function Microsoft365({ currentUser, notice, onNoticeShown }) {
               )
             })}
           </div>
-          <div className="text-xs text-gray-500 mt-3">Each person connects their own calendar from Settings &gt; Microsoft 365.</div>
+          <div className="text-xs text-gray-500 mt-3">Staff connect their own calendar from Calendar &gt; Connect calendar, or "Connect my Outlook" in the menu.</div>
         </div>
       )}
 

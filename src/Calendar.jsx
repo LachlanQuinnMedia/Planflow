@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import { supabase, SUPABASE_URL, fnHeaders, callFunction } from './supabase'
 import { jobTitle } from './jobMeta'
 import { holidayName } from './businessDays'
@@ -22,7 +22,12 @@ function outlookToItems(events, weekDates, skipIds) {
   const items = []
   for (const e of events || []) {
     if (!e.start || skipIds.has(e.id)) continue // meetings QPlan put into Outlook are already shown
-    const base = { id: `outlook-${e.id}`, type: 'outlook', outlook: true, title: e.subject, client_name: null, notes: e.location || '', webLink: e.webLink }
+    const base = {
+      id: `outlook-${e.id}`, type: 'outlook', outlook: true, title: e.subject, subject: e.subject, client_name: null,
+      notes: e.location || '', location: e.location || '', webLink: e.webLink,
+      // Older replies from the server do not list attendees or a description
+      attendees: Array.isArray(e.attendees) ? e.attendees : null, organizer: e.organizer || '', purpose: e.preview || '',
+    }
     if (e.allDay) {
       // An all-day event runs from its start day up to, but not including, its end day
       const day = new Date(`${e.start.slice(0, 10)}T00:00:00`)
@@ -30,7 +35,7 @@ function outlookToItems(events, weekDates, skipIds) {
       let guard = 0
       do {
         const iso = toLocalISODate(day)
-        if (days.has(iso)) items.push({ ...base, id: `${base.id}-${iso}`, date: iso, start_time: '07:00', duration_minutes: 30, title: `All day: ${e.subject}`, allDay: true })
+        if (days.has(iso)) items.push({ ...base, id: `${base.id}-${iso}`, date: iso, start_time: '07:00', duration_minutes: 30, title: `All day: ${e.subject}`, allDay: true, allDayFrom: e.start.slice(0, 10), allDayTo: (e.end || e.start).slice(0, 10) })
         day.setDate(day.getDate() + 1)
       } while (day < last && ++guard < 14)
       continue
@@ -100,7 +105,20 @@ function formatWeekRange(weekDates) {
   return `${startDay} ${startMonth} – ${endDay} ${endMonth} ${year}`
 }
 
-const SLOT_HEIGHT = 64
+const SLOT_HEIGHT = 64 // tallest an hour row gets. Rows shrink so the whole day fits on screen.
+const MIN_SLOT_HEIGHT = 30
+
+// "09:00" plus 90 minutes -> "10:30"
+function addMinutes(hhmm, mins) {
+  const [h, m] = String(hhmm || '00:00').split(':').map(Number)
+  const total = (h || 0) * 60 + (m || 0) + (mins || 0)
+  return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
+}
+
+// A street address gets a map link. "Microsoft Teams Meeting" or a web link does not.
+function looksLikeAddress(text) {
+  return /\d/.test(text || '') && !/^https?:/i.test(text || '') && !/teams|zoom|online|phone call/i.test(text || '')
+}
 
 function DatePickerModal({ currentDate, onSelect, onClose }) {
   const [viewMonth, setViewMonth] = useState(currentDate.getMonth())
@@ -413,8 +431,25 @@ function EditMeetingModal({ booking, onClose, onSave, staffList, jobs }) {
   )
 }
 
-function MeetingReviewModal({ booking, onClose, onDelete, onEdit }) {
+function SummaryRow({ label, children, muted }) {
+  return (
+    <div className="grid grid-cols-[76px_1fr] gap-2 text-xs">
+      <div className="text-gray-500">{label}</div>
+      <div className={`min-w-0 break-words ${muted ? 'text-gray-400' : 'text-gray-800'}`}>{children}</div>
+    </div>
+  )
+}
+
+// The small summary shown when a meeting is clicked. Works for QPlan meetings and Outlook ones.
+function MeetingSummaryModal({ booking, jobs, onClose, onDelete, onEdit }) {
   const [deleting, setDeleting] = useState(false)
+  const isOutlook = !!booking.outlook
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
 
   const handleDelete = async () => {
     if (!window.confirm('Delete this meeting?')) return
@@ -423,78 +458,102 @@ function MeetingReviewModal({ booking, onClose, onDelete, onEdit }) {
     setDeleting(false); onDelete(); onClose()
   }
 
-  const notes = booking.notes || ''
-  const noteLines = notes.split('\n').filter(Boolean)
-  const clientEmail = noteLines.find(l => l.startsWith('Email:'))?.replace('Email:', '').trim()
-  const clientPhone = noteLines.find(l => l.startsWith('Phone:'))?.replace('Phone:', '').trim()
-  const clientAddress = noteLines.find(l => l.startsWith('Address:'))?.replace('Address:', '').trim()
-  const agenda = noteLines.find(l => l.startsWith('Agenda:'))?.replace('Agenda:', '').trim()
+  const noteLines = (isOutlook ? '' : booking.notes || '').split('\n').filter(Boolean)
+  const noteValue = (key) => noteLines.find(l => l.startsWith(key))?.replace(key, '').trim() || ''
+  const clientEmail = noteValue('Email:')
+  const clientPhone = noteValue('Phone:')
+  const job = !isOutlook && booking.job_code ? (jobs || []).find(j => j.code === booking.job_code) : null
+
+  const title = isOutlook ? (booking.subject || booking.title) : booking.title
+  const address = isOutlook ? booking.location : (noteValue('Address:') || job?.address || '')
+  const purpose = isOutlook ? booking.purpose
+    : booking.type === 'client' ? noteValue('Agenda:') : (booking.notes || '').trim()
+  const people = booking.attendees || []
+  const attendeesKnown = !isOutlook || Array.isArray(booking.attendees)
+
+  let when
+  if (booking.allDay) {
+    const last = new Date(`${booking.allDayTo}T00:00:00`); last.setDate(last.getDate() - 1)
+    const lastIso = toLocalISODate(last)
+    when = booking.allDayFrom && lastIso > booking.allDayFrom
+      ? `All day, ${formatDateFull(booking.allDayFrom)} to ${formatDateFull(lastIso)}`
+      : `All day, ${formatDateFull(booking.allDayFrom || booking.date)}`
+  } else {
+    when = `${formatTime12(booking.start_time)} to ${formatTime12(addMinutes(booking.start_time, booking.duration_minutes))} (${formatDuration(booking.duration_minutes)})`
+  }
+
+  const tone = isOutlook ? { bar: 'bg-blue-500', chip: 'bg-blue-100 text-blue-700', label: 'Outlook' }
+    : booking.type === 'client' ? { bar: 'bg-emerald-500', chip: 'bg-emerald-100 text-emerald-700', label: 'Client meeting' }
+    : { bar: 'bg-purple-500', chip: 'bg-purple-100 text-purple-700', label: 'Staff meeting' }
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
-      <div className="bg-white rounded-2xl border border-gray-200 w-full max-w-md">
-        <div className={`px-6 py-4 rounded-t-2xl ${booking.type === 'client' ? 'bg-emerald-50 border-b border-emerald-100' : 'bg-purple-50 border-b border-purple-100'}`}>
-          <div className="flex items-start justify-between">
-            <div className="flex-1 min-w-0">
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${booking.type === 'client' ? 'bg-emerald-100 text-emerald-700' : 'bg-purple-100 text-purple-700'}`}>
-                {booking.type === 'client' ? 'Client meeting' : 'Staff meeting'}
-              </span>
-              <div className="text-sm font-semibold text-gray-800 mt-1">{booking.title}</div>
-              {booking.client_name && <div className="text-xs text-gray-600 mt-0.5">with {booking.client_name}</div>}
-            </div>
-            <button onClick={onClose} className="text-gray-500 hover:text-gray-600 ml-3 flex-shrink-0">✕</button>
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4" onClick={onClose}>
+      <div role="dialog" aria-label="Meeting summary" onClick={e => e.stopPropagation()}
+        className="bg-white rounded-xl border border-gray-200 w-full max-w-sm overflow-hidden shadow-lg max-h-[85dvh] flex flex-col">
+        <div className={`h-1 ${tone.bar}`} />
+        <div className="px-4 pt-3 pb-2 flex items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${tone.chip}`}>{tone.label}</span>
+            <div className="text-sm font-semibold text-gray-900 mt-1.5 break-words">{title}</div>
+            {booking.client_name && <div className="text-xs text-gray-600 mt-0.5">with {booking.client_name}</div>}
           </div>
+          <button onClick={onClose} aria-label="Close" className="text-gray-500 hover:text-gray-700 flex-shrink-0 -mr-1 px-1">✕</button>
         </div>
-        <div className="px-6 py-4 space-y-3">
-          <div className="flex items-start gap-3">
-            <span className="text-gray-500 mt-0.5"><IconCalendar /></span>
-            <div>
-              <div className="text-xs font-medium text-gray-700">{formatDateFull(booking.date)}</div>
-              <div className="text-xs text-gray-600">{formatTime12(booking.start_time)} · {formatDuration(booking.duration_minutes)}</div>
-            </div>
-          </div>
-          {booking.attendees?.length > 0 && (
-            <div className="flex items-start gap-3">
-              <span className="text-gray-500 mt-0.5"><IconPeople /></span>
-              <div className="text-xs text-gray-700">{booking.attendees.join(', ')}</div>
-            </div>
+        <div className="px-4 pb-3 space-y-2 overflow-y-auto">
+          <SummaryRow label="Time">
+            {!booking.allDay && <div className="font-medium">{formatDateFull(booking.date)}</div>}
+            <div>{when}</div>
+          </SummaryRow>
+          <SummaryRow label="Address" muted={!address}>
+            {!address ? 'Not added' : looksLikeAddress(address) ? (
+              <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`} target="_blank" rel="noopener noreferrer"
+                className="text-emerald-700 hover:underline" title="Open in Google Maps">{address}</a>
+            ) : address}
+          </SummaryRow>
+          <SummaryRow label="Attendees" muted={!attendeesKnown || (people.length === 0 && !booking.client_name)}>
+            {!attendeesKnown ? 'Open it in Outlook to see who is invited'
+              : people.length === 0 && !booking.client_name ? 'Just you'
+              : [...people, ...(booking.client_name ? [`${booking.client_name} (client)`] : [])].join(', ')}
+          </SummaryRow>
+          <SummaryRow label="Purpose" muted={!purpose}>
+            <div className="whitespace-pre-wrap">{purpose || 'Not added'}</div>
+          </SummaryRow>
+          {(job || booking.job_code) && (
+            <SummaryRow label="Job">
+              <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">{booking.job_code}</span>
+            </SummaryRow>
           )}
-          {booking.job_code && (
-            <div className="flex items-start gap-3">
-              <span className="text-gray-500 mt-0.5"><IconFolder /></span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">{booking.job_code}</span>
-            </div>
+          {(clientPhone || clientEmail) && (
+            <SummaryRow label="Client">
+              {clientPhone && <a href={`tel:${clientPhone.replace(/\s+/g, '')}`} className="text-emerald-700 hover:underline">{clientPhone}</a>}
+              {clientPhone && clientEmail && ' · '}
+              {clientEmail && <a href={`mailto:${clientEmail}`} className="text-emerald-700 hover:underline">{clientEmail}</a>}
+            </SummaryRow>
           )}
-          {booking.external_source && (
-            <div className="flex items-start gap-3">
-              <span className="text-gray-500 mt-0.5"><IconLink /></span>
-              <span className="text-xs text-gray-600 capitalize">Synced from {booking.external_source}</span>
-            </div>
-          )}
-          {booking.type === 'client' && (booking.client_name || clientEmail || clientPhone || clientAddress || agenda) && (
-            <div className="border border-gray-100 rounded-xl p-3 space-y-2">
-              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Client details</div>
-              {booking.client_name && <div className="flex justify-between text-xs"><span className="text-gray-500">Name</span><span className="font-medium text-gray-700">{booking.client_name}</span></div>}
-              {clientEmail && <div className="flex justify-between text-xs"><span className="text-gray-500">Email</span><span className="font-medium text-gray-700">{clientEmail}</span></div>}
-              {clientPhone && <div className="flex justify-between text-xs"><span className="text-gray-500">Phone</span><span className="font-medium text-gray-700">{clientPhone}</span></div>}
-              {clientAddress && <div className="flex justify-between text-xs"><span className="text-gray-500">Address</span><span className="font-medium text-gray-700 text-right max-w-[200px]">{clientAddress}</span></div>}
-              {agenda && <div className="pt-1 border-t border-gray-50"><div className="text-xs text-gray-500 mb-1">Agenda</div><div className="text-xs text-gray-700">{agenda}</div></div>}
-            </div>
-          )}
-          {booking.type === 'internal' && booking.notes && (
-            <div className="border border-gray-100 rounded-xl p-3">
-              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Notes</div>
-              <div className="text-xs text-gray-700">{booking.notes}</div>
-            </div>
+          {isOutlook && booking.organizer && <SummaryRow label="Organiser">{booking.organizer}</SummaryRow>}
+          {!isOutlook && booking.external_source && (
+            <div className="text-[11px] text-gray-500 capitalize">Also in {booking.external_source}</div>
           )}
         </div>
-        <div className="px-6 py-4 border-t border-gray-100 flex gap-2">
-          <button onClick={handleDelete} disabled={deleting}
-            className="px-4 py-2 text-xs text-red-500 border border-red-100 rounded-lg hover:bg-red-50 font-medium disabled:opacity-50">
-            {deleting ? 'Deleting...' : 'Delete'}
-          </button>
-          <button onClick={onEdit} className="px-4 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium">Edit</button>
-          <button onClick={onClose} className="flex-1 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium">Close</button>
+        <div className="px-4 py-3 border-t border-gray-100 flex gap-2">
+          {isOutlook ? (
+            <>
+              {booking.webLink && (
+                <a href={booking.webLink} target="_blank" rel="noopener noreferrer"
+                  className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium">Open in Outlook</a>
+              )}
+              <button onClick={onClose} className="flex-1 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium">Close</button>
+            </>
+          ) : (
+            <>
+              <button onClick={handleDelete} disabled={deleting}
+                className="px-3 py-1.5 text-xs text-red-500 border border-red-100 rounded-lg hover:bg-red-50 font-medium disabled:opacity-50">
+                {deleting ? 'Deleting...' : 'Delete'}
+              </button>
+              <button onClick={onEdit} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium">Edit</button>
+              <button onClick={onClose} className="flex-1 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium">Close</button>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -564,7 +623,7 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
             body: JSON.stringify({ company_id: currentUser.company_id, username: currentUser.username, booking: newBooking }),
           })
           const sync = await syncRes.json().catch(() => ({}))
-          if (sync?.error === 'reconnect') alert(`The meeting is saved in QPlan, but it could not be added to your ${provider === 'outlook' ? 'Outlook' : provider} calendar. ${sync.message || 'Reconnect your calendar in Settings > Microsoft 365.'}`)
+          if (sync?.error === 'reconnect') alert(`The meeting is saved in QPlan, but it could not be added to your ${provider === 'outlook' ? 'Outlook' : provider} calendar. ${(sync.message || '').replace('Settings > Microsoft 365', 'Calendar > Connect calendar') || 'Reconnect it from Calendar > Connect calendar.'}`)
         } catch { /* external calendar sync is optional */ }
       }
     }
@@ -700,6 +759,13 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
   const [outlookEvents, setOutlookEvents] = useState([])
   const [outlookNote, setOutlookNote] = useState('') // '', 'reconnect' or an error message
   const [refreshing, setRefreshing] = useState(false)
+  const [slotH, setSlotH] = useState(SLOT_HEIGHT)
+  const [outlookConnected, setOutlookConnected] = useState(null) // null until known
+  const [hideConnectHint, setHideConnectHint] = useState(() => {
+    try { return sessionStorage.getItem('qplan_hide_connect_hint') === '1' } catch { return false }
+  })
+  const gridRef = useRef(null)
+  const topRef = useRef(null)
   const bookingsReqRef = useRef(0) // only the newest answer is used, so a slow one cannot overwrite a newer week
   const outlookReqRef = useRef(0)
   const refreshRef = useRef(null)
@@ -758,6 +824,7 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
     try {
       const res = await callFunction('calendar-outlook', 'events', { start: toLocalISODate(weekDates[0]), end: toLocalISODate(weekDates[6]) })
       if (req !== outlookReqRef.current) return
+      setOutlookConnected(res.connected !== false)
       setOutlookEvents(res.success ? (res.events || []) : [])
       setOutlookNote(res.success ? '' : (res.error || 'Could not read Outlook'))
     } catch {
@@ -821,6 +888,28 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
 
   const hours = Array.from({ length: 13 }, (_, i) => i + 7)
 
+  // Hour rows are sized so 7am to 7pm fits in the window without scrolling
+  useLayoutEffect(() => {
+    const measure = () => {
+      const el = gridRef.current
+      if (!el) return
+      const scroller = el.closest('.overflow-y-auto')
+      const box = scroller ? scroller.getBoundingClientRect() : { bottom: window.innerHeight }
+      const top = el.getBoundingClientRect().top + (scroller ? scroller.scrollTop : 0)
+      const room = box.bottom - top - 22
+      setSlotH(Math.max(MIN_SLOT_HEIGHT, Math.min(SLOT_HEIGHT, Math.floor(room / 13))))
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    const watcher = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null
+    if (watcher && topRef.current) watcher.observe(topRef.current)
+    return () => { window.removeEventListener('resize', measure); watcher?.disconnect() }
+  }, [])
+
+  const nowTime = new Date()
+  const showConnectHint = outlookConnected === false && !hideConnectHint
+    && (viewingAs || '').toLowerCase() === (currentUser.username || '').toLowerCase()
+
   return (
     <div>
       {showNewMeeting && (
@@ -834,7 +923,7 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
         <DatePickerModal currentDate={currentWeek} onSelect={setCurrentWeek} onClose={() => setShowDatePicker(false)} />
       )}
       {selectedBooking && !editingBooking && (
-        <MeetingReviewModal booking={selectedBooking} onClose={() => setSelectedBooking(null)}
+        <MeetingSummaryModal booking={selectedBooking} jobs={jobs} onClose={() => setSelectedBooking(null)}
           onDelete={fetchBookings} onEdit={() => { setEditingBooking(selectedBooking); setSelectedBooking(null) }} />
       )}
       {editingBooking && (
@@ -842,7 +931,8 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
           onSave={() => { fetchBookings(); setEditingBooking(null) }} staffList={staffList} jobs={jobs} />
       )}
 
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+      <div ref={topRef}>
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <button onClick={goBack} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 text-lg">‹</button>
           <button onClick={goToday} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Today</button>
@@ -900,6 +990,15 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
           </button>
         </div>
       </div>
+      {showConnectHint && (
+        <div className="mb-3 flex items-center gap-2 flex-wrap bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-900">
+          <span className="flex-1 min-w-[180px]">Connect your Outlook so your meetings show here, and QPlan meetings go into your Outlook.</span>
+          <button onClick={() => connectMyCalendar(currentUser, null)} className="px-3 py-1 bg-blue-700 text-white rounded-md font-medium hover:opacity-90">Connect Outlook</button>
+          <button onClick={() => { setHideConnectHint(true); try { sessionStorage.setItem('qplan_hide_connect_hint', '1') } catch { /* storage unavailable */ } }}
+            className="px-2 py-1 text-blue-800 hover:underline">Not now</button>
+        </div>
+      )}
+      </div>
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-gray-200 sticky top-0 bg-white z-10">
@@ -910,7 +1009,7 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
             const dateStr = toLocalISODate(date)
             const holiday = holidayName(dateStr, null) || holidayName(dateStr, 'Brisbane City Council') || holidayName(dateStr, 'City of Gold Coast')
             return (
-              <div key={i} className={`text-center py-3 border-r border-gray-100 last:border-0 ${isToday ? 'bg-emerald-50' : holiday ? 'bg-red-50/60' : ''}`}>
+              <div key={i} className={`text-center py-2 border-r border-gray-100 last:border-0 ${isToday ? 'bg-emerald-50' : holiday ? 'bg-red-50/60' : ''}`}>
                 <div className="text-xs text-gray-500">{day}</div>
                 <div className={`text-sm font-semibold mt-0.5 ${isToday ? 'text-emerald-600' : holiday ? 'text-red-600' : 'text-gray-700'}`}>{num}</div>
                 {holiday && <div className="text-[10px] leading-tight text-red-500 mt-0.5 px-1 truncate" title={`Public holiday: ${holiday}`}>{holiday}</div>}
@@ -919,12 +1018,12 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
           })}
         </div>
 
-        <div className="overflow-y-auto" style={{ maxHeight: '600px' }}>
+        <div ref={gridRef} data-testid="calendar-grid">
           <div className="relative">
             {hours.map(hour => (
-              <div key={hour} className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-gray-50 last:border-0" style={{ height: `${SLOT_HEIGHT}px` }}>
-                <div className="border-r border-gray-100 px-2 pt-1 flex-shrink-0">
-                  <span className="text-xs text-gray-500">{formatTime(hour)}</span>
+              <div key={hour} className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-gray-50 last:border-0" style={{ height: `${slotH}px` }}>
+                <div className="border-r border-gray-100 px-2 pt-0.5 flex-shrink-0">
+                  <span className="text-xs text-gray-500 leading-none">{formatTime(hour)}</span>
                 </div>
                 {weekDates.map((date, di) => {
                   const dateStr = toLocalISODate(date)
@@ -934,11 +1033,18 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
                     <div key={di}
                       onClick={() => { setSelectedDate(dateStr); setShowNewMeeting(true) }}
                       className={`border-r border-gray-100 last:border-0 relative cursor-pointer hover:bg-gray-50 transition-colors ${isToday ? 'bg-emerald-50/20' : ''}`}>
+                      {isToday && nowTime.getHours() === hour && (
+                        <div className="absolute left-0 right-0 z-20 pointer-events-none flex items-center" data-testid="now-line"
+                          style={{ top: `${(nowTime.getMinutes() / 60) * slotH}px`, height: 0 }}>
+                          <span className="w-1.5 h-1.5 rounded-full bg-red-500 -ml-0.5" />
+                          <span className="flex-1 h-px bg-red-500" />
+                        </div>
+                      )}
                       {dayBookings.map((b, bi) => {
                         const [, bM] = (b.start_time || '00:00').split(':').map(Number)
-                        const topOffset = (bM / 60) * SLOT_HEIGHT
-                        const heightPx = (b.duration_minutes / 60) * SLOT_HEIGHT
-                        const minHeight = Math.max(heightPx - 2, 24)
+                        const topOffset = (bM / 60) * slotH
+                        const heightPx = (b.duration_minutes / 60) * slotH
+                        const minHeight = Math.max(heightPx - 2, 20)
                         const primaryLabel = b.client_name
                           ? `${b.client_name.split(' ')[0]} ${b.client_name.split(' ')[1]?.[0] || ''}.`
                           : b.title
@@ -946,12 +1052,12 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
 
                         return (
                           <div key={bi}
-                            onClick={e => { e.stopPropagation(); if (b.outlook) { if (b.webLink) window.open(b.webLink, '_blank', 'noopener') } else setSelectedBooking(b) }}
-                            title={b.outlook ? `${b.title}${b.notes ? ` · ${b.notes}` : ''} (from Outlook, click to open)` : undefined}
+                            onClick={e => { e.stopPropagation(); setSelectedBooking(b) }}
+                            title={`${b.client_name ? `${b.client_name}: ` : ''}${b.title} · ${b.allDay ? 'All day' : formatTime12(b.start_time)}`}
                             className={`absolute left-0.5 right-0.5 rounded-md border overflow-hidden z-10 cursor-pointer ${typeColors[b.type] || 'bg-gray-100 border-gray-200 text-gray-700'}`}
                             style={{ top: `${topOffset}px`, height: `${minHeight}px` }}>
                             <div className={`absolute left-0 top-0 bottom-0 w-1 ${b.type === 'client' ? 'bg-emerald-500' : b.outlook ? 'bg-blue-500' : 'bg-purple-500'}`} />
-                            <div className="pl-2 pr-1 pt-0.5 pb-0.5 h-full flex flex-col justify-start overflow-hidden">
+                            <div className="pl-2 pr-1 py-px h-full flex flex-col justify-start overflow-hidden">
                               <div className="text-xs font-semibold truncate leading-tight">{primaryLabel}</div>
                               {secondaryLabel && minHeight > 34 && (
                                 <div className="text-xs truncate leading-tight opacity-80">{secondaryLabel}</div>
@@ -980,7 +1086,8 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
         </div>
         {outlookNote === 'reconnect' && (
           <div className="mb-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800">
-            Outlook has signed this calendar out, so your Outlook meetings are not showing. Reconnect it in Settings &gt; Microsoft 365.
+            Outlook has signed this calendar out, so your Outlook meetings are not showing.{' '}
+            <button onClick={() => connectMyCalendar(currentUser, null)} className="underline font-medium">Reconnect Outlook</button>
           </div>
         )}
         {outlookNote && outlookNote !== 'reconnect' && (
@@ -990,7 +1097,7 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
         )}
         {outlookItems.length > 0 && (
           <div className="mb-3 text-xs text-gray-600">
-            {outlookItems.length} from your Outlook calendar this week, shown in blue. Click one to open it in Outlook.
+            {outlookItems.length} from your Outlook calendar this week, shown in blue. Click one for a summary.
           </div>
         )}
         {loading ? (
