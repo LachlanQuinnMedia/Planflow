@@ -900,10 +900,13 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
       setSlotH(Math.max(MIN_SLOT_HEIGHT, Math.min(SLOT_HEIGHT, Math.floor(room / 13))))
     }
     measure()
+    // The seasonal garland adds a row above the calendar when the theme is switched
+    const onTheme = () => setTimeout(measure, 80)
+    window.addEventListener('qplan:theme', onTheme)
     window.addEventListener('resize', measure)
     const watcher = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null
     if (watcher && topRef.current) watcher.observe(topRef.current)
-    return () => { window.removeEventListener('resize', measure); watcher?.disconnect() }
+    return () => { window.removeEventListener('resize', measure); window.removeEventListener('qplan:theme', onTheme); watcher?.disconnect() }
   }, [])
 
   const nowTime = new Date()

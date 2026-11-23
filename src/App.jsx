@@ -20,29 +20,30 @@ import Xero from './XeroPage'
 import Microsoft365 from './Microsoft365'
 import Logo from './Logo'
 import { timerLabel } from './jobMeta'
-import { IconPlay, IconStop, IconSun, IconMoon, IconAuto, IconRefresh, IconChevronDown } from './icons'
-import { getThemeChoice, setThemeChoice, watchSystemTheme } from './theme'
+import { IconPlay, IconStop, IconSun, IconMoon, IconSparkle, IconRefresh, IconChevronDown } from './icons'
+import { getThemeChoice, setThemeChoice, watchSeason } from './theme'
 import { InstallAppButton } from './install'
 import Landing from './Landing'
 import Tour from './Tour'
+import { SeasonStrip, SeasonSticker, SeasonParticles } from './Seasonal'
 import { tourSeen } from './tourState'
 
-// Light / Dark / Auto. Auto follows the device. Remembered on this device.
+// Light / Dark / Seasonal. Seasonal changes its look each month by itself. Remembered on this device.
 function ThemeSwitch() {
   const [choice, setChoice] = useState(getThemeChoice)
-  useEffect(() => watchSystemTheme(), [])
+  useEffect(() => watchSeason(), [])
   const options = [
     { id: 'light', label: 'Light', icon: <IconSun size={12} /> },
     { id: 'dark', label: 'Dark', icon: <IconMoon size={12} /> },
-    { id: 'auto', label: 'Auto', icon: <IconAuto size={12} /> },
+    { id: 'seasonal', label: 'Seasonal', icon: <IconSparkle size={12} /> },
   ]
   return (
     <div role="radiogroup" aria-label="Theme" className="flex bg-gray-100 rounded-lg p-0.5">
         {options.map(({ id, label, icon }) => (
           <button key={id} type="button" role="radio" aria-checked={choice === id}
-            title={id === 'auto' ? 'Follow this device' : `${label} theme`}
+            title={id === 'seasonal' ? 'A new look every month. It changes by itself.' : `${label} theme`}
             onClick={() => { setChoice(id); setThemeChoice(id) }}
-            className={`flex-1 flex items-center justify-center gap-1 px-1 py-1 rounded-md text-xs transition-colors ${choice === id ? 'bg-white text-gray-800 font-medium shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+            className={`flex-auto flex items-center justify-center gap-1 px-1 py-1 rounded-md text-[11px] whitespace-nowrap transition-colors ${choice === id ? 'bg-white text-gray-800 font-medium shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
             {icon}
             <span>{label}</span>
           </button>
@@ -959,7 +960,7 @@ export default function App() {
   const initials = currentUser.username.slice(0, 2).toUpperCase()
 
   return (
-    <div className="flex h-dvh bg-gray-100 dark:bg-[var(--qp-page)] font-sans overflow-hidden qp-safe-x qp-safe-bottom">
+    <div className="isolate flex h-dvh bg-gray-100 dark:bg-[var(--qp-page)] font-sans overflow-hidden qp-safe-x qp-safe-bottom">
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/30 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
@@ -972,6 +973,7 @@ export default function App() {
       `}>
         <div className="flex items-center px-3 py-2 border-b border-gray-200 gap-2">
           <Logo className="h-6 w-auto" />
+          <SeasonSticker />
           <div className="flex items-center gap-0.5 ml-auto">
             <button onClick={goBack} disabled={!canGoBack}
               className={`w-8 h-8 flex items-center justify-center rounded-md transition-colors ${canGoBack ? 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' : 'text-gray-200 cursor-not-allowed'}`}
@@ -1046,7 +1048,10 @@ export default function App() {
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+      <div className="relative flex-1 flex flex-col overflow-hidden min-w-0">
+        {/* Seasonal snow, petals and so on drift behind the page: above the page colour, below everything else.
+            Nothing here is given its own layer, so pop-up boxes on a page still cover the menu. */}
+        <SeasonParticles />
         <div className="h-12 bg-white border-b border-gray-200 flex items-center px-4 gap-3 flex-shrink-0">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -1078,6 +1083,7 @@ export default function App() {
         </div>
 
         <div key={refreshKey} className="flex-1 overflow-y-auto p-4 md:p-5">
+          <SeasonStrip />
           <div data-tour="page">{renderPage()}</div>
         </div>
       </div>

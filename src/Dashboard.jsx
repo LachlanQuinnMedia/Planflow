@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { SeasonBanner } from './Seasonal'
 import { supabase } from './supabase'
 import { sendIRDeadlineAlert } from './notifications'
 import { appTypeBadge, jobListName, jobSearchText } from './jobMeta'
@@ -616,7 +617,12 @@ export default function Dashboard({ onNavigate, currentUser }) {
   if (loadingJobs) {
     return <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-xs text-gray-500">Loading dashboard...</div>
   }
-  return isDirector
-    ? <DirectorView onNavigate={onNavigate} allJobs={allJobs} viewingAs={me} />
-    : <PlannerView planner={me} onNavigate={onNavigate} allJobs={allJobs} />
+  return (
+    <>
+      <SeasonBanner />
+      {isDirector
+        ? <DirectorView onNavigate={onNavigate} allJobs={allJobs} viewingAs={me} />
+        : <PlannerView planner={me} onNavigate={onNavigate} allJobs={allJobs} />}
+    </>
+  )
 }

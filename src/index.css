@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./seasons-palette.css";
 
 /* Lets future code write dark: classes, e.g. dark:bg-gray-100 */
 /* Logo colours. The logo follows the theme. */
@@ -169,8 +170,8 @@ html[data-theme="dark"] body {
   :where([data-theme="dark"]) .text-yellow-600\/70 { color: color-mix(in oklab, oklch(85.2% 0.199 91.936) 70%, transparent); }
   :where([data-theme="dark"]) .text-green-600, :where([data-theme="dark"]) .hover\:text-green-600:hover { color: oklch(79.2% 0.209 151.711); }
   :where([data-theme="dark"]) .text-green-600\/70 { color: color-mix(in oklab, oklch(79.2% 0.209 151.711) 70%, transparent); }
-  :where([data-theme="dark"]) .text-emerald-600, :where([data-theme="dark"]) .hover\:text-emerald-600:hover { color: oklch(76.5% 0.177 163.223); }
-  :where([data-theme="dark"]) .text-emerald-600\/70 { color: color-mix(in oklab, oklch(76.5% 0.177 163.223) 70%, transparent); }
+  :where([data-theme="dark"]) .text-emerald-600, :where([data-theme="dark"]) .hover\:text-emerald-600:hover { color: var(--qp-accent-text, oklch(76.5% 0.177 163.223)); }
+  :where([data-theme="dark"]) .text-emerald-600\/70 { color: color-mix(in oklab, var(--qp-accent-text, oklch(76.5% 0.177 163.223)) 70%, transparent); }
   :where([data-theme="dark"]) .text-teal-600, :where([data-theme="dark"]) .hover\:text-teal-600:hover { color: oklch(77.7% 0.152 181.912); }
   :where([data-theme="dark"]) .text-teal-600\/70 { color: color-mix(in oklab, oklch(77.7% 0.152 181.912) 70%, transparent); }
   :where([data-theme="dark"]) .text-cyan-600, :where([data-theme="dark"]) .hover\:text-cyan-600:hover { color: oklch(78.9% 0.154 211.53); }
@@ -196,8 +197,8 @@ html[data-theme="dark"] body {
   :where([data-theme="dark"]) .bg-yellow-800, :where([data-theme="dark"]) .hover\:bg-yellow-800:hover { background-color: oklch(47.6% 0.114 61.907); }
   :where([data-theme="dark"]) .bg-green-700, :where([data-theme="dark"]) .hover\:bg-green-700:hover { background-color: oklch(52.7% 0.154 150.069); }
   :where([data-theme="dark"]) .bg-green-800, :where([data-theme="dark"]) .hover\:bg-green-800:hover { background-color: oklch(44.8% 0.119 151.328); }
-  :where([data-theme="dark"]) .bg-emerald-700, :where([data-theme="dark"]) .hover\:bg-emerald-700:hover { background-color: oklch(50.8% 0.118 165.612); }
-  :where([data-theme="dark"]) .bg-emerald-800, :where([data-theme="dark"]) .hover\:bg-emerald-800:hover { background-color: oklch(43.2% 0.095 166.913); }
+  :where([data-theme="dark"]) .bg-emerald-700, :where([data-theme="dark"]) .hover\:bg-emerald-700:hover { background-color: var(--qp-accent-hover, oklch(50.8% 0.118 165.612)); }
+  :where([data-theme="dark"]) .bg-emerald-800, :where([data-theme="dark"]) .hover\:bg-emerald-800:hover { background-color: var(--qp-accent-pressed, oklch(43.2% 0.095 166.913)); }
   :where([data-theme="dark"]) .bg-teal-700, :where([data-theme="dark"]) .hover\:bg-teal-700:hover { background-color: oklch(51.1% 0.096 186.391); }
   :where([data-theme="dark"]) .bg-teal-800, :where([data-theme="dark"]) .hover\:bg-teal-800:hover { background-color: oklch(43.7% 0.078 188.216); }
   :where([data-theme="dark"]) .bg-cyan-700, :where([data-theme="dark"]) .hover\:bg-cyan-700:hover { background-color: oklch(52% 0.105 223.128); }
@@ -315,4 +316,46 @@ html[data-theme="dark"] body {
 @media (prefers-reduced-motion: reduce) {
   .qp-tour-card, .qp-tour-ring, .qp-tour-hot, .qp-tour-tag, .qp-tour-tag-down, .qp-tour-dot,
   .qp-tour-arrow-bottom, .qp-tour-arrow-top, .qp-tour-arrow-right, .qp-tour-arrow-left { animation: none; }
+}
+
+/* ------------------------------------------------------------------
+   Seasonal theme: the moving parts of the pictures (src/Seasonal.jsx)
+   Everything here is decoration. It sits in its own space or behind the page,
+   never on top of text, and it stops for people who ask for reduced motion.
+   ------------------------------------------------------------------ */
+.qp-s-twinkle { animation: qp-s-twinkle 2.4s ease-in-out infinite; }
+@keyframes qp-s-twinkle { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+.qp-s-sway { animation: qp-s-sway 4s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 0%; }
+@keyframes qp-s-sway { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+.qp-s-sway-base { animation: qp-s-sway 5s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 100%; }
+.qp-s-bob { animation: qp-s-bob 3.2s ease-in-out infinite; }
+@keyframes qp-s-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+.qp-s-spin { animation: qp-s-spin 14s linear infinite; transform-box: fill-box; transform-origin: 50% 50%; }
+.qp-s-spin-fast { animation: qp-s-spin 1.6s linear infinite; transform-box: fill-box; transform-origin: 50% 50%; }
+@keyframes qp-s-spin { to { transform: rotate(360deg); } }
+.qp-s-burst { animation: qp-s-burst 3s ease-out infinite; transform-box: fill-box; transform-origin: 50% 50%; }
+@keyframes qp-s-burst { 0% { transform: scale(0.35); opacity: 0; } 25% { opacity: 1; } 70% { transform: scale(1); opacity: 1; } 100% { transform: scale(1.08); opacity: 0; } }
+.qp-s-flap { animation: qp-s-flap 0.7s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 50%; }
+@keyframes qp-s-flap { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(0.55); } }
+.qp-s-flicker { animation: qp-s-flicker 1.9s ease-in-out infinite; }
+@keyframes qp-s-flicker { 0%, 100% { opacity: 1; } 40% { opacity: 0.72; } 55% { opacity: 0.95; } 70% { opacity: 0.6; } }
+.qp-s-twitch { animation: qp-s-twitch 4.5s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 100%; }
+@keyframes qp-s-twitch { 0%, 82%, 100% { transform: rotate(0deg); } 88% { transform: rotate(-9deg); } 94% { transform: rotate(5deg); } }
+/* Things that drift down (snow, petals, leaves) or up (sparkles) behind the page */
+.qp-s-fall { position: absolute; top: -24px; animation: qp-s-fall linear infinite; will-change: transform; }
+@keyframes qp-s-fall {
+  0% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50% { transform: translate3d(var(--qp-drift, 18px), 50vh, 0) rotate(160deg); }
+  100% { transform: translate3d(0, 105vh, 0) rotate(320deg); }
+}
+.qp-s-rise { position: absolute; bottom: -24px; animation: qp-s-rise ease-in infinite; will-change: transform, opacity; }
+@keyframes qp-s-rise {
+  0% { transform: translate3d(0, 0, 0) scale(0.6); opacity: 0; }
+  15% { opacity: 0.9; }
+  100% { transform: translate3d(var(--qp-drift, 12px), -90vh, 0) scale(1); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .qp-s-twinkle, .qp-s-sway, .qp-s-sway-base, .qp-s-bob, .qp-s-spin, .qp-s-spin-fast, .qp-s-burst,
+  .qp-s-flap, .qp-s-flicker, .qp-s-twitch { animation: none; }
+  .qp-s-fall, .qp-s-rise { display: none; }
 }

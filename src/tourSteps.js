@@ -127,7 +127,7 @@ const finishCard = (which) => ({
   title: `That is the ${which} tour`,
   body: [
     'This ? button runs it again whenever you want a reminder.',
-    'Light and dark mode are at the bottom of the menu.',
+    'Light, dark and the seasonal theme are at the bottom of the menu.',
   ],
   nextLabel: 'Finish',
 })

@@ -16,14 +16,34 @@
     <script>
       // Set the theme before the page draws, so there is no flash of the wrong one.
       // The job summary page that clients open is always light.
+      // Seasonal: the month decides the look. This list must match src/seasons.js (a test checks it).
       (function () {
-        var choice = 'light'
+        var SEASONS = [[1,1,31,'newyear','dark'],[2,1,14,'superbowl','light'],[2,15,31,'lunar','light'],[3,1,31,'womens','light'],[4,1,31,'easter','light'],[5,1,31,'labour','light'],[6,1,31,'environment','light'],[7,1,31,'tour','light'],[8,1,31,'ekka','light'],[9,1,31,'footy','light'],[10,1,31,'halloween','dark'],[11,1,31,'remembrance','light'],[12,1,31,'christmas','light']]
+        var choice = 'light', preview = null
         try { choice = localStorage.getItem('qplan_theme') || 'light' } catch (e) {}
         var summary = location.pathname.indexOf('/summary/') === 0
-        var dark = !summary && (choice === 'dark' || (choice === 'auto' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches))
-        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light')
+        var theme = 'light', season = ''
+        if (!summary && choice === 'dark') theme = 'dark'
+        if (!summary && choice === 'seasonal') {
+          var now = new Date(), m = now.getMonth() + 1, d = now.getDate()
+          try {
+            var parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Brisbane', month: 'numeric', day: 'numeric' }).formatToParts(now)
+            for (var i = 0; i < parts.length; i++) { if (parts[i].type === 'month') m = +parts[i].value; if (parts[i].type === 'day') d = +parts[i].value }
+          } catch (e) {}
+          try {
+            var asked = new URLSearchParams(location.search).get('season')
+            if (asked) sessionStorage.setItem('qplan_season_preview', asked)
+            preview = sessionStorage.getItem('qplan_season_preview')
+          } catch (e) {}
+          for (var j = 0; j < SEASONS.length; j++) {
+            var s = SEASONS[j]
+            if (preview ? s[3] === preview : (s[0] === m && s[1] <= d && d <= s[2])) { season = s[3]; theme = s[4]; break }
+          }
+        }
+        document.documentElement.setAttribute('data-theme', theme)
+        if (season) document.documentElement.setAttribute('data-season', season)
         var bar = document.querySelector('meta[name="theme-color"]')
-        if (bar) bar.setAttribute('content', dark ? '#151d1a' : '#ffffff')
+        if (bar) bar.setAttribute('content', theme === 'dark' ? '#151d1a' : '#ffffff')
       })()
     </script>
   </head>

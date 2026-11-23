@@ -1,0 +1,234 @@
+/* Written by scripts/seasons-css.mjs from src/seasons.js. Do not edit by hand. */
+
+/* New Year */
+:root[data-theme="dark"][data-season="newyear"] {
+  --qp-surface: oklch(22.5% 0.030 270);
+  --qp-page: oklch(16.5% 0.024 270);
+  --color-gray-50: oklch(19.5% 0.027 270);
+  --color-gray-100: oklch(26.5% 0.027 270);
+  --color-gray-200: oklch(31.5% 0.027 270);
+  --color-gray-300: oklch(39.5% 0.027 270);
+  --color-emerald-50: color-mix(in oklab, oklch(70.0% 0.150 285) 11%, var(--qp-surface));
+  --color-emerald-100: color-mix(in oklab, oklch(70.0% 0.150 285) 20%, var(--qp-surface));
+  --color-emerald-200: color-mix(in oklab, oklch(70.0% 0.150 285) 32%, var(--qp-surface));
+  --color-emerald-300: color-mix(in oklab, oklch(70.0% 0.150 285) 46%, var(--qp-surface));
+  --color-emerald-400: oklch(76.0% 0.128 285);
+  --color-emerald-500: oklch(66.0% 0.150 285);
+  --color-emerald-600: oklch(54.0% 0.150 285);
+  --color-emerald-700: oklch(84.5% 0.080 285);
+  --color-emerald-800: oklch(90.5% 0.048 285);
+  --color-emerald-900: oklch(95.0% 0.025 285);
+  --qp-accent-text: oklch(78.0% 0.117 285);
+  --qp-accent-hover: oklch(47.0% 0.128 285);
+  --qp-accent-pressed: oklch(41.0% 0.112 285);
+}
+
+/* Super Bowl */
+:root[data-theme="light"][data-season="superbowl"] {
+  --color-emerald-50: oklch(97.5% 0.013 150);
+  --color-emerald-100: oklch(94.5% 0.029 150);
+  --color-emerald-200: oklch(89.5% 0.055 150);
+  --color-emerald-300: oklch(83.0% 0.085 150);
+  --color-emerald-400: oklch(73.0% 0.123 150);
+  --color-emerald-500: oklch(62.0% 0.130 150);
+  --color-emerald-600: oklch(52.0% 0.130 150);
+  --color-emerald-700: oklch(44.0% 0.120 150);
+  --color-emerald-800: oklch(37.0% 0.103 150);
+  --color-emerald-900: oklch(31.0% 0.086 150);
+  --color-gray-50: oklch(98.5% 0.004 140);
+  --color-gray-100: oklch(96.6% 0.006 140);
+  --color-gray-200: oklch(92.6% 0.009 140);
+}
+
+/* Lunar New Year */
+:root[data-theme="light"][data-season="lunar"] {
+  --color-emerald-50: oklch(97.5% 0.011 172);
+  --color-emerald-100: oklch(94.5% 0.023 172);
+  --color-emerald-200: oklch(89.5% 0.044 172);
+  --color-emerald-300: oklch(83.0% 0.068 172);
+  --color-emerald-400: oklch(73.0% 0.100 172);
+  --color-emerald-500: oklch(62.0% 0.105 172);
+  --color-emerald-600: oklch(52.0% 0.101 172);
+  --color-emerald-700: oklch(44.0% 0.086 172);
+  --color-emerald-800: oklch(37.0% 0.072 172);
+  --color-emerald-900: oklch(31.0% 0.061 172);
+  --color-gray-50: oklch(98.5% 0.006 62);
+  --color-gray-100: oklch(96.6% 0.009 62);
+  --color-gray-200: oklch(92.6% 0.013 62);
+}
+
+/* International Women's Day */
+:root[data-theme="light"][data-season="womens"] {
+  --color-emerald-50: oklch(97.5% 0.014 352);
+  --color-emerald-100: oklch(94.5% 0.032 352);
+  --color-emerald-200: oklch(89.5% 0.064 352);
+  --color-emerald-300: oklch(83.0% 0.110 352);
+  --color-emerald-400: oklch(73.0% 0.162 352);
+  --color-emerald-500: oklch(62.0% 0.170 352);
+  --color-emerald-600: oklch(52.0% 0.170 352);
+  --color-emerald-700: oklch(44.0% 0.156 352);
+  --color-emerald-800: oklch(37.0% 0.136 352);
+  --color-emerald-900: oklch(31.0% 0.112 352);
+  --color-gray-50: oklch(98.5% 0.007 350);
+  --color-gray-100: oklch(96.6% 0.010 350);
+  --color-gray-200: oklch(92.6% 0.014 350);
+}
+
+/* Easter */
+:root[data-theme="light"][data-season="easter"] {
+  --color-emerald-50: oklch(97.5% 0.013 295);
+  --color-emerald-100: oklch(94.5% 0.029 295);
+  --color-emerald-200: oklch(89.5% 0.055 295);
+  --color-emerald-300: oklch(83.0% 0.085 295);
+  --color-emerald-400: oklch(73.0% 0.123 295);
+  --color-emerald-500: oklch(62.0% 0.130 295);
+  --color-emerald-600: oklch(52.0% 0.130 295);
+  --color-emerald-700: oklch(44.0% 0.120 295);
+  --color-emerald-800: oklch(37.0% 0.104 295);
+  --color-emerald-900: oklch(31.0% 0.086 295);
+  --color-gray-50: oklch(98.5% 0.005 305);
+  --color-gray-100: oklch(96.6% 0.007 305);
+  --color-gray-200: oklch(92.6% 0.010 305);
+}
+
+/* Labour Day */
+:root[data-theme="light"][data-season="labour"] {
+  --color-emerald-50: oklch(97.5% 0.009 252);
+  --color-emerald-100: oklch(94.5% 0.019 252);
+  --color-emerald-200: oklch(89.5% 0.036 252);
+  --color-emerald-300: oklch(83.0% 0.055 252);
+  --color-emerald-400: oklch(73.0% 0.081 252);
+  --color-emerald-500: oklch(62.0% 0.085 252);
+  --color-emerald-600: oklch(52.0% 0.085 252);
+  --color-emerald-700: oklch(44.0% 0.078 252);
+  --color-emerald-800: oklch(37.0% 0.068 252);
+  --color-emerald-900: oklch(31.0% 0.056 252);
+  --color-gray-50: oklch(98.5% 0.004 250);
+  --color-gray-100: oklch(96.6% 0.006 250);
+  --color-gray-200: oklch(92.6% 0.008 250);
+}
+
+/* World Environment Day */
+:root[data-theme="light"][data-season="environment"] {
+  --color-emerald-50: oklch(97.5% 0.014 142);
+  --color-emerald-100: oklch(94.5% 0.031 142);
+  --color-emerald-200: oklch(89.5% 0.059 142);
+  --color-emerald-300: oklch(83.0% 0.091 142);
+  --color-emerald-400: oklch(73.0% 0.133 142);
+  --color-emerald-500: oklch(62.0% 0.140 142);
+  --color-emerald-600: oklch(52.0% 0.140 142);
+  --color-emerald-700: oklch(44.0% 0.129 142);
+  --color-emerald-800: oklch(37.0% 0.112 142);
+  --color-emerald-900: oklch(31.0% 0.092 142);
+  --color-gray-50: oklch(98.5% 0.007 120);
+  --color-gray-100: oklch(96.6% 0.010 120);
+  --color-gray-200: oklch(92.6% 0.014 120);
+}
+
+/* Tour de France */
+:root[data-theme="light"][data-season="tour"] {
+  --color-emerald-50: oklch(97.5% 0.012 258);
+  --color-emerald-100: oklch(94.5% 0.026 258);
+  --color-emerald-200: oklch(89.5% 0.051 258);
+  --color-emerald-300: oklch(83.0% 0.085 258);
+  --color-emerald-400: oklch(73.0% 0.141 258);
+  --color-emerald-500: oklch(62.0% 0.160 258);
+  --color-emerald-600: oklch(52.0% 0.160 258);
+  --color-emerald-700: oklch(44.0% 0.147 258);
+  --color-emerald-800: oklch(37.0% 0.128 258);
+  --color-emerald-900: oklch(31.0% 0.106 258);
+  --color-gray-50: oklch(98.5% 0.004 245);
+  --color-gray-100: oklch(96.6% 0.006 245);
+  --color-gray-200: oklch(92.6% 0.009 245);
+}
+
+/* Ekka */
+:root[data-theme="light"][data-season="ekka"] {
+  --color-emerald-50: oklch(97.5% 0.011 208);
+  --color-emerald-100: oklch(94.5% 0.023 208);
+  --color-emerald-200: oklch(89.5% 0.044 208);
+  --color-emerald-300: oklch(83.0% 0.068 208);
+  --color-emerald-400: oklch(73.0% 0.100 208);
+  --color-emerald-500: oklch(62.0% 0.105 208);
+  --color-emerald-600: oklch(52.0% 0.090 208);
+  --color-emerald-700: oklch(44.0% 0.076 208);
+  --color-emerald-800: oklch(37.0% 0.064 208);
+  --color-emerald-900: oklch(31.0% 0.054 208);
+  --color-gray-50: oklch(98.5% 0.006 78);
+  --color-gray-100: oklch(96.6% 0.008 78);
+  --color-gray-200: oklch(92.6% 0.011 78);
+}
+
+/* Footy finals */
+:root[data-theme="light"][data-season="footy"] {
+  --color-emerald-50: oklch(97.5% 0.012 158);
+  --color-emerald-100: oklch(94.5% 0.026 158);
+  --color-emerald-200: oklch(89.5% 0.050 158);
+  --color-emerald-300: oklch(83.0% 0.078 158);
+  --color-emerald-400: oklch(73.0% 0.114 158);
+  --color-emerald-500: oklch(62.0% 0.120 158);
+  --color-emerald-600: oklch(52.0% 0.120 158);
+  --color-emerald-700: oklch(44.0% 0.104 158);
+  --color-emerald-800: oklch(37.0% 0.087 158);
+  --color-emerald-900: oklch(31.0% 0.074 158);
+  --color-gray-50: oklch(98.5% 0.004 140);
+  --color-gray-100: oklch(96.6% 0.006 140);
+  --color-gray-200: oklch(92.6% 0.009 140);
+}
+
+/* Halloween */
+:root[data-theme="dark"][data-season="halloween"] {
+  --qp-surface: oklch(22.5% 0.030 305);
+  --qp-page: oklch(16.5% 0.024 305);
+  --color-gray-50: oklch(19.5% 0.027 305);
+  --color-gray-100: oklch(26.5% 0.027 305);
+  --color-gray-200: oklch(31.5% 0.027 305);
+  --color-gray-300: oklch(39.5% 0.027 305);
+  --color-emerald-50: color-mix(in oklab, oklch(70.0% 0.160 52) 11%, var(--qp-surface));
+  --color-emerald-100: color-mix(in oklab, oklch(70.0% 0.160 52) 20%, var(--qp-surface));
+  --color-emerald-200: color-mix(in oklab, oklch(70.0% 0.160 52) 32%, var(--qp-surface));
+  --color-emerald-300: color-mix(in oklab, oklch(70.0% 0.160 52) 46%, var(--qp-surface));
+  --color-emerald-400: oklch(76.0% 0.152 52);
+  --color-emerald-500: oklch(66.0% 0.160 52);
+  --color-emerald-600: oklch(54.0% 0.140 52);
+  --color-emerald-700: oklch(84.5% 0.096 52);
+  --color-emerald-800: oklch(90.5% 0.056 52);
+  --color-emerald-900: oklch(95.0% 0.029 52);
+  --qp-accent-text: oklch(78.0% 0.145 52);
+  --qp-accent-hover: oklch(47.0% 0.122 52);
+  --qp-accent-pressed: oklch(41.0% 0.107 52);
+}
+
+/* Remembrance Day */
+:root[data-theme="light"][data-season="remembrance"] {
+  --color-emerald-50: oklch(97.5% 0.005 155);
+  --color-emerald-100: oklch(94.5% 0.011 155);
+  --color-emerald-200: oklch(89.5% 0.021 155);
+  --color-emerald-300: oklch(83.0% 0.033 155);
+  --color-emerald-400: oklch(73.0% 0.048 155);
+  --color-emerald-500: oklch(62.0% 0.050 155);
+  --color-emerald-600: oklch(52.0% 0.050 155);
+  --color-emerald-700: oklch(44.0% 0.046 155);
+  --color-emerald-800: oklch(37.0% 0.040 155);
+  --color-emerald-900: oklch(31.0% 0.033 155);
+  --color-gray-50: oklch(98.5% 0.004 85);
+  --color-gray-100: oklch(96.6% 0.006 85);
+  --color-gray-200: oklch(92.6% 0.009 85);
+}
+
+/* Christmas */
+:root[data-theme="light"][data-season="christmas"] {
+  --color-emerald-50: oklch(97.5% 0.013 158);
+  --color-emerald-100: oklch(94.5% 0.028 158);
+  --color-emerald-200: oklch(89.5% 0.052 158);
+  --color-emerald-300: oklch(83.0% 0.081 158);
+  --color-emerald-400: oklch(73.0% 0.119 158);
+  --color-emerald-500: oklch(62.0% 0.125 158);
+  --color-emerald-600: oklch(52.0% 0.122 158);
+  --color-emerald-700: oklch(44.0% 0.104 158);
+  --color-emerald-800: oklch(37.0% 0.087 158);
+  --color-emerald-900: oklch(31.0% 0.074 158);
+  --color-gray-50: oklch(98.5% 0.005 80);
+  --color-gray-100: oklch(96.6% 0.007 80);
+  --color-gray-200: oklch(92.6% 0.010 80);
+}
