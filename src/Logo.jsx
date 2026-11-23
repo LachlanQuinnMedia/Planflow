@@ -13,8 +13,10 @@ const TONES = {
 
 export default function Logo({ className = 'h-8 w-auto', tone = 'auto' }) {
   const c = TONES[tone] || TONES.auto
+  // The round letters dip about 1.4 units below the baseline, so the frame runs to 101.5.
+  // At 100 the bottom of the "a" was sliced off flat.
   return (
-    <svg viewBox="0 -100 370.45 100" role="img" aria-label="QPlan" className={`flex-shrink-0 ${className}`}>
+    <svg viewBox="0 -100 370.45 101.5" overflow="visible" role="img" aria-label="QPlan" className={`flex-shrink-0 ${className}`}>
       <path d={PIN} fillRule="evenodd" fill={c.pin} />
       <circle cx="50" cy="-50" r="10" fill={c.dot} />
       <path d={PLAN} fill={c.text} />

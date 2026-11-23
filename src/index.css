@@ -268,3 +268,9 @@ html[data-theme="dark"] body {
 .qp-theme-switching *::after {
   transition: none !important;
 }
+
+/* Slim scroll bars in the theme's own colours, instead of the wide grey Windows ones */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-gray-300) transparent;
+}
