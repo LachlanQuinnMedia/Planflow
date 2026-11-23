@@ -20,7 +20,32 @@ import Xero from './XeroPage'
 import Microsoft365 from './Microsoft365'
 import qplanLogo from './assets/plan_logo.PNG'
 import { timerLabel } from './jobMeta'
-import { IconPlay, IconStop } from './icons'
+import { IconPlay, IconStop, IconSun, IconMoon, IconAuto } from './icons'
+import { getThemeChoice, setThemeChoice, watchSystemTheme } from './theme'
+
+// Light / Dark / Auto. Auto follows the device. Remembered on this device.
+function ThemeSwitch() {
+  const [choice, setChoice] = useState(getThemeChoice)
+  useEffect(() => watchSystemTheme(), [])
+  const options = [
+    { id: 'light', label: 'Light', icon: <IconSun size={12} /> },
+    { id: 'dark', label: 'Dark', icon: <IconMoon size={12} /> },
+    { id: 'auto', label: 'Auto', icon: <IconAuto size={12} /> },
+  ]
+  return (
+    <div role="radiogroup" aria-label="Theme" className="flex bg-gray-100 rounded-lg p-0.5">
+        {options.map(({ id, label, icon }) => (
+          <button key={id} type="button" role="radio" aria-checked={choice === id}
+            title={id === 'auto' ? 'Follow this device' : `${label} theme`}
+            onClick={() => { setChoice(id); setThemeChoice(id) }}
+            className={`flex-1 flex items-center justify-center gap-1 px-1 py-1 rounded-md text-xs transition-colors ${choice === id ? 'bg-white text-gray-800 font-medium shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+            {icon}
+            <span>{label}</span>
+          </button>
+        ))}
+    </div>
+  )
+}
 
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', section: 'main' },
@@ -747,7 +772,7 @@ export default function App() {
   const initials = currentUser.username.slice(0, 2).toUpperCase()
 
   return (
-    <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
+    <div className="flex h-screen bg-gray-100 dark:bg-[var(--qp-page)] font-sans overflow-hidden">
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/30 z-30 md:hidden" onClick={() => setSidebarOpen(false)} />
       )}
@@ -791,6 +816,7 @@ export default function App() {
         <GlobalTimer jobs={jobs} currentUser={currentUser} activeJob={activePage === 'jobdetail' ? selectedJob : null} />
 
         <div className="p-3 border-t border-gray-200 space-y-2">
+          <ThemeSwitch />
           {isDirector && (
             <div className="relative">
               <button
