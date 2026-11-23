@@ -279,9 +279,10 @@ export default function OneDriveBrowser({ currentUser, mode = 'browse', onPick, 
 
   const pickCurrent = () => {
     if (!onPick) return
+    const defaultDrive = drives.find(x => x.kind === 'onedrive') || drives[0]
     onPick({
-      driveId: driveId || currentDrive?.id || null,
-      driveName: currentDrive?.name || 'OneDrive',
+      driveId: driveId || currentDrive?.id || defaultDrive?.id || null,
+      driveName: currentDrive?.name || defaultDrive?.name || 'OneDrive',
       folderId: current.id || null,
       name: current.name,
       path: current.path || breadcrumb.slice(1).map(c => c.name).join('/'),
@@ -393,15 +394,15 @@ export default function OneDriveBrowser({ currentUser, mode = 'browse', onPick, 
 }
 
 // Modal wrapper: pick a OneDrive / SharePoint folder. onPick receives the folder, onClose dismisses.
-export function OneDriveFolderPicker({ currentUser, onPick, onClose, jobLabel }) {
+export function OneDriveFolderPicker({ currentUser, onPick, onClose, jobLabel, title, subtitle }) {
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center pt-8 px-4 overflow-y-auto">
       <div className="bg-white rounded-2xl border border-gray-200 w-full max-w-3xl mb-8">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div>
-            <div className="text-sm font-semibold">Link a OneDrive or SharePoint folder</div>
+            <div className="text-sm font-semibold">{title || 'Link a OneDrive or SharePoint folder'}</div>
             <div className="text-xs text-gray-400 mt-0.5">
-              {jobLabel ? `${jobLabel}: ` : ''}browse to the job's folder, then click "Use this folder".
+              {subtitle || `${jobLabel ? `${jobLabel}: ` : ''}browse to the job's folder, then click "Use this folder".`}
             </div>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 px-2">✕</button>

@@ -1,14 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
 import { sendIRDeadlineAlert } from './notifications'
-
-const typeBadge = {
-  MCU: 'bg-blue-100 text-blue-700',
-  ROL: 'bg-amber-100 text-amber-700',
-  RAA: 'bg-pink-100 text-pink-700',
-  OW: 'bg-green-100 text-green-700',
-  SPS: 'bg-purple-100 text-purple-700',
-}
+import { appTypeBadge, jobListName, jobSearchText } from './jobMeta'
+import { businessDaysUntil, calendarDaysUntil, todayBrisbane } from './businessDays'
 
 const statusBadge = {
   Active: 'bg-emerald-100 text-emerald-700',
@@ -77,19 +71,21 @@ function formatHours(h) {
 // Extract all upcoming due dates from a job (within 30 days)
 function extractDueDates(job, withinDays = 30) {
   const dates = []
-  const now = new Date()
+  const today = todayBrisbane()
 
   const checkDate = (label, dateStr) => {
     if (!dateStr) return
-    const date = new Date(dateStr)
-    const diff = (date - now) / (1000 * 60 * 60 * 24)
+    const diff = calendarDaysUntil(dateStr, today)
+    if (diff === null) return
     if (diff >= -1 && diff <= withinDays) {
       dates.push({
         label,
         date: dateStr,
-        daysUntil: Math.ceil(diff),
+        daysUntil: diff,
+        // Business days left: skips weekends, public holidays, the council's show day and 26 Dec to 1 Jan
+        businessDays: businessDaysUntil(dateStr, job.council, today),
         jobCode: job.code,
-        jobName: job.name,
+        jobName: jobListName(job),
         planner: job.planner,
         planners: job.planners || (job.planner ? [job.planner] : []),
       })
@@ -126,12 +122,17 @@ function extractDueDates(job, withinDays = 30) {
   return dates.sort((a, b) => a.daysUntil - b.daysUntil)
 }
 
-function DueDateBadge({ daysUntil }) {
-  if (daysUntil < 0) return <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">Overdue</span>
-  if (daysUntil <= 3) return <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">{daysUntil}d</span>
-  if (daysUntil <= 7) return <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">{daysUntil}d</span>
-  if (daysUntil <= 14) return <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 font-medium">{daysUntil}d</span>
-  return <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium">{daysUntil}d</span>
+// Countdown in business days (falls back to calendar days if business days are not supplied)
+function DueDateBadge({ daysUntil, businessDays }) {
+  const base = 'text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap'
+  if (daysUntil < 0) return <span className={`${base} bg-red-100 text-red-700`}>Overdue</span>
+  if (daysUntil === 0) return <span className={`${base} bg-red-100 text-red-700`}>Today</span>
+  const hasBusiness = businessDays !== null && businessDays !== undefined
+  const n = hasBusiness ? businessDays : daysUntil
+  const text = hasBusiness ? `${n} bus. day${n === 1 ? '' : 's'}` : `${n}d`
+  const title = hasBusiness ? `${n} business day${n === 1 ? '' : 's'} left (${daysUntil} calendar)` : undefined
+  const tone = n <= 2 ? 'bg-red-100 text-red-700' : n <= 5 ? 'bg-amber-100 text-amber-700' : n <= 10 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-500'
+  return <span title={title} className={`${base} ${tone}`}>{text}</span>
 }
 
 function StatStrip({ myJobs, planner, onNavigate }) {
@@ -258,7 +259,7 @@ function KeyDatesPanel({ myJobs, allJobs, viewingAs }) {
               <div className="text-xs text-gray-400 truncate">{d.jobName}</div>
               <div className="text-xs text-gray-400">{formatDateShort(d.date)}</div>
             </div>
-            <DueDateBadge daysUntil={d.daysUntil} />
+            <DueDateBadge daysUntil={d.daysUntil} businessDays={d.businessDays} />
           </div>
         ))}
       </div>
@@ -285,7 +286,7 @@ function KeyDatesPanel({ myJobs, allJobs, viewingAs }) {
                 <span className="text-xs text-gray-400">{d.planner}</span>
               </div>
             </div>
-            <DueDateBadge daysUntil={d.daysUntil} />
+            <DueDateBadge daysUntil={d.daysUntil} businessDays={d.businessDays} />
           </div>
         ))}
       </div>
@@ -302,12 +303,7 @@ function JobSearchPanel({ onNavigate, isDirector, jobs }) {
   const uniquePlanners = [...new Set(jobs.map(j => j.planner).filter(Boolean))].sort()
 
   const filtered = jobs.filter(j => {
-    const matchSearch = search === '' ||
-      j.name?.toLowerCase().includes(search.toLowerCase()) ||
-      [j.client_first_name, j.client_last_name].filter(Boolean).join(' ').toLowerCase().includes(search.toLowerCase()) ||
-      j.address?.toLowerCase().includes(search.toLowerCase()) ||
-      j.code?.toLowerCase().includes(search.toLowerCase()) ||
-      j.planner?.toLowerCase().includes(search.toLowerCase())
+    const matchSearch = search === '' || jobSearchText(j).includes(search.toLowerCase().trim())
     const matchType = typeFilter === 'All' || j.app_type === typeFilter
     const matchStatus = statusFilter === 'All' || j.status === statusFilter
     const matchPlanner = plannerFilter === 'All' || j.planner === plannerFilter
@@ -349,11 +345,11 @@ function JobSearchPanel({ onNavigate, isDirector, jobs }) {
             <div key={job.id || job.code} onClick={() => onNavigate('jobdetail', job)} className="flex items-center gap-2 py-2.5 border-b border-gray-100 last:border-0 cursor-pointer hover:bg-gray-50 rounded-lg px-2">
               <div className="text-xs font-medium text-emerald-600 w-16 flex-shrink-0">{job.code}</div>
               <div className="flex-1 min-w-0">
-                <div className="text-xs font-medium truncate">{job.name}</div>
-                <div className="text-xs text-gray-400 truncate">{job.client_first_name} {job.client_last_name} · {job.address}</div>
+                <div className="text-xs font-medium truncate">{jobListName(job)}</div>
+                <div className="text-xs text-gray-400 truncate">{[job.lot_reference, job.council].filter(Boolean).join(' · ')}</div>
               </div>
               <div className="hidden sm:block text-xs text-gray-400 w-20 text-right flex-shrink-0">{job.planner || '—'}</div>
-              <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${typeBadge[job.app_type] || 'bg-gray-100 text-gray-500'}`}>{job.app_type}</span>
+              <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${appTypeBadge(job.app_type)}`}>{job.app_type}</span>
               <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${statusBadge[job.status] || 'bg-gray-100 text-gray-500'}`}>{job.status}</span>
             </div>
           ))}
@@ -375,7 +371,7 @@ function PlannerView({ planner, onNavigate, allJobs }) {
   const urgentDates = myJobs.flatMap(j => {
     const dates = []
     const checkDate = (label, dateStr) => {
-      if (dateStr && isUrgent(dateStr)) dates.push({ job: j.code, label, date: dateStr, name: j.name })
+      if (dateStr && isUrgent(dateStr)) dates.push({ job: j.code, label, date: dateStr, name: jobListName(j) })
     }
     checkDate('IR response', j.date_ir_response)
     checkDate('Decision', j.date_decision)
@@ -386,7 +382,7 @@ function PlannerView({ planner, onNavigate, allJobs }) {
       for (const [key, label] of Object.entries(stageLabels)) {
         const stage = j.da_stages[key]
         if (stage?.status === 'active' && stage?.endDate && isUrgent(stage.endDate)) {
-          dates.push({ job: j.code, label, date: stage.endDate, name: j.name })
+          dates.push({ job: j.code, label, date: stage.endDate, name: jobListName(j) })
         }
       }
     }
@@ -430,8 +426,8 @@ function PlannerView({ planner, onNavigate, allJobs }) {
             <div key={job.id} onClick={() => onNavigate('jobdetail', job)} className="cursor-pointer hover:opacity-80 py-2 border-b border-gray-100 last:border-0">
               <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                 <div className="text-xs font-medium text-emerald-600 w-16 flex-shrink-0">{job.code}</div>
-                <div className="flex-1 text-xs font-medium truncate">{job.name}</div>
-                <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${typeBadge[job.app_type] || 'bg-gray-100 text-gray-500'}`}>{job.app_type}</span>
+                <div className="flex-1 text-xs font-medium truncate">{jobListName(job)}</div>
+                <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${appTypeBadge(job.app_type)}`}>{job.app_type}</span>
                 <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${statusBadge[job.status] || 'bg-gray-100 text-gray-500'}`}>{job.status}</span>
               </div>
               <div className="ml-0 sm:ml-16 flex flex-wrap gap-x-4">
@@ -477,7 +473,7 @@ function DirectorView({ onNavigate, allJobs, viewingAs }) {
   const urgentAll = activeJobs.flatMap(j => {
     const dates = []
     const checkDate = (label, dateStr) => {
-      if (dateStr && isUrgent(dateStr)) dates.push({ job: j.code, planner: j.planner, label, date: dateStr, name: j.name })
+      if (dateStr && isUrgent(dateStr)) dates.push({ job: j.code, planner: j.planner, label, date: dateStr, name: jobListName(j) })
     }
     checkDate('IR response', j.date_ir_response)
     checkDate('Decision', j.date_decision || j.decision_due_date)
@@ -487,7 +483,7 @@ function DirectorView({ onNavigate, allJobs, viewingAs }) {
       for (const [key, label] of Object.entries(stageLabels)) {
         const stage = j.da_stages[key]
         if (stage?.status === 'active' && stage?.endDate && isUrgent(stage.endDate)) {
-          dates.push({ job: j.code, planner: j.planner, label, date: stage.endDate, name: j.name })
+          dates.push({ job: j.code, planner: j.planner, label, date: stage.endDate, name: jobListName(j) })
         }
       }
     }
@@ -540,9 +536,9 @@ function DirectorView({ onNavigate, allJobs, viewingAs }) {
         {activeJobs.map(job => (
           <div key={job.id} onClick={() => onNavigate('jobdetail', job)} className="grid grid-cols-[80px_1fr_90px_55px_65px_70px_80px] gap-2 py-2 border-b border-gray-100 last:border-0 items-center cursor-pointer hover:bg-gray-50 rounded-lg px-1">
             <div className="text-xs font-medium text-emerald-600">{job.code}</div>
-            <div className="text-xs font-medium truncate">{job.name}</div>
+            <div className="text-xs font-medium truncate">{jobListName(job)}</div>
             <div className="text-xs text-gray-500 truncate">{job.planner || '—'}</div>
-            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${typeBadge[job.app_type] || 'bg-gray-100 text-gray-500'}`}>{job.app_type}</span>
+            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${appTypeBadge(job.app_type)}`}>{job.app_type}</span>
             <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${statusBadge[job.status] || 'bg-gray-100 text-gray-500'}`}>{job.status}</span>
             <div className="text-xs text-gray-500">{job.budget_hours ? `${job.budget_hours}h` : '—'}</div>
             <div className="text-xs text-gray-500">{formatDateShort(job.decision_due_date || job.date_decision)}</div>
@@ -558,11 +554,11 @@ function DirectorView({ onNavigate, allJobs, viewingAs }) {
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs font-semibold text-emerald-600">{job.code}</span>
               <div className="flex gap-1.5">
-                <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${typeBadge[job.app_type] || 'bg-gray-100 text-gray-500'}`}>{job.app_type}</span>
+                <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${appTypeBadge(job.app_type)}`}>{job.app_type}</span>
                 <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${statusBadge[job.status] || 'bg-gray-100 text-gray-500'}`}>{job.status}</span>
               </div>
             </div>
-            <div className="text-xs font-medium text-gray-800 mb-0.5">{job.name}</div>
+            <div className="text-xs font-medium text-gray-800 mb-0.5">{jobListName(job)}</div>
             <div className="flex items-center justify-between mt-1.5">
               <span className="text-xs text-gray-400">{job.planner || '—'}</span>
               <span className="text-xs text-gray-400">Decision: {formatDateShort(job.decision_due_date || job.date_decision)}</span>
@@ -585,7 +581,7 @@ function DirectorView({ onNavigate, allJobs, viewingAs }) {
               <div className="text-xs text-gray-400 mb-2">{pJobs.length} active jobs · {pUrgent.length} dates due this week</div>
               {pJobs.map(j => (
                 <div key={j.id} className="flex items-center gap-1.5 py-1 border-b border-gray-50 last:border-0">
-                  <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${typeBadge[j.app_type] || 'bg-gray-100 text-gray-500'}`}>{j.app_type}</span>
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${appTypeBadge(j.app_type)}`}>{j.app_type}</span>
                   <div className="text-xs truncate">{j.code}</div>
                 </div>
               ))}

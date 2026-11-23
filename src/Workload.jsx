@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
+import { jobListName } from './jobMeta'
 
 const COMPLEXITY = {
   C1: { label: 'C1', description: 'Simple', weight: 1, color: 'bg-gray-100 text-gray-600' },
@@ -116,7 +117,7 @@ export default function Workload({ currentUser }) {
       return {
         id: job.id,
         code: job.code,
-        name: job.name,
+        name: jobListName(job),
         complexity,
         hrs: parseFloat(hrsThisWeek.toFixed(2)),
         rate: job.planner_rate || 0,

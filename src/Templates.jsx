@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
 import { generateFromTemplate } from './templateFiller'
+import { jobTitle } from './jobMeta'
 
 const STAGE_CATEGORIES = [
   {
@@ -91,6 +92,9 @@ const STAGE_CATEGORIES = [
         { file: 'Notice_to_Stop_Current_Period.docx',  label: 'Notice to Stop Current Period' },
         { file: 'Quote_Request.docx',                  label: 'Quote Request' },
       ]},
+      { name: 'Letterhead', items: [
+        { file: 'Generic_Letterhead.docx',             label: 'Generic Letterhead (blank)' },
+      ]},
     ],
   },
 ]
@@ -132,7 +136,7 @@ function GenerateModal({ items, currentUser, planner, onClose, onDone }) {
     const load = async () => {
       const { data } = await supabase
         .from('jobs')
-        .select('id, code, name, client_first_name, client_last_name, app_type, address, status')
+        .select('id, code, name, client_type, client_company, client_first_name, client_last_name, app_type, address, status')
         .order('created_at', { ascending: false })
         .limit(500)
       if (data) setJobs(data)
@@ -199,10 +203,7 @@ function GenerateModal({ items, currentUser, planner, onClose, onDone }) {
             >
               <option value="">No job — planner details only</option>
               {jobs.map(j => {
-                const client = `${j.client_first_name || ''} ${j.client_last_name || ''}`.trim()
-                const parts = [j.code, client || j.name || 'Untitled']
-                if (j.app_type) parts.push(`(${j.app_type})`)
-                return <option key={j.id} value={j.id}>{parts.join(' — ')}</option>
+                return <option key={j.id} value={j.id}>{jobTitle(j) || 'Untitled'}</option>
               })}
             </select>
           )}

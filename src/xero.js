@@ -70,8 +70,8 @@ export async function getXeroContacts(companyId) {
   return data.contacts || []
 }
 
-export async function createXeroContact(companyId, { firstName, lastName, email, phone }) {
-  const data = await callFn('create_contact', { company_id: companyId, firstName, lastName, email, phone })
+export async function createXeroContact(companyId, { name, firstName, lastName, email, phone }) {
+  const data = await callFn('create_contact', { company_id: companyId, name, firstName, lastName, email, phone })
   if (!data.success) throw new Error(data.error || 'Could not create contact in Xero')
   return data.contact
 }
@@ -91,16 +91,22 @@ export async function pushInvoiceToXero(companyId, job, timeLogs) {
   const contacts = await getXeroContacts(companyId)
   const first = norm(job.client_first_name)
   const last = norm(job.client_last_name)
-  const fullName = [first, last].filter(Boolean).join(' ')
+  // A company client is invoiced as the company, with the contact person on the Xero contact
+  const company = job.client_type === 'company' ? norm(job.client_company) : ''
+  const fullName = company || [first, last].filter(Boolean).join(' ')
   const email = norm(job.client_email)
 
-  // Match an existing contact by email, then by full name, then by first + last name (case and spacing insensitive)
-  let contact = contacts.find(c => email && norm(c.EmailAddress) === email)
-    || contacts.find(c => fullName && norm(c.Name) === fullName)
-    || contacts.find(c => fullName && [norm(c.FirstName), norm(c.LastName)].filter(Boolean).join(' ') === fullName)
+  // Company client: match the company by name only, so the invoice never lands on the contact person's own record.
+  // Individual: match by email, then by full name, then by first + last name (case and spacing insensitive).
+  let contact = company
+    ? contacts.find(c => norm(c.Name) === company)
+    : contacts.find(c => email && norm(c.EmailAddress) === email)
+      || contacts.find(c => fullName && norm(c.Name) === fullName)
+      || contacts.find(c => fullName && [norm(c.FirstName), norm(c.LastName)].filter(Boolean).join(' ') === fullName)
 
   if (!contact) {
     contact = await createXeroContact(companyId, {
+      name: company ? String(job.client_company).trim() : undefined,
       firstName: (job.client_first_name || '').trim(),
       lastName: (job.client_last_name || '').trim(),
       email: job.client_email || undefined,

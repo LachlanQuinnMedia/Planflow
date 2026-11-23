@@ -1,18 +1,36 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabase'
 
+// Profile colours. 24 clearly different colours so everyone on the team can have their own.
+// The first ten keep their original values, so profiles saved before this list grew are unchanged.
 const AVATAR_COLORS = [
-  { hex: '#059669', label: 'Green', tailwind: 'bg-emerald-100 text-emerald-700' },
-  { hex: '#0284c7', label: 'Blue', tailwind: 'bg-blue-100 text-blue-700' },
-  { hex: '#7c3aed', label: 'Purple', tailwind: 'bg-violet-100 text-violet-700' },
-  { hex: '#db2777', label: 'Pink', tailwind: 'bg-pink-100 text-pink-700' },
-  { hex: '#d97706', label: 'Amber', tailwind: 'bg-amber-100 text-amber-700' },
-  { hex: '#dc2626', label: 'Red', tailwind: 'bg-red-100 text-red-700' },
-  { hex: '#65a30d', label: 'Lime', tailwind: 'bg-lime-100 text-lime-700' },
-  { hex: '#0891b2', label: 'Cyan', tailwind: 'bg-cyan-100 text-cyan-700' },
-  { hex: '#9333ea', label: 'Violet', tailwind: 'bg-purple-100 text-purple-700' },
-  { hex: '#ea580c', label: 'Orange', tailwind: 'bg-orange-100 text-orange-700' },
+  { hex: '#059669', label: 'Green' },
+  { hex: '#0284c7', label: 'Blue' },
+  { hex: '#7c3aed', label: 'Purple' },
+  { hex: '#db2777', label: 'Pink' },
+  { hex: '#d97706', label: 'Amber' },
+  { hex: '#dc2626', label: 'Red' },
+  { hex: '#65a30d', label: 'Lime' },
+  { hex: '#0891b2', label: 'Cyan' },
+  { hex: '#9333ea', label: 'Violet' },
+  { hex: '#ea580c', label: 'Orange' },
+  { hex: '#0d9488', label: 'Teal' },
+  { hex: '#38bdf8', label: 'Sky blue' },
+  { hex: '#4338ca', label: 'Indigo' },
+  { hex: '#c026d3', label: 'Magenta' },
+  { hex: '#fb7185', label: 'Coral' },
+  { hex: '#eab308', label: 'Yellow' },
+  { hex: '#14532d', label: 'Forest green' },
+  { hex: '#1e3a8a', label: 'Navy' },
+  { hex: '#881337', label: 'Maroon' },
+  { hex: '#92400e', label: 'Brown' },
+  { hex: '#a8a29e', label: 'Stone' },
+  { hex: '#475569', label: 'Slate' },
+  { hex: '#111827', label: 'Charcoal' },
+  { hex: '#f472b6', label: 'Rose pink' },
 ]
+
+const DEFAULT_AVATAR_COLOR = '#059669'
 
 function getInitials(name) {
   if (!name) return '?'
@@ -21,9 +39,13 @@ function getInitials(name) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
+// Avatars are filled with the chosen colour itself, so two people never look alike.
+// Text is white on dark colours and near-black on light ones so initials stay readable.
 function getColorStyle(hexColor) {
-  const found = AVATAR_COLORS.find(c => c.hex === hexColor)
-  return found ? found.tailwind : 'bg-emerald-100 text-emerald-700'
+  const hex = /^#[0-9a-fA-F]{6}$/.test(hexColor || '') ? hexColor : DEFAULT_AVATAR_COLOR
+  const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16)
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000
+  return { backgroundColor: hex, color: brightness > 160 ? '#111827' : '#ffffff' }
 }
 
 function Avatar({ profile, username, size = 'md' }) {
@@ -37,7 +59,7 @@ function Avatar({ profile, username, size = 'md' }) {
   }
 
   return (
-    <div className={`${sizeClass} rounded-full flex items-center justify-center font-semibold flex-shrink-0 ${colorStyle}`}>
+    <div className={`${sizeClass} rounded-full flex items-center justify-center font-semibold flex-shrink-0`} style={colorStyle}>
       {getInitials(name)}
     </div>
   )
@@ -88,7 +110,7 @@ function ReactivateModal({ staff, profile, onConfirm, onCancel }) {
   )
 }
 
-function EditProfileModal({ staffUser, profile, currentUser, onSave, onClose }) {
+function EditProfileModal({ staffUser, profile, currentUser, takenColors = {}, onSave, onClose }) {
   const [form, setForm] = useState({
     full_name: profile?.full_name || staffUser?.username || '',
     position: profile?.position || '',
@@ -187,13 +209,20 @@ function EditProfileModal({ staffUser, profile, currentUser, onSave, onClose }) 
                     </button>
                   )}
                 </div>
-                <div className="text-xs text-gray-400 mb-2">Or pick a colour:</div>
-                <div className="flex gap-2 flex-wrap">
-                  {AVATAR_COLORS.map(c => (
-                    <button key={c.hex} onClick={() => set('avatar_color', c.hex)}
-                      className={`w-7 h-7 rounded-full transition-all ${form.avatar_color === c.hex ? 'scale-125 ring-2 ring-offset-1 ring-gray-500' : 'hover:scale-110'}`}
-                      style={{ backgroundColor: c.hex }} title={c.label} />
-                  ))}
+                <div className="text-xs text-gray-400 mb-2">Or pick a colour. A small dot means a teammate already uses it.</div>
+                <div className="grid grid-cols-8 gap-2 max-w-[280px]">
+                  {AVATAR_COLORS.map(c => {
+                    const takenBy = takenColors[c.hex]
+                    return (
+                      <button key={c.hex} type="button" onClick={() => set('avatar_color', c.hex)}
+                        className={`relative w-7 h-7 rounded-full transition-all ${form.avatar_color === c.hex ? 'scale-110 ring-2 ring-offset-2 ring-gray-600' : 'hover:scale-110'}`}
+                        style={{ backgroundColor: c.hex }}
+                        title={takenBy ? `${c.label} (used by ${takenBy})` : c.label}
+                        aria-label={takenBy ? `${c.label}, used by ${takenBy}` : c.label}>
+                        {takenBy && <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-white border border-gray-400" />}
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
             </div>
@@ -420,6 +449,14 @@ export default function Planners({ currentUser }) {
         <EditProfileModal
           staffUser={editingStaff}
           profile={profiles[editingStaff.id]}
+          takenColors={Object.entries(profiles).reduce((acc, [userId, p]) => {
+            // Colours other active team members have chosen (photo avatars do not use a colour)
+            if (userId !== editingStaff.id && p?.avatar_color && !p.avatar_url) {
+              const owner = activeStaff.find(st => st.id === userId)
+              if (owner) acc[p.avatar_color] = p.full_name || owner.username
+            }
+            return acc
+          }, {})}
           currentUser={currentUser}
           onSave={() => { fetchAll(); setEditingStaff(null); setSelected(null) }}
           onClose={() => setEditingStaff(null)}

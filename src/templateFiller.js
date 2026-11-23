@@ -9,8 +9,28 @@
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
 import { supabase } from './supabase'; // adjust path/named-export if yours differs
+import { clientName, contactName, appTypeLabel } from './jobMeta';
 
 const STORAGE_BUCKET = 'templates';
+
+// Templates that ship with the app itself (public/templates) rather than Supabase Storage.
+export const APP_HOSTED_TEMPLATES = new Set(['Generic_Letterhead.docx']);
+
+// Fetch a template as an ArrayBuffer: from the app for app-hosted templates, otherwise from Storage.
+export async function fetchTemplateBuffer(templateFile) {
+  if (APP_HOSTED_TEMPLATES.has(templateFile)) {
+    const res = await fetch(`/templates/${encodeURIComponent(templateFile)}`, { cache: 'no-cache' });
+    if (!res.ok) throw new Error(`Could not download template "${templateFile}" (${res.status})`);
+    const buf = await res.arrayBuffer();
+    // A .docx is a zip file and always starts with "PK". Anything else means the file was not found.
+    const head = new Uint8Array(buf.slice(0, 2));
+    if (head[0] !== 0x50 || head[1] !== 0x4b) throw new Error(`Template "${templateFile}" was not found in the app`);
+    return buf;
+  }
+  const { data: file, error } = await supabase.storage.from(STORAGE_BUCKET).download(templateFile);
+  if (error) throw new Error(`Could not download template "${templateFile}": ${error.message}`);
+  return file.arrayBuffer();
+}
 
 // Brisbane is UTC+10 with no DST — the IANA zone handles this correctly.
 function brisbaneDates(d = new Date()) {
@@ -37,11 +57,17 @@ export function buildTemplateData(job = {}, planner = {}) {
     site_address: job.address,
     lot_reference: job.lot_reference,
     app_type: job.app_type,
+    app_type_name: appTypeLabel(job.app_type) || undefined,
     proposed_use: job.proposed_use,
     council: job.council,
-    client_name: [job.client_first_name, job.client_last_name].filter(Boolean).join(' ').trim() || undefined,
+    // client_name is the company for a company client, otherwise the person.
+    // client_first_name / contact_name are always the person (the contact at a company).
+    client_name: clientName(job) || undefined,
+    client_company: job.client_type === 'company' ? job.client_company : undefined,
+    contact_name: contactName(job) || undefined,
     client_first_name: job.client_first_name,
     client_email: job.client_email,
+    client_phone: job.client_phone,
     // auto-filled from the logged-in planner's profile
     planner_name: planner.full_name,
     planner_position: planner.position,
@@ -62,10 +88,8 @@ export function buildTemplateData(job = {}, planner = {}) {
  * @returns {{ blob: Blob, filename: string }}
  */
 export async function generateFromTemplate(templateFile, job, planner) {
-  // 1. download the template from Supabase Storage
-  const { data: file, error } = await supabase.storage.from(STORAGE_BUCKET).download(templateFile);
-  if (error) throw new Error(`Could not download template "${templateFile}": ${error.message}`);
-  const arrayBuffer = await file.arrayBuffer();
+  // 1. download the template (Supabase Storage, or the app for app-hosted templates)
+  const arrayBuffer = await fetchTemplateBuffer(templateFile);
 
   // 2. load and fill
   const zip = new PizZip(arrayBuffer);
@@ -96,6 +120,7 @@ export async function generateFromTemplate(templateFile, job, planner) {
   const blob = doc.getZip().generate({
     type: 'blob',
     mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    compression: 'DEFLATE', // keeps the download the same size as the template instead of about three times larger
   });
 
   // 4. trigger a browser download

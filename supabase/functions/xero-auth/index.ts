@@ -179,10 +179,11 @@ serve(async (req) => {
     if (action === 'create_contact') {
       const auth = await getValidToken(supabase, company_id)
       if (!auth) return json({ success: false, error: 'Not connected' }, 401)
-      const { firstName, lastName, email, phone } = body
+      // `name` is the company name for a company client; firstName / lastName are then the contact person
+      const { name, firstName, lastName, email, phone } = body
       const r = await xeroApi(auth, '/Contacts', 'POST', {
         Contacts: [{
-          Name: `${firstName || ''} ${lastName || ''}`.trim() || email || 'Client',
+          Name: String(name || '').trim() || `${firstName || ''} ${lastName || ''}`.trim() || email || 'Client',
           FirstName: firstName,
           LastName: lastName,
           EmailAddress: email,

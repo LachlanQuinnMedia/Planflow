@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from './supabase'
 import { loadSession, clearSession } from './auth'
 import Login from './Login'
@@ -17,6 +18,7 @@ import TimeBudget from './TimeBudget'
 import Planners from './Planners'
 import Xero from './XeroPage'
 import qplanLogo from './assets/plan_logo.PNG'
+import { timerLabel } from './jobMeta'
 
 const SUPABASE_URL = 'https://sltaaiumviyzgdsdkkbe.supabase.co'
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdGFhaXVtdml5emdkc2Rra2JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MTYyNTMsImV4cCI6MjA5MDQ5MjI1M30.xqWqvx8vdofj119nXDpasQ8xVD67YJU0RrjTrxycTGo'
@@ -54,13 +56,15 @@ function todayLocal() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Brisbane', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
 }
 
-function GlobalTimer({ jobs, currentUser }) {
+function GlobalTimer({ jobs, currentUser, activeJob }) {
   const [isRunning, setIsRunning] = useState(false)
   const [displaySeconds, setDisplaySeconds] = useState(0)
   const [selectedJobId, setSelectedJobId] = useState('')
   const [taskName, setTaskName] = useState('')
   const [saving, setSaving] = useState(false)
   const [activeTimerId, setActiveTimerId] = useState(null)
+  const [switchPrompt, setSwitchPrompt] = useState(null) // the job the user just opened while the timer runs on another
+  const [switchTask, setSwitchTask] = useState('')
   const recoveryDoneRef = useRef(false)
   const intervalRef = useRef(null)
   const saveIntervalRef = useRef(null)
@@ -70,6 +74,7 @@ function GlobalTimer({ jobs, currentUser }) {
   const taskNameRef = useRef('')
   const jobsRef = useRef([])
   const startedAtRef = useRef(null)
+  const declinedSwitchRef = useRef(null) // job id the user chose not to switch to, until the timer stops
   const plannerName = currentUser?.username || 'Unknown'
 
   useEffect(() => { jobsRef.current = jobs }, [jobs])
@@ -105,22 +110,32 @@ function GlobalTimer({ jobs, currentUser }) {
     recoverTimer()
   }, [jobs, currentUser])
 
+  // When a job is opened: pick it in the tracker, or offer to switch if the timer is on another job
+  useEffect(() => {
+    if (!activeJob?.id) return
+    const openedId = String(activeJob.id)
+    if (!intervalRef.current) {
+      if (!saving) setSelectedJobId(openedId)
+      return
+    }
+    if (String(selectedJobIdRef.current) === openedId) return
+    if (declinedSwitchRef.current === openedId) return
+    setSwitchTask(taskNameRef.current || '')
+    setSwitchPrompt(activeJob)
+  }, [activeJob?.id])
+
   const saveElapsedToSupabase = async () => {
     if (!activeTimerIdRef.current) return
     await supabase.from('active_timers').update({ elapsed_seconds: elapsedRef.current }).eq('id', activeTimerIdRef.current)
   }
 
-  const startTimer = async () => {
-    if (!selectedJobId) { alert('Please select a job first.'); return }
-    if (!taskName.trim()) { alert('Please enter what you are working on.'); return }
-    if (intervalRef.current) return
-    const job = jobsRef.current.find(j => String(j.id) === String(selectedJobId))
-    if (!job) { alert('Job not found.'); return }
+  const startTimerFor = async (job, task) => {
+    if (intervalRef.current) return false
     const { data, error } = await supabase.from('active_timers').insert({
       job_id: job.id, job_code: job.code, planner: plannerName, user_id: currentUser?.id || null,
-      task: taskName, elapsed_seconds: 0, rate: job.planner_rate || 0,
+      task, elapsed_seconds: 0, rate: job.planner_rate || 0,
     }).select().single()
-    if (error) { alert('Could not start timer.'); return }
+    if (error) { alert('Could not start timer.'); return false }
     elapsedRef.current = 0
     startedAtRef.current = Date.now()
     setDisplaySeconds(0)
@@ -133,6 +148,15 @@ function GlobalTimer({ jobs, currentUser }) {
       setDisplaySeconds(secs)
     }, 1000)
     saveIntervalRef.current = setInterval(saveElapsedToSupabase, 5000)
+    return true
+  }
+
+  const startTimer = async () => {
+    if (!selectedJobId) { alert('Please select a job first.'); return }
+    if (!taskName.trim()) { alert('Please enter what you are working on.'); return }
+    const job = jobsRef.current.find(j => String(j.id) === String(selectedJobId))
+    if (!job) { alert('Job not found.'); return }
+    await startTimerFor(job, taskName.trim())
   }
 
   const stopTimer = async () => {
@@ -160,43 +184,90 @@ function GlobalTimer({ jobs, currentUser }) {
     setSaving(false)
     startedAtRef.current = null
     elapsedRef.current = 0
+    declinedSwitchRef.current = null
     setDisplaySeconds(0)
     setActiveTimerId(null)
     setTaskName('')
+  }
+
+  // Switch: save the time so far on the current job, then start the timer on the job just opened
+  const confirmSwitch = async () => {
+    const target = jobsRef.current.find(j => String(j.id) === String(switchPrompt?.id)) || switchPrompt
+    const task = switchTask.trim()
+    if (!target || !task) return
+    setSwitchPrompt(null)
+    await stopTimer()
+    setSelectedJobId(String(target.id))
+    setTaskName(task)
+    await startTimerFor(target, task)
+  }
+
+  const declineSwitch = () => {
+    if (switchPrompt?.id) declinedSwitchRef.current = String(switchPrompt.id)
+    setSwitchPrompt(null)
   }
 
   useEffect(() => {
     return () => { clearInterval(intervalRef.current); clearInterval(saveIntervalRef.current) }
   }, [])
 
-  const selectedJob = jobsRef.current.find(j => String(j.id) === String(selectedJobId))
+  const selectedJob = jobs.find(j => String(j.id) === String(selectedJobId))
 
   return (
     <div className="px-3 py-3 border-t border-gray-100">
+      {/* Rendered on the page body: the sidebar slides with a transform, which would trap a fixed dialog inside it */}
+      {switchPrompt && isRunning && createPortal(
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
+          <div className="bg-white rounded-xl border border-gray-200 p-5 w-full max-w-sm">
+            <div className="text-sm font-semibold mb-2">Switch the timer to this job?</div>
+            <div className="text-xs text-gray-500 leading-relaxed mb-3">
+              Your timer is running on <span className="font-medium text-gray-700">{selectedJob ? timerLabel(selectedJob) : 'another job'}</span> ({formatTimer(displaySeconds)}).
+              You have opened <span className="font-medium text-gray-700">{timerLabel(switchPrompt)}</span>.
+            </div>
+            <label className="block text-xs text-gray-500 mb-1">What are you working on for {switchPrompt.code}?</label>
+            <input type="text" value={switchTask} onChange={e => setSwitchTask(e.target.value)} autoFocus
+              onKeyDown={e => { if (e.key === 'Enter') confirmSwitch() }}
+              placeholder="e.g. IR response"
+              className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400 mb-1" />
+            <div className="text-xs text-gray-400 mb-4">Switching saves the time so far to {selectedJob?.code || 'the current job'} and starts a new entry.</div>
+            <div className="flex gap-2">
+              <button onClick={declineSwitch} className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium">Keep current timer</button>
+              <button onClick={confirmSwitch} disabled={!switchTask.trim()}
+                className="flex-1 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium disabled:opacity-50">
+                Switch to {switchPrompt.code}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       <div className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-2">Time tracker</div>
       <select value={selectedJobId} onChange={e => setSelectedJobId(e.target.value)} disabled={isRunning}
         className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-emerald-400 mb-2 disabled:bg-gray-50 disabled:text-gray-400">
         <option value="">Select job...</option>
-        {jobs.map(j => <option key={j.id} value={j.id}>{j.code} — {j.name?.split('—')[1]?.trim() || j.name}</option>)}
+        {jobs.map(j => <option key={j.id} value={j.id}>{timerLabel(j)}</option>)}
       </select>
       <input type="text" value={taskName} onChange={e => setTaskName(e.target.value)} placeholder="What are you working on?"
-        disabled={isRunning} className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-emerald-400 mb-2 disabled:bg-gray-50 disabled:text-gray-400" />
+        disabled={isRunning} onKeyDown={e => { if (e.key === 'Enter' && !isRunning) startTimer() }}
+        className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-emerald-400 mb-2 disabled:bg-gray-50 disabled:text-gray-400" />
       <div className="flex items-center gap-2">
         <div className={`font-mono text-sm font-bold flex-1 text-center py-1.5 rounded-lg ${isRunning ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-50 text-gray-400'}`}>
           {formatTimer(displaySeconds)}
         </div>
         {!isRunning ? (
-          <button onClick={startTimer} className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium">▶</button>
+          <button onClick={startTimer} className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium" title="Start timer">▶</button>
         ) : (
-          <button onClick={stopTimer} disabled={saving} className="px-3 py-1.5 text-xs bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium disabled:opacity-50">
+          <button onClick={stopTimer} disabled={saving} className="px-3 py-1.5 text-xs bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium disabled:opacity-50" title="Stop and save">
             {saving ? '...' : '⏹'}
           </button>
         )}
       </div>
       {isRunning && selectedJob && (
         <div className="mt-2 text-xs text-emerald-600 bg-emerald-50 rounded-lg px-2 py-1.5 leading-tight">
-          <span className="font-medium">● {selectedJob.code}</span><br />
-          <span className="text-emerald-500">{taskName}</span>
+          <span className="font-medium">● {selectedJob.code}</span>
+          {selectedJob.address && <><br /><span className="text-emerald-600">{selectedJob.address}</span></>}
+          <br /><span className="text-emerald-500">{taskName}</span>
         </div>
       )}
     </div>
@@ -389,7 +460,7 @@ export default function App() {
     const fetchJobs = async () => {
       const { data } = await supabase
         .from('jobs')
-        .select('id, code, name, planner, planner_rate, budget_hours')
+        .select('id, code, name, address, planner, planner_rate, budget_hours, client_type, client_company, client_first_name, client_last_name')
         .order('created_at', { ascending: false })
       if (data) { setJobs(data); setJobCount(data.length) }
     }
@@ -626,7 +697,7 @@ export default function App() {
           ))}
         </div>
 
-        <GlobalTimer jobs={jobs} currentUser={currentUser} />
+        <GlobalTimer jobs={jobs} currentUser={currentUser} activeJob={activePage === 'jobdetail' ? selectedJob : null} />
 
         <div className="p-3 border-t border-gray-200 space-y-2">
           {isDirector && (

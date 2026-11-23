@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
 import { generateFromTemplate } from './templateFiller'
+import { APP_TYPES, buildJobName, jobTitle, oneDriveFolderName } from './jobMeta'
+import { callGraph, OneDriveFolderPicker } from './OneDriveBrowser'
 
 const STAGE1_TEMPLATES = [
   { group: 'Fee Proposals', items: [
@@ -77,6 +79,7 @@ const MISC_TEMPLATES = [
     { file: 'Notice_to_Revive_Application.docx',   label: 'Notice to Revive Application' },
     { file: 'Notice_to_Stop_Current_Period.docx',  label: 'Notice to Stop Current Period' },
     { file: 'Quote_Request.docx',                  label: 'Quote Request' },
+    { file: 'Generic_Letterhead.docx',             label: 'Generic Letterhead (blank)' },
   ]},
 ]
 
@@ -115,7 +118,7 @@ async function downloadRawTemplate(filename) {
   setTimeout(() => URL.revokeObjectURL(link.href), 1000)
 }
 
-function DocGenerateModal({ job, planner, onClose, onNavigate }) {
+function DocGenerateModal({ job, planner, folderResult, onClose, onNavigate }) {
   const [selected, setSelected] = useState(new Set())
   const [generating, setGenerating] = useState(false)
   const [done, setDone] = useState(false)
@@ -165,10 +168,11 @@ function DocGenerateModal({ job, planner, onClose, onNavigate }) {
       <div className="bg-white rounded-xl border border-gray-200 w-full max-w-md max-h-[90vh] flex flex-col">
         <div className="px-5 py-4 border-b border-gray-100">
           <div className="text-sm font-semibold">Job created ✓</div>
-          <div className="text-xs text-gray-400 mt-0.5">{job.code} — {job.name} · Generate documents now?</div>
+          <div className="text-xs text-gray-400 mt-0.5">{jobTitle(job)} · Generate documents now?</div>
         </div>
 
         <div className="px-5 py-4 overflow-y-auto">
+          <FolderResultNote result={folderResult} />
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Stage 1</div>
           {STAGE1_TEMPLATES.map(group => (
             <div key={group.group} className="mb-3">
@@ -221,10 +225,32 @@ function DocGenerateModal({ job, planner, onClose, onNavigate }) {
   )
 }
 
+// How the OneDrive folder step went, shown on the "Job created" dialog
+function FolderResultNote({ result }) {
+  if (!result || result.state === 'none') return null
+  if (result.state === 'error') {
+    return (
+      <div className="mb-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800">
+        The job was saved, but its OneDrive folder could not be set up: {result.message}. Link a folder from the job's Documents tab.
+      </div>
+    )
+  }
+  const lead = result.state === 'created' ? 'OneDrive folder created'
+    : result.state === 'existing' ? 'A folder with this name already existed, so it was linked'
+    : 'OneDrive folder linked'
+  return (
+    <div className="mb-3 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-xs text-blue-800">
+      📁 {lead}: <span className="font-medium">{result.path}</span>
+      {result.url && <> · <a href={result.url} target="_blank" rel="noopener noreferrer" className="underline">Open</a></>}
+    </div>
+  )
+}
+
 export default function NewJob({ onNavigate, currentUser }) {
+  const [clientType, setClientType] = useState('individual') // 'individual' | 'company'
   const [form, setForm] = useState({
-    firstName: '', lastName: '', email: '', phone: '',
-    appType: 'MCU — Material Change of Use',
+    company: '', firstName: '', lastName: '', email: '', phone: '',
+    appType: 'MCU',
     assessment: 'Code Assessable',
     address: '', lot: '', council: 'City of Gold Coast',
     zone: '', proposedUse: '', referrals: '',
@@ -236,8 +262,19 @@ export default function NewJob({ onNavigate, currentUser }) {
   const [error, setError] = useState(null)
   const [staffList, setStaffList] = useState([])
   const [createdJob, setCreatedJob] = useState(null)
+  const [folderResult, setFolderResult] = useState(null)
   const [showDocModal, setShowDocModal] = useState(false)
   const [currentPlanner, setCurrentPlanner] = useState(null)
+
+  // Microsoft 365: is it connected, and where do new job folders go?
+  const [ms, setMs] = useState({ loading: true, connected: false, jobsFolder: null })
+  const [folderMode, setFolderMode] = useState('none') // 'create' | 'existing' | 'none'
+  const [pickedFolder, setPickedFolder] = useState(null)
+  const [picker, setPicker] = useState(null) // 'existing' | 'root' | null
+  const [savingRoot, setSavingRoot] = useState(false)
+
+  const isDirector = currentUser?.role === 'director'
+  const isCompany = clientType === 'company'
 
   useEffect(() => {
     const fetchStaff = async () => {
@@ -271,8 +308,24 @@ export default function NewJob({ onNavigate, currentUser }) {
     loadPlanner()
   }, [currentUser])
 
+  useEffect(() => {
+    const loadMs = async () => {
+      if (!currentUser?.company_id) { setMs({ loading: false, connected: false, jobsFolder: null }); return }
+      try {
+        const data = await callGraph('status', { company_id: currentUser.company_id })
+        setMs({ loading: false, connected: !!data.connected, jobsFolder: data.jobsFolder || null })
+        // Default: create the folder automatically when the firm's jobs folder is set
+        if (data.connected && data.jobsFolder) setFolderMode('create')
+      } catch {
+        setMs({ loading: false, connected: false, jobsFolder: null })
+      }
+    }
+    loadMs()
+  }, [currentUser])
+
   const update = (field, value) => setForm(f => ({ ...f, [field]: value }))
   const togglePlanner = (name) => setSelectedPlanners(prev => prev.includes(name) ? prev.filter(p => p !== name) : [...prev, name])
+
   // Sequential job code: YYYY-001, YYYY-002 ... (next number after the highest existing one this year)
   const generateJobCode = async () => {
     const year = new Date().getFullYear()
@@ -285,57 +338,49 @@ export default function NewJob({ onNavigate, currentUser }) {
     return `${year}-${String(max + 1).padStart(3, '0')}`
   }
 
-  const handleSubmit = async () => {
-    const firstName = form.firstName.trim()
-    const lastName = form.lastName.trim()
-    if (!firstName || !form.address.trim()) { setError('Please fill in client name and address.'); return }
-    if (selectedPlanners.length === 0) { setError('Please select at least one planner.'); return }
-    setError(null)
-    setSaving(true)
-    const clientName = [firstName, lastName].filter(Boolean).join(' ')
-    const jobName = `${clientName} — ${form.appType.split('—')[0].trim()}`
-    const leadPlanner = selectedPlanners[0]
-    const leadProfile = staffList.find(s => s.username === leadPlanner)
-    const plannerRate = leadProfile?.hourlyRate || 150
-
-    let code = await generateJobCode()
-    let attempts = 0
-    let dbError = null
-    // Retry once if two planners create a job at the same moment and the code is taken
-    while (attempts < 3) {
-      const res = await supabase.from('jobs').insert(buildJobRow(code, jobName, clientName, leadPlanner, plannerRate))
-      dbError = res.error
-      if (!dbError) break
-      if (dbError.code === '23505') { code = await generateJobCode(); attempts++; continue }
-      break
+  // Director: choose the folder that new job folders are created in (saved once for the firm)
+  const handlePickRoot = async (folder) => {
+    setSavingRoot(true)
+    try {
+      const res = await callGraph('set_jobs_folder', {
+        company_id: currentUser.company_id,
+        drive_id: folder.driveId || null,
+        folder_id: folder.folderId || null,
+        name: folder.name,
+        path: [folder.driveName && folder.driveName !== 'OneDrive' ? folder.driveName : '', folder.path].filter(Boolean).join(' / ') || folder.name,
+        web_url: folder.webUrl || null,
+        username: currentUser.username,
+      })
+      if (res.success) {
+        setMs(prev => ({ ...prev, jobsFolder: res.jobsFolder }))
+        setFolderMode('create')
+        setPicker(null)
+      } else {
+        alert('Could not save the jobs folder: ' + (res.error || 'Unknown error'))
+      }
+    } catch (e) {
+      alert('Could not save the jobs folder: ' + e.message)
     }
-
-    setSaving(false)
-    if (dbError) { setError('Error saving job: ' + dbError.message); return }
-
-    setCreatedJob({
-      code, name: jobName, address: form.address, lot_reference: form.lot,
-      client_first_name: firstName, client_last_name: lastName,
-      client_email: form.email, client_phone: form.phone,
-      council: form.council, zone: form.zone,
-      app_type: form.appType.split('—')[0].trim(),
-      assessment_level: form.assessment, proposed_use: form.proposedUse,
-      referral_agencies: form.referrals, planner: leadPlanner,
-      budget_hours: parseFloat(form.budget) || 0, complexity: form.complexity,
-    })
-    setShowDocModal(true)
+    setSavingRoot(false)
   }
 
-  const buildJobRow = (code, jobName, clientName, leadPlanner, plannerRate) => {
-    const firstName = form.firstName.trim()
-    const lastName = form.lastName.trim()
-    return {
-      code, name: jobName,
+  const handlePickExisting = (folder) => {
+    setPickedFolder(folder)
+    setFolderMode('existing')
+    setPicker(null)
+  }
+
+  const buildJobRow = (code, leadPlanner, plannerRate) => {
+    const row = {
+      code,
+      company_id: currentUser?.company_id || null,
       address: form.address.trim(), lot_reference: form.lot,
-      client_first_name: firstName, client_last_name: lastName || null,
+      client_type: clientType,
+      client_company: isCompany ? form.company.trim() : null,
+      client_first_name: form.firstName.trim(), client_last_name: form.lastName.trim() || null,
       client_email: form.email.trim() || null, client_phone: form.phone.trim() || null,
       council: form.council, zone: form.zone,
-      app_type: form.appType.split('—')[0].trim(),
+      app_type: form.appType,
       assessment_level: form.assessment,
       proposed_use: form.proposedUse, referral_agencies: form.referrals,
       planner: leadPlanner, planners: selectedPlanners,
@@ -344,72 +389,188 @@ export default function NewJob({ onNavigate, currentUser }) {
       lodgement_date: form.lodgement || null,
       decision_due_date: form.decisionDue || null,
     }
+    // Naming format: [Client Name] - [Address] [Job Number]
+    row.name = buildJobName(row)
+    return row
   }
+
+  // Create or link the job's OneDrive folder straight after the job is saved
+  const setUpFolder = async (job) => {
+    const stamp = { onedrive_linked_by: currentUser?.username || null, onedrive_linked_at: new Date().toISOString() }
+    const save = async (link, state) => {
+      const text = state === 'created' ? `OneDrive folder created: ${link.onedrive_folder_path}` : `OneDrive folder linked: ${link.onedrive_folder_path}`
+      const history = [{ text, time: new Date().toISOString() }, { text: 'Job created', time: job.created_at || new Date().toISOString() }]
+      const { error: linkError } = await supabase.from('jobs').update({ ...link, ...stamp, job_history: history }).eq('id', job.id)
+      if (linkError) return { state: 'error', message: linkError.message }
+      return { state, path: link.onedrive_folder_path, url: link.onedrive_folder_url }
+    }
+
+    if (folderMode === 'create' && ms.jobsFolder) {
+      try {
+        const res = await callGraph('create_folder', { company_id: currentUser.company_id, name: oneDriveFolderName(job) })
+        if (!res.success || !res.item) return { state: 'error', message: res.error || 'Microsoft 365 did not create the folder' }
+        return await save({
+          onedrive_drive_id: res.item.driveId || ms.jobsFolder.driveId || null,
+          onedrive_folder_id: res.item.id,
+          onedrive_folder_name: res.item.name,
+          onedrive_folder_path: res.item.path || [ms.jobsFolder.path, res.item.name].filter(Boolean).join('/'),
+          onedrive_folder_url: res.item.webUrl || null,
+        }, res.existed ? 'existing' : 'created')
+      } catch (e) {
+        return { state: 'error', message: e.message }
+      }
+    }
+
+    if (folderMode === 'existing' && pickedFolder) {
+      return await save({
+        onedrive_drive_id: pickedFolder.driveId || null,
+        onedrive_folder_id: pickedFolder.folderId || null,
+        onedrive_folder_name: pickedFolder.name || 'Job folder',
+        onedrive_folder_path: pickedFolder.path || pickedFolder.name || '',
+        onedrive_folder_url: pickedFolder.webUrl || null,
+      }, 'linked')
+    }
+
+    return { state: 'none' }
+  }
+
+  const handleSubmit = async () => {
+    const firstName = form.firstName.trim()
+    if (isCompany && !form.company.trim()) { setError('Please enter the company name.'); return }
+    if (isCompany && !firstName) { setError('Please enter the contact person for this company.'); return }
+    if (!isCompany && !firstName) { setError('Please enter the client name.'); return }
+    if (!form.address.trim()) { setError('Please enter the site address.'); return }
+    if (selectedPlanners.length === 0) { setError('Please select at least one planner.'); return }
+    if (folderMode === 'existing' && !pickedFolder) { setError('Choose the existing folder to link, or pick a different folder option.'); return }
+    setError(null)
+    setSaving(true)
+    const leadPlanner = selectedPlanners[0]
+    const leadProfile = staffList.find(s => s.username === leadPlanner)
+    const plannerRate = leadProfile?.hourlyRate || 150
+
+    let code = await generateJobCode()
+    let attempts = 0
+    let dbError = null
+    let saved = null
+    // Retry if two planners create a job at the same moment and the code is taken
+    while (attempts < 3) {
+      const res = await supabase.from('jobs').insert(buildJobRow(code, leadPlanner, plannerRate)).select().single()
+      dbError = res.error
+      if (!dbError) { saved = res.data; break }
+      if (dbError.code === '23505') { code = await generateJobCode(); attempts++; continue }
+      break
+    }
+
+    if (dbError || !saved) {
+      setSaving(false)
+      setError('Error saving job: ' + (dbError?.message || 'Unknown error'))
+      return
+    }
+
+    const folder = await setUpFolder(saved)
+    setSaving(false)
+    setFolderResult(folder)
+    setCreatedJob(saved)
+    setShowDocModal(true)
+  }
+
+  // Preview of the folder / job name while the form is being filled in
+  const previewName = oneDriveFolderName({
+    client_type: clientType, client_company: form.company,
+    client_first_name: form.firstName, client_last_name: form.lastName,
+    address: form.address, code: '[job number]',
+  })
+  const hasPreview = !!(form.address.trim() || form.firstName.trim() || form.company.trim())
+
+  const inputClass = 'w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400'
+  const optionClass = (active, disabled) => `w-full text-left px-3 py-2.5 rounded-lg border transition-colors ${disabled ? 'border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed' : active ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 hover:bg-gray-50'}`
 
   return (
     <div className="max-w-3xl">
       {showDocModal && createdJob && (
-        <DocGenerateModal job={createdJob} planner={currentPlanner} onClose={() => setShowDocModal(false)} onNavigate={onNavigate} />
+        <DocGenerateModal job={createdJob} planner={currentPlanner} folderResult={folderResult} onClose={() => setShowDocModal(false)} onNavigate={onNavigate} />
+      )}
+      {picker === 'existing' && (
+        <OneDriveFolderPicker currentUser={currentUser} onPick={handlePickExisting} onClose={() => setPicker(null)}
+          title="Link an existing folder"
+          subtitle={'Browse to this job\'s folder, then click "Use this folder".'} />
+      )}
+      {picker === 'root' && (
+        <OneDriveFolderPicker currentUser={currentUser} onPick={handlePickRoot} onClose={() => setPicker(null)}
+          title="Where should new job folders be created?"
+          subtitle={'Browse to the folder that holds all job folders, then click "Use this folder". This is set once for the whole firm.'} />
       )}
 
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <h2 className="text-sm font-semibold mb-5">Create new job</h2>
         {error && <div className="bg-red-50 text-red-600 text-xs px-3 py-2 rounded-lg mb-4">{error}</div>}
 
-        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Client details</div>
+        <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Client details</div>
+          <div className="flex items-center gap-2">
+            <label htmlFor="client-type" className="text-xs text-gray-500">Client is</label>
+            <select id="client-type" value={clientType} onChange={e => setClientType(e.target.value)}
+              className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-emerald-400 font-medium">
+              <option value="individual">An individual</option>
+              <option value="company">A company</option>
+            </select>
+          </div>
+        </div>
+
+        {isCompany && (
+          <div className="mb-3">
+            <label className="text-xs text-gray-500 mb-1 block">Company name</label>
+            <input value={form.company} onChange={e => update('company', e.target.value)} placeholder="Company name" className={inputClass} />
+          </div>
+        )}
+        {isCompany && <div className="text-xs font-medium text-gray-600 mb-2">Contact person</div>}
         <div className="grid grid-cols-2 gap-3 mb-3">
-          <div><label className="text-xs text-gray-500 mb-1 block">First name</label>
-            <input value={form.firstName} onChange={e => update('firstName', e.target.value)} placeholder="First name" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
-          <div><label className="text-xs text-gray-500 mb-1 block">Last name / company</label>
-            <input value={form.lastName} onChange={e => update('lastName', e.target.value)} placeholder="Last name or company" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">{isCompany ? 'Contact first name' : 'First name'}</label>
+            <input value={form.firstName} onChange={e => update('firstName', e.target.value)} placeholder="First name" className={inputClass} /></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">{isCompany ? 'Contact last name' : 'Last name'}</label>
+            <input value={form.lastName} onChange={e => update('lastName', e.target.value)} placeholder="Last name" className={inputClass} /></div>
         </div>
         <div className="grid grid-cols-2 gap-3 mb-5">
-          <div><label className="text-xs text-gray-500 mb-1 block">Email</label>
-            <input value={form.email} onChange={e => update('email', e.target.value)} placeholder="client@email.com.au" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
-          <div><label className="text-xs text-gray-500 mb-1 block">Phone</label>
-            <input value={form.phone} onChange={e => update('phone', e.target.value)} placeholder="04XX XXX XXX" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">{isCompany ? 'Contact email' : 'Email'}</label>
+            <input value={form.email} onChange={e => update('email', e.target.value)} placeholder="client@email.com.au" className={inputClass} /></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">{isCompany ? 'Contact phone' : 'Phone'}</label>
+            <input value={form.phone} onChange={e => update('phone', e.target.value)} placeholder="04XX XXX XXX" className={inputClass} /></div>
         </div>
 
         <div className="border-t border-gray-100 mb-5" />
         <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Application details</div>
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div><label className="text-xs text-gray-500 mb-1 block">Application type</label>
-            <select value={form.appType} onChange={e => update('appType', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
-              <option>MCU — Material Change of Use</option>
-              <option>ROL — Reconfiguration of a Lot</option>
-              <option>RAA — Referral Agency Assessment</option>
-              <option>OW — Operational Works</option>
-              <option>SPS — Superseded Planning Scheme</option>
-              <option>PE — Preliminary Enquiry</option>
-              <option>PDA — Priority Development Area</option>
+            <select value={form.appType} onChange={e => update('appType', e.target.value)} className={inputClass}>
+              {APP_TYPES.map(t => <option key={t.code} value={t.code}>{t.code} · {t.label}</option>)}
             </select>
           </div>
           <div><label className="text-xs text-gray-500 mb-1 block">Assessment level</label>
-            <select value={form.assessment} onChange={e => update('assessment', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
+            <select value={form.assessment} onChange={e => update('assessment', e.target.value)} className={inputClass}>
               <option>Code Assessable</option><option>Impact Assessable</option><option>Accepted Development</option><option>Exempt</option>
             </select>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div><label className="text-xs text-gray-500 mb-1 block">Site address</label>
-            <input value={form.address} onChange={e => update('address', e.target.value)} placeholder="44 Ridge St, Toowoomba QLD 4350" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+            <input value={form.address} onChange={e => update('address', e.target.value)} placeholder="12 Marine Parade, Southport QLD 4215" className={inputClass} /></div>
           <div><label className="text-xs text-gray-500 mb-1 block">Lot / RP reference</label>
-            <input value={form.lot} onChange={e => update('lot', e.target.value)} placeholder="Lot 7 SP123456" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+            <input value={form.lot} onChange={e => update('lot', e.target.value)} placeholder="Lot 7 SP123456" className={inputClass} /></div>
         </div>
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div><label className="text-xs text-gray-500 mb-1 block">Council / LGA</label>
-            <select value={form.council} onChange={e => update('council', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
+            <select value={form.council} onChange={e => update('council', e.target.value)} className={inputClass}>
               {COUNCILS.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
           <div><label className="text-xs text-gray-500 mb-1 block">Planning zone</label>
-            <input value={form.zone} onChange={e => update('zone', e.target.value)} placeholder="Medium Density Residential" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+            <input value={form.zone} onChange={e => update('zone', e.target.value)} placeholder="Medium Density Residential" className={inputClass} /></div>
         </div>
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div><label className="text-xs text-gray-500 mb-1 block">Proposed use</label>
-            <input value={form.proposedUse} onChange={e => update('proposedUse', e.target.value)} placeholder="Mixed-use — retail GF + 12 units" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+            <input value={form.proposedUse} onChange={e => update('proposedUse', e.target.value)} placeholder="Mixed-use: retail GF + 12 units" className={inputClass} /></div>
           <div><label className="text-xs text-gray-500 mb-1 block">Referral agencies</label>
-            <input value={form.referrals} onChange={e => update('referrals', e.target.value)} placeholder="DTMR, TRC Engineering..." className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+            <input value={form.referrals} onChange={e => update('referrals', e.target.value)} placeholder="SARA, Energex..." className={inputClass} /></div>
         </div>
 
         <div className="mb-5">
@@ -438,7 +599,7 @@ export default function NewJob({ onNavigate, currentUser }) {
 
         <div className="mb-3">
           <label className="text-xs text-gray-500 mb-2 block">
-            Assigned planners <span className="text-gray-400 font-normal">(select all who will work on this job — first selected is lead)</span>
+            Assigned planners <span className="text-gray-400 font-normal">(select all who will work on this job. First selected is lead)</span>
           </label>
           <div className="flex flex-wrap gap-2">
             {staffList.map(s => (
@@ -464,16 +625,66 @@ export default function NewJob({ onNavigate, currentUser }) {
 
         <div className="grid grid-cols-3 gap-3 mb-5">
           <div><label className="text-xs text-gray-500 mb-1 block">Budget (hours)</label>
-            <input type="number" value={form.budget} onChange={e => update('budget', e.target.value)} placeholder="60" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+            <input type="number" value={form.budget} onChange={e => update('budget', e.target.value)} placeholder="60" className={inputClass} /></div>
           <div><label className="text-xs text-gray-500 mb-1 block">Lodgement date</label>
-            <input type="date" value={form.lodgement} onChange={e => update('lodgement', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+            <input type="date" value={form.lodgement} onChange={e => update('lodgement', e.target.value)} className={inputClass} /></div>
           <div><label className="text-xs text-gray-500 mb-1 block">Decision due date</label>
-            <input type="date" value={form.decisionDue} onChange={e => update('decisionDue', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+            <input type="date" value={form.decisionDue} onChange={e => update('decisionDue', e.target.value)} className={inputClass} /></div>
         </div>
 
         <div className="border-t border-gray-100 mb-5" />
+        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Job folder · Microsoft 365</div>
+        {ms.loading ? (
+          <div className="text-xs text-gray-400 mb-5">Checking Microsoft 365...</div>
+        ) : !ms.connected ? (
+          <div className="text-xs text-gray-400 mb-5">
+            Microsoft 365 is not connected, so no folder will be created. {isDirector ? 'Connect it from the Documents page.' : 'Ask a director to connect it from the Documents page.'} A folder can still be linked later from the job's Documents tab.
+          </div>
+        ) : (
+          <div className="mb-5">
+            <div className="text-xs text-gray-400 mb-3">
+              The job is named <span className="font-medium text-gray-600">{hasPreview ? previewName : '[Client Name] - [Address] [job number]'}</span>. Its folder gets the same name.
+            </div>
+            <div className="space-y-2">
+              <button type="button" disabled={!ms.jobsFolder} onClick={() => ms.jobsFolder && setFolderMode('create')} className={optionClass(folderMode === 'create', !ms.jobsFolder)}>
+                <div className="text-xs font-semibold text-gray-700">{folderMode === 'create' ? '● ' : '○ '}Create a new folder for this job</div>
+                <div className="text-xs text-gray-500 mt-0.5">
+                  {ms.jobsFolder
+                    ? <>Created automatically inside <span className="font-medium">{ms.jobsFolder.path || ms.jobsFolder.name}</span> when you save.</>
+                    : isDirector
+                      ? 'First tell QPlan which folder holds your job folders (one-off, below).'
+                      : 'A director needs to set the firm\'s jobs folder first (one-off).'}
+                </div>
+              </button>
+              <button type="button" onClick={() => { if (pickedFolder) setFolderMode('existing'); else setPicker('existing') }} className={optionClass(folderMode === 'existing', false)}>
+                <div className="text-xs font-semibold text-gray-700">{folderMode === 'existing' ? '● ' : '○ '}Link a folder that already exists</div>
+                <div className="text-xs text-gray-500 mt-0.5">
+                  {pickedFolder
+                    ? <>Linked to <span className="font-medium">{pickedFolder.path || pickedFolder.name}</span>.</>
+                    : 'For a job whose folder is already in OneDrive or SharePoint.'}
+                </div>
+              </button>
+              <button type="button" onClick={() => setFolderMode('none')} className={optionClass(folderMode === 'none', false)}>
+                <div className="text-xs font-semibold text-gray-700">{folderMode === 'none' ? '● ' : '○ '}No folder for now</div>
+                <div className="text-xs text-gray-500 mt-0.5">Link one later from the job's Documents tab.</div>
+              </button>
+            </div>
+            <div className="flex items-center gap-3 mt-2 flex-wrap">
+              {pickedFolder && (
+                <button type="button" onClick={() => setPicker('existing')} className="text-xs text-emerald-600 hover:underline">Choose a different existing folder</button>
+              )}
+              {isDirector && (
+                <button type="button" disabled={savingRoot} onClick={() => setPicker('root')} className="text-xs text-emerald-600 hover:underline disabled:opacity-50">
+                  {savingRoot ? 'Saving...' : ms.jobsFolder ? 'Change where new job folders are created' : 'Set where new job folders are created'}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="border-t border-gray-100 mb-5" />
         <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Documents available to generate</div>
-        <div className="text-xs text-gray-400 mb-3">After creating the job you'll be prompted to generate fee proposals, consents, planning reports, IR responses, public notices and more — all pre-filled with job and planner details.</div>
+        <div className="text-xs text-gray-400 mb-3">After creating the job you'll be prompted to generate fee proposals, consents, planning reports, IR responses, public notices and more, all pre-filled with job and planner details.</div>
         <div className="flex flex-wrap gap-2 mb-6">
           {[...STAGE1_TEMPLATES, ...STAGE2_TEMPLATES, ...STAGE3_TEMPLATES, ...MISC_TEMPLATES].flatMap(g => g.items).map(t => (
             <span key={t.file} className="px-3 py-1 bg-emerald-50 text-emerald-700 text-xs rounded-full border border-emerald-200">{t.label}</span>

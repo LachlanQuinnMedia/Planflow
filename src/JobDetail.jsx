@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabase'
 import { generateFromTemplate } from './templateFiller'
 import OneDriveBrowser, { OneDriveFolderPicker } from './OneDriveBrowser'
+import { APP_TYPES, appTypeBadge, appTypeFull, buildJobName, clientName, contactName, isCompanyClient, jobTitle } from './jobMeta'
+import { addBusinessDays, businessDaysUntil, businessDaysLabel, skippedHolidays, beyondHolidayData, hasShowHoliday } from './businessDays'
 
 // Today's date as YYYY-MM-DD in Brisbane time (not UTC)
 function todayLocal() {
@@ -29,7 +31,7 @@ const COUNCILS = [
   'Townsville City Council', 'Western Downs Regional Council', 'Whitsunday Regional Council', 'Other',
 ]
 
-const DA_STAGES = [
+export const DA_STAGES = [
   { id: 'application', label: 'Application stage', description: 'Application lodged — confirmation notice issued', statutory_days: 5, hpc_stage: 'Stage 2', color: 'bg-blue-100 text-blue-700' },
   { id: 'referral', label: 'Referral stage', description: 'Referral to state government / Energex / other agencies', statutory_days: 10, hpc_stage: 'Stage 3', color: 'bg-purple-100 text-purple-700' },
   { id: 'information', label: 'Information request stage', description: 'Council information request — response window', statutory_days: 10, hpc_stage: 'Stage 3', color: 'bg-amber-100 text-amber-700' },
@@ -37,7 +39,7 @@ const DA_STAGES = [
   { id: 'decision', label: 'Decision stage', description: 'Assessment and decision by Council', statutory_days: 20, hpc_stage: 'Stage 3', color: 'bg-emerald-100 text-emerald-700' },
 ]
 
-const HPC_STAGES = [
+export const HPC_STAGES = [
   {
     id: 'stage1',
     label: 'Stage 1 — Preliminary Planning Investigations',
@@ -130,14 +132,6 @@ const statusColors = {
   Complete: 'bg-green-100 text-green-700',
 }
 
-const typeBadgeColors = {
-  MCU: 'bg-blue-100 text-blue-700',
-  ROL: 'bg-amber-100 text-amber-700',
-  RAA: 'bg-pink-100 text-pink-700',
-  OW: 'bg-green-100 text-green-700',
-  SPS: 'bg-purple-100 text-purple-700',
-}
-
 const STAGE1_TEMPLATES = [
   { group: 'Fee Proposals', items: [
     { file: 'Fee_Proposal_Code.docx',         label: 'Fee Proposal — Code Assessable' },
@@ -213,6 +207,7 @@ const MISC_TEMPLATES = [
     { file: 'Notice_to_Revive_Application.docx',   label: 'Notice to Revive Application' },
     { file: 'Notice_to_Stop_Current_Period.docx',  label: 'Notice to Stop Current Period' },
     { file: 'Quote_Request.docx',                  label: 'Quote Request' },
+    { file: 'Generic_Letterhead.docx',             label: 'Generic Letterhead (blank)' },
   ]},
 ]
 
@@ -286,8 +281,10 @@ async function sendStageNotifications(job, stageId, stageLabel, daysLeft, compan
   try {
     const notifType = daysLeft < 0 ? 'overdue' : daysLeft <= 3 ? 'due_soon_3' : 'due_soon_7'
     const message = daysLeft < 0
-      ? `⚠️ OVERDUE: ${job.code} — ${stageLabel} is ${Math.abs(daysLeft)} day${Math.abs(daysLeft) !== 1 ? 's' : ''} overdue.`
-      : `⏰ ${job.code} — ${stageLabel} is due in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}.`
+      ? `⚠️ OVERDUE: ${job.code} — ${stageLabel} is ${Math.abs(daysLeft)} business day${Math.abs(daysLeft) !== 1 ? 's' : ''} overdue.`
+      : daysLeft === 0
+        ? `⏰ ${job.code} — ${stageLabel} is due today.`
+        : `⏰ ${job.code} — ${stageLabel} is due in ${daysLeft} business day${daysLeft !== 1 ? 's' : ''}.`
     const { data: existing } = await supabase.from('stage_notifications').select('id').eq('job_id', job.id).eq('stage_id', stageId).eq('notification_type', notifType).single()
     if (existing) return
     await supabase.from('stage_notifications').insert({ job_id: job.id, stage_id: stageId, notification_type: notifType })
@@ -554,7 +551,10 @@ function HPCStagesTab({ job, onHistoryAdd }) {
 }
 
 function EditJobModal({ job, currentUser, onClose, onSaved }) {
+  const [clientType, setClientType] = useState(job.client_type === 'company' ? 'company' : 'individual')
+  const isCompany = clientType === 'company'
   const [form, setForm] = useState({
+    company: job.client_company || '',
     firstName: job.client_first_name || '',
     lastName: job.client_last_name || '',
     email: job.client_email || '',
@@ -593,13 +593,18 @@ function EditJobModal({ job, currentUser, onClose, onSaved }) {
   const handleSave = async () => {
     const firstName = (form.firstName || '').trim()
     const lastName = (form.lastName || '').trim()
-    if (!firstName || !(form.address || '').trim()) { setSaveError('Please fill in client name and address.'); return }
+    const company = (form.company || '').trim()
+    if (isCompany && !company) { setSaveError('Please enter the company name.'); return }
+    if (isCompany && !firstName) { setSaveError('Please enter the contact person for this company.'); return }
+    if (!isCompany && !firstName) { setSaveError('Please enter the client name.'); return }
+    if (!(form.address || '').trim()) { setSaveError('Please enter the site address.'); return }
     if (selectedPlanners.length === 0) { setSaveError('Please select at least one planner.'); return }
     setSaveError('')
     setSaving(true)
     const leadPlanner = selectedPlanners[0]
-    const clientName = [firstName, lastName].filter(Boolean).join(' ')
-    const { error } = await supabase.from('jobs').update({
+    const update = {
+      client_type: clientType,
+      client_company: isCompany ? company : null,
       client_first_name: firstName, client_last_name: lastName || null,
       client_email: (form.email || '').trim() || null, client_phone: (form.phone || '').trim() || null,
       address: form.address.trim(), lot_reference: form.lot,
@@ -611,8 +616,10 @@ function EditJobModal({ job, currentUser, onClose, onSaved }) {
       budget_hours: parseFloat(form.budget) || 0,
       lodgement_date: form.lodgement || null,
       decision_due_date: form.decisionDue || null,
-      name: `${clientName} — ${form.appType}`,
-    }).eq('id', job.id)
+    }
+    // Naming format: [Client Name] - [Address] [Job Number]
+    update.name = buildJobName({ ...update, code: job.code })
+    const { error } = await supabase.from('jobs').update(update).eq('id', job.id)
     setSaving(false)
     if (error) { setSaveError('Could not save: ' + error.message); return }
     onSaved('Job details updated')
@@ -631,15 +638,30 @@ function EditJobModal({ job, currentUser, onClose, onSaved }) {
         </div>
         <div className="px-6 py-5 space-y-5 max-h-[75vh] overflow-y-auto">
           <div>
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Client details</div>
+            <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Client details</div>
+              <div className="flex items-center gap-2">
+                <label htmlFor="edit-client-type" className="text-xs text-gray-500">Client is</label>
+                <select id="edit-client-type" value={clientType} onChange={e => setClientType(e.target.value)}
+                  className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-emerald-400 font-medium">
+                  <option value="individual">An individual</option>
+                  <option value="company">A company</option>
+                </select>
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="text-xs text-gray-500 mb-1 block">First name</label>
+              {isCompany && (
+                <div className="col-span-2"><label className="text-xs text-gray-500 mb-1 block">Company name</label>
+                  <input value={form.company} onChange={e => set('company', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+              )}
+              {isCompany && <div className="col-span-2 text-xs font-medium text-gray-600 -mb-1">Contact person</div>}
+              <div><label className="text-xs text-gray-500 mb-1 block">{isCompany ? 'Contact first name' : 'First name'}</label>
                 <input value={form.firstName} onChange={e => set('firstName', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
-              <div><label className="text-xs text-gray-500 mb-1 block">Last name / company</label>
+              <div><label className="text-xs text-gray-500 mb-1 block">{isCompany ? 'Contact last name' : 'Last name'}</label>
                 <input value={form.lastName} onChange={e => set('lastName', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
-              <div><label className="text-xs text-gray-500 mb-1 block">Email</label>
+              <div><label className="text-xs text-gray-500 mb-1 block">{isCompany ? 'Contact email' : 'Email'}</label>
                 <input value={form.email} onChange={e => set('email', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
-              <div><label className="text-xs text-gray-500 mb-1 block">Phone</label>
+              <div><label className="text-xs text-gray-500 mb-1 block">{isCompany ? 'Contact phone' : 'Phone'}</label>
                 <input value={form.phone} onChange={e => set('phone', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
             </div>
           </div>
@@ -648,7 +670,8 @@ function EditJobModal({ job, currentUser, onClose, onSaved }) {
             <div className="grid grid-cols-2 gap-3">
               <div><label className="text-xs text-gray-500 mb-1 block">Application type</label>
                 <select value={form.appType} onChange={e => set('appType', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
-                  <option>MCU</option><option>ROL</option><option>RAA</option><option>OW</option><option>SPS</option><option>PE</option><option>PDA</option>
+                  {APP_TYPES.map(t => <option key={t.code} value={t.code}>{t.code} · {t.label}</option>)}
+                  {!APP_TYPES.some(t => t.code === form.appType) && <option value={form.appType}>{form.appType}</option>}
                 </select></div>
               <div><label className="text-xs text-gray-500 mb-1 block">Assessment level</label>
                 <select value={form.assessment} onChange={e => set('assessment', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
@@ -759,6 +782,14 @@ function DAStageTracker({ job, currentUser, onHistoryAdd }) {
   const [expandedStage, setExpandedStage] = useState(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const council = job.council
+
+  // End date = the statutory period (plus any stopped days) in business days after the start date.
+  // Weekends, Queensland public holidays, the council's show day and 26 Dec to 1 Jan are skipped.
+  const calcEnd = (stage, data) => {
+    if (!data.startDate) return ''
+    return addBusinessDays(data.startDate, stage.statutory_days + (Number(data.stoppedDays) || 0), council)
+  }
 
   useEffect(() => {
     const load = async () => {
@@ -779,13 +810,25 @@ function DAStageTracker({ job, currentUser, onHistoryAdd }) {
     for (const stage of DA_STAGES) {
       const data = stageData[stage.id]
       if (data.status !== 'active' || !data.endDate || data.isStopped) continue
-      const days = Math.ceil((new Date(data.endDate) - new Date()) / (1000 * 60 * 60 * 24))
-      if (days <= 7) await sendStageNotifications(job, stage.id, stage.label, days, currentUser.company_id)
+      const days = businessDaysUntil(data.endDate, council)
+      if (days !== null && days <= 7) await sendStageNotifications(job, stage.id, stage.label, days, currentUser.company_id)
     }
   }
 
-  const updateStage = (id, updates) => { setStages(prev => ({ ...prev, [id]: { ...prev[id], ...updates } })); setSaved(false) }
+  const updateStage = (id, updates) => {
+    const stage = DA_STAGES.find(s => s.id === id)
+    setStages(prev => {
+      const next = { ...prev[id], ...updates }
+      // Keep the end date in step with the start date and stopped days, unless it was typed in by hand
+      const setsEnd = Object.prototype.hasOwnProperty.call(updates, 'endDate')
+      const affectsEnd = Object.prototype.hasOwnProperty.call(updates, 'startDate') || Object.prototype.hasOwnProperty.call(updates, 'stoppedDays')
+      if (!setsEnd && affectsEnd && !next.endDateManual && next.startDate) next.endDate = calcEnd(stage, next)
+      return { ...prev, [id]: next }
+    })
+    setSaved(false)
+  }
   const resumeClock = (id) => updateStage(id, { isStopped: false })
+  const recalcEnd = (stage) => updateStage(stage.id, { endDate: calcEnd(stage, stages[stage.id]), endDateManual: false })
 
   const saveStages = async () => {
     setSaving(true)
@@ -836,6 +879,10 @@ function DAStageTracker({ job, currentUser, onHistoryAdd }) {
             )
           })}
         </div>
+        <div className="text-xs text-gray-400 mt-3 pt-3 border-t border-gray-100">
+          Deadlines are counted in business days for <span className="font-medium text-gray-500">{council || 'this council'}</span>: weekends, Queensland public holidays{hasShowHoliday(council) ? ', the local show holiday' : ''} and 26 December to 1 January are skipped.
+          {!hasShowHoliday(council) && ' No show holiday is on file for this council, so adjust the end date by hand if one falls in a period.'}
+        </div>
       </div>
 
       {DA_STAGES.map((stage, index) => {
@@ -844,9 +891,14 @@ function DAStageTracker({ job, currentUser, onHistoryAdd }) {
         const isComplete = data.status === 'complete'
         const isPending = data.status === 'pending'
         const isExpanded = expandedStage === stage.id
-        const daysLeft = daysUntil(data.endDate)
+        const daysLeft = businessDaysUntil(data.endDate, council)
         const isUrgent = isActive && daysLeft !== null && daysLeft <= 5
         const isOverdue = isActive && daysLeft !== null && daysLeft < 0
+        const period = stage.statutory_days + (Number(data.stoppedDays) || 0)
+        const calculated = calcEnd(stage, data)
+        const differs = !!data.endDate && !!calculated && data.endDate !== calculated
+        const skipped = data.startDate && data.endDate ? skippedHolidays(data.startDate, data.endDate, council) : []
+        const pastData = beyondHolidayData(data.endDate, council)
 
         return (
           <div key={stage.id} className={`bg-white rounded-xl border transition-all ${isActive ? 'border-amber-300 shadow-sm' : isComplete ? 'border-gray-200' : 'border-gray-100'}`}>
@@ -864,7 +916,7 @@ function DAStageTracker({ job, currentUser, onHistoryAdd }) {
                 <div className="text-xs text-gray-400">{stage.description}</div>
               </div>
               <div className="text-right flex-shrink-0">
-                {isActive && data.endDate && <div className={`text-xs font-semibold ${isOverdue ? 'text-red-600' : isUrgent ? 'text-amber-600' : 'text-gray-600'}`}>{isOverdue ? `${Math.abs(daysLeft)}d overdue` : `${daysLeft}d remaining`}</div>}
+                {isActive && data.endDate && <div className={`text-xs font-semibold ${isOverdue ? 'text-red-600' : isUrgent ? 'text-amber-600' : 'text-gray-600'}`}>{businessDaysLabel(daysLeft)}</div>}
                 {isComplete && <div className="text-xs text-emerald-600 font-medium">Complete</div>}
                 {isPending && <div className="text-xs text-gray-300">Not started</div>}
                 <div className="text-xs text-gray-400">{formatDateShort(data.endDate)}</div>
@@ -884,7 +936,7 @@ function DAStageTracker({ job, currentUser, onHistoryAdd }) {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-xs text-gray-400">End date</span>
-                        <input type="date" value={data.endDate || ''} onChange={e => updateStage(stage.id, { endDate: e.target.value })} className="text-xs border border-gray-200 rounded px-2 py-0.5 focus:outline-none focus:border-emerald-400" />
+                        <input type="date" value={data.endDate || ''} onChange={e => updateStage(stage.id, { endDate: e.target.value, endDateManual: !!e.target.value })} className="text-xs border border-gray-200 rounded px-2 py-0.5 focus:outline-none focus:border-emerald-400" />
                       </div>
                       <div className="flex justify-between">
                         <span className="text-xs text-gray-400">Statutory period</span>
@@ -893,10 +945,33 @@ function DAStageTracker({ job, currentUser, onHistoryAdd }) {
                       {data.stoppedDays > 0 && (
                         <div className="flex justify-between">
                           <span className="text-xs text-gray-400">Clock stopped</span>
-                          <span className="text-xs font-medium text-orange-600">{data.stoppedDays} days</span>
+                          <span className="text-xs font-medium text-orange-600">{data.stoppedDays} business days</span>
                         </div>
                       )}
                     </div>
+                    {data.startDate && (
+                      <div className="mt-3 text-xs text-gray-500 bg-gray-50 rounded-lg px-2.5 py-2 leading-relaxed">
+                        {differs ? (
+                          <>
+                            End date was entered by hand. {period} business days after the start date is <span className="font-medium">{formatDateShort(calculated)}</span>.{' '}
+                            <button type="button" onClick={() => recalcEnd(stage)} className="text-emerald-600 hover:underline font-medium">Use calculated date</button>
+                          </>
+                        ) : data.endDate ? (
+                          <>End date is {period} business days after the start date.</>
+                        ) : (
+                          <>
+                            {period} business days after the start date is <span className="font-medium">{formatDateShort(calculated)}</span>.{' '}
+                            <button type="button" onClick={() => recalcEnd(stage)} className="text-emerald-600 hover:underline font-medium">Use this date</button>
+                          </>
+                        )}
+                        {skipped.length > 0 && (
+                          <div className="mt-1">Skipped in this period: {skipped.map(h => h.closure ? h.name : `${h.name} (${formatDateShort(h.date)})`).join(', ')}.</div>
+                        )}
+                        {pastData && (
+                          <div className="mt-1 text-amber-700">This period runs past the holiday dates loaded in QPlan. Check the end date by hand.</div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <div className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-2">Status & actions</div>
@@ -914,7 +989,7 @@ function DAStageTracker({ job, currentUser, onHistoryAdd }) {
                           <button onClick={() => resumeClock(stage.id)} className="flex-1 py-1.5 text-xs border border-emerald-300 text-emerald-600 rounded-lg hover:bg-emerald-50">▶ Resume clock</button>
                         )}
                         {data.status === 'active' && <button onClick={() => updateStage(stage.id, { status: 'complete' })} className="flex-1 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">Mark complete</button>}
-                        {data.status === 'pending' && <button onClick={() => updateStage(stage.id, { status: 'active', startDate: todayLocal() })} className="flex-1 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">Start stage</button>}
+                        {data.status === 'pending' && <button onClick={() => updateStage(stage.id, { status: 'active', startDate: data.startDate || todayLocal() })} className="flex-1 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">Start stage</button>}
                       </div>
                     </div>
                   </div>
@@ -1349,10 +1424,144 @@ function DocumentsTab({ job, currentUser, onHistoryAdd, onJobUpdated }) {
   )
 }
 
+// Share a read-only summary of the job by link. Anyone with the link can open it without logging in.
+function ShareSummaryModal({ job, currentUser, onClose, onJobUpdated, onHistoryAdd }) {
+  const [busy, setBusy] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [error, setError] = useState('')
+  const linkRef = useRef(null)
+  const token = job.share_token
+  const link = token ? `${window.location.origin}/summary/${token}` : ''
+  const includeBudget = job.share_include_budget !== false
+  const includeNotes = job.share_include_notes === true
+
+  const save = async (patch, historyText) => {
+    setBusy(true)
+    setError('')
+    const { error: saveError } = await supabase.from('jobs').update(patch).eq('id', job.id)
+    setBusy(false)
+    if (saveError) { setError('Could not save: ' + saveError.message); return false }
+    onJobUpdated?.(patch)
+    if (historyText) await onHistoryAdd(historyText)
+    return true
+  }
+
+  // Tick boxes respond straight away, then save. If the save fails the tick goes back.
+  const toggle = async (field, value) => {
+    setError('')
+    onJobUpdated?.({ [field]: value })
+    const { error: saveError } = await supabase.from('jobs').update({ [field]: value }).eq('id', job.id)
+    if (saveError) {
+      onJobUpdated?.({ [field]: !value })
+      setError('Could not save: ' + saveError.message)
+    }
+  }
+
+  const newToken = () => {
+    const bytes = new Uint8Array(24)
+    crypto.getRandomValues(bytes)
+    return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('')
+  }
+
+  const createLink = () => save({
+    share_token: newToken(),
+    share_created_by: currentUser?.username || null,
+    share_created_at: new Date().toISOString(),
+  }, 'Summary link created')
+
+  const turnOff = async () => {
+    if (!window.confirm('Turn off this link? Anyone who has it will no longer be able to open the summary.')) return
+    await save({ share_token: null }, 'Summary link turned off')
+  }
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(link)
+    } catch {
+      // Older browsers: select the text so Ctrl+C works
+      linkRef.current?.select()
+      try { document.execCommand('copy') } catch { /* user can copy by hand */ }
+    }
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
+      <div className="bg-white rounded-2xl border border-gray-200 w-full max-w-lg">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div className="min-w-0">
+            <div className="text-sm font-semibold">Share job summary</div>
+            <div className="text-xs text-gray-400 mt-0.5 truncate">{jobTitle(job)}</div>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 px-2">✕</button>
+        </div>
+
+        <div className="px-5 py-4 space-y-4">
+          <div className="text-xs text-gray-500 leading-relaxed">
+            A summary page for this job: client, site, application details, the team, stage progress and key dates. Anyone you send the link to can open it. They do not need a QPlan login and cannot change anything. The page always shows the job as it is now.
+          </div>
+
+          {!token ? (
+            <button onClick={createLink} disabled={busy} className="w-full py-2.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium disabled:opacity-50">
+              {busy ? 'Creating...' : 'Create summary link'}
+            </button>
+          ) : (
+            <>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Summary link</label>
+                <div className="flex gap-2">
+                  <input ref={linkRef} readOnly value={link} onFocus={e => e.target.select()}
+                    className="flex-1 min-w-0 px-3 py-2 text-xs border border-gray-200 rounded-lg bg-gray-50 text-gray-700 focus:outline-none focus:border-emerald-400" />
+                  <button onClick={copyLink} className="px-3 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium flex-shrink-0">
+                    {copied ? '✓ Copied' : 'Copy link'}
+                  </button>
+                </div>
+                <div className="flex items-center gap-3 mt-2">
+                  <a href={link} target="_blank" rel="noopener noreferrer" className="text-xs text-emerald-600 hover:underline">Open the summary</a>
+                  {job.share_created_by && (
+                    <span className="text-xs text-gray-400">
+                      Created by {job.share_created_by}{job.share_created_at ? ` on ${formatDateShort(job.share_created_at)}` : ''}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="border border-gray-100 rounded-lg px-3 py-2.5 space-y-2">
+                <div className="text-xs font-medium text-gray-600">What the summary shows</div>
+                <label className="flex items-start gap-2 text-xs text-gray-600 cursor-pointer">
+                  <input type="checkbox" className="mt-0.5" checked={includeBudget}
+                    onChange={e => toggle('share_include_budget', e.target.checked)} />
+                  <span>Hours and budget <span className="text-gray-400">(hours logged against the budget, and HPC stage fees)</span></span>
+                </label>
+                <label className="flex items-start gap-2 text-xs text-gray-600 cursor-pointer">
+                  <input type="checkbox" className="mt-0.5" checked={includeNotes}
+                    onChange={e => toggle('share_include_notes', e.target.checked)} />
+                  <span>Job notes <span className="text-gray-400">(everything on the IR &amp; Notes tab)</span></span>
+                </label>
+              </div>
+            </>
+          )}
+
+          {error && <div className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</div>}
+        </div>
+
+        <div className="px-5 py-4 border-t border-gray-100 flex items-center justify-between gap-2">
+          {token ? (
+            <button onClick={turnOff} disabled={busy} className="px-3 py-2 text-xs text-red-500 border border-red-100 rounded-lg hover:bg-red-50 disabled:opacity-50">Turn off link</button>
+          ) : <span />}
+          <button onClick={onClose} className="px-4 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium">Done</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function JobDetail({ job, onNavigate, currentUser }) {
   const [activeTab, setActiveTab] = useState('overview')
   const [showGenerate, setShowGenerate] = useState(false)
   const [showEditJob, setShowEditJob] = useState(false)
+  const [showShare, setShowShare] = useState(false)
   const [selectedTemplates, setSelectedTemplates] = useState([])
   const [generating, setGenerating] = useState(false)
   const [currentPlanner, setCurrentPlanner] = useState(null)
@@ -1408,6 +1617,27 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
     }
     loadPlanner()
   }, [currentUser])
+
+  // Load the latest copy of the job (the list it was opened from may be stale), and bring
+  // the stored name of older jobs into the naming format: [Client Name] - [Address] [Job Number]
+  useEffect(() => {
+    if (!job?.id) return
+    let cancelled = false
+    const refresh = async () => {
+      const { data } = await supabase.from('jobs').select('*').eq('id', job.id).maybeSingle()
+      if (cancelled || !data) return
+      const name = buildJobName(data)
+      if (name && name !== data.name) {
+        await supabase.from('jobs').update({ name }).eq('id', job.id)
+        data.name = name
+      }
+      if (cancelled) return
+      setJobData(prev => ({ ...prev, ...data }))
+      setJobStatus(data.status || 'Draft')
+    }
+    refresh()
+    return () => { cancelled = true }
+  }, [job?.id])
 
   if (!job) return (
     <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
@@ -1483,6 +1713,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
   const jobForDocs = {
     code: jobData.code, name: jobData.name, address: jobData.address,
     lot_reference: jobData.lot_reference, council: jobData.council, zone: jobData.zone,
+    client_type: jobData.client_type, client_company: jobData.client_company,
     client_first_name: jobData.client_first_name, client_last_name: jobData.client_last_name,
     client_email: jobData.client_email, client_phone: jobData.client_phone,
     app_type: jobData.app_type, assessment_level: jobData.assessment_level,
@@ -1533,14 +1764,18 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
       {showEditJob && (
         <EditJobModal job={jobData} currentUser={currentUser} onClose={() => setShowEditJob(false)} onSaved={handleJobSaved} />
       )}
+      {showShare && (
+        <ShareSummaryModal job={jobData} currentUser={currentUser} onClose={() => setShowShare(false)}
+          onJobUpdated={patch => setJobData(prev => ({ ...prev, ...patch }))} onHistoryAdd={addHistory} />
+      )}
 
       <div className="flex items-center gap-3 mb-4 flex-wrap">
         <button onClick={() => onNavigate('jobs')} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">← Back</button>
         <div className="flex-1 min-w-0">
-          <div className="text-base font-semibold truncate">{jobData.code} — {jobData.name}</div>
-          <div className="text-xs text-gray-400 truncate">{jobData.address} · {jobData.lot_reference} · {jobData.council}</div>
+          <div className="text-base font-semibold truncate" title={jobTitle(jobData)}>{jobTitle(jobData)}</div>
+          <div className="text-xs text-gray-400 truncate">{[jobData.lot_reference, jobData.council, appTypeFull(jobData.app_type)].filter(Boolean).join(' · ')}</div>
         </div>
-        <span className={`text-xs px-2 py-1 rounded-full font-medium ${typeBadgeColors[jobData.app_type] || 'bg-gray-100 text-gray-600'}`}>{jobData.app_type}</span>
+        <span title={appTypeFull(jobData.app_type)} className={`text-xs px-2 py-1 rounded-full font-medium ${appTypeBadge(jobData.app_type)}`}>{jobData.app_type}</span>
         <div className="relative">
           <select
             value={jobStatus}
@@ -1556,6 +1791,9 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
           </select>
         </div>
         <button onClick={() => setShowEditJob(true)} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">✎ Edit</button>
+        <button onClick={() => setShowShare(true)} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50" title="Copy a link to a read-only summary of this job">
+          🔗 Share summary{jobData.share_token ? ' ●' : ''}
+        </button>
         <button onClick={() => setShowGenerate(true)} disabled={generating} className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50">
           {generating ? 'Generating...' : '⬡ Generate docs'}
         </button>
@@ -1623,7 +1861,8 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
             <div className="bg-white rounded-xl border border-gray-200 p-4">
               <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Client details</div>
               {[
-                ['Client', `${jobData.client_first_name || ''} ${jobData.client_last_name || ''}`],
+                ['Client', clientName(jobData)],
+                ...(isCompanyClient(jobData) ? [['Contact', contactName(jobData)]] : []),
                 ['Email', jobData.client_email], ['Phone', jobData.client_phone],
                 ['Address', jobData.address], ['Lot / RP', jobData.lot_reference],
                 ['Council', jobData.council], ['Zone', jobData.zone],
@@ -1637,7 +1876,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
             <div className="bg-white rounded-xl border border-gray-200 p-4">
               <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Application details</div>
               {[
-                ['Type', jobData.app_type],
+                ['Type', appTypeFull(jobData.app_type)],
                 ['Proposed use', jobData.proposed_use],
                 ['Assessment', jobData.assessment_level],
                 ['Planners', plannersList.join(', ') || '—'],

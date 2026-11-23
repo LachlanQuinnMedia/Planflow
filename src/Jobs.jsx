@@ -3,15 +3,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
 import { loadSession } from './auth'
 import { isXeroConnected, pushInvoiceToXero } from './xero'
-
-const typeBadge = {
-  MCU: 'bg-blue-100 text-blue-700',
-  ROL: 'bg-amber-100 text-amber-700',
-  RAA: 'bg-pink-100 text-pink-700',
-  OW: 'bg-green-100 text-green-700',
-  SPS: 'bg-purple-100 text-purple-700',
-  PE: 'bg-orange-100 text-orange-700',
-}
+import { APP_TYPES, appTypeBadge, appTypeFull, clientName, contactName, isCompanyClient, jobListName, jobSearchText, jobTitle } from './jobMeta'
 const statusBadge = {
   Active: 'bg-emerald-100 text-emerald-700',
   Review: 'bg-amber-100 text-amber-700',
@@ -52,7 +44,7 @@ function DeleteConfirmModal({ job, onConfirm, onCancel }) {
       <div className="bg-white rounded-xl border border-gray-200 p-6 w-full max-w-sm">
         <div className="text-sm font-semibold mb-1">Delete job</div>
         <div className="text-xs text-gray-500 mb-1">Are you sure you want to delete this job?</div>
-        <div className="text-xs font-medium text-gray-800 mb-4">{job.code} — {job.name}</div>
+        <div className="text-xs font-medium text-gray-800 mb-4">{jobTitle(job)}</div>
         <div className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2 mb-4">
           This will permanently delete the job, its time logs and its uploaded documents. This cannot be undone.
         </div>
@@ -120,7 +112,7 @@ function XeroPushModal({ job, companyId, onClose, onGoToXero, onPushed }) {
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div>
             <div className="text-sm font-semibold">Push to Xero</div>
-            <div className="text-xs text-gray-400 mt-0.5">{job.code} — {job.name}</div>
+            <div className="text-xs text-gray-400 mt-0.5">{jobTitle(job)}</div>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
         </div>
@@ -143,7 +135,7 @@ function XeroPushModal({ job, companyId, onClose, onGoToXero, onPushed }) {
           {stage === 'confirm' && (
             <div>
               <div className="text-xs text-gray-500 mb-3">
-                This creates a <span className="font-medium">draft</span> invoice in Xero{tenantName ? ` (${tenantName})` : ''} for <span className="font-medium">{job.client_first_name} {job.client_last_name}</span>. You can review it in Xero before sending.
+                This creates a <span className="font-medium">draft</span> invoice in Xero{tenantName ? ` (${tenantName})` : ''} for <span className="font-medium">{clientName(job)}</span>. You can review it in Xero before sending.
               </div>
               {logs.length === 0 ? (
                 <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
@@ -275,12 +267,7 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
     fetchJobs()
   }
   const filtered = jobs.filter(j => {
-    const matchSearch = !search ||
-      j.name?.toLowerCase().includes(search.toLowerCase()) ||
-      j.client_first_name?.toLowerCase().includes(search.toLowerCase()) ||
-      j.client_last_name?.toLowerCase().includes(search.toLowerCase()) ||
-      j.address?.toLowerCase().includes(search.toLowerCase()) ||
-      j.code?.includes(search)
+    const matchSearch = !search || jobSearchText(j).includes(search.toLowerCase().trim())
     const matchType = typeFilter === 'All' || j.app_type === typeFilter
     const matchPlanner = plannerFilter === 'All' || j.planner === plannerFilter
     const matchStatus = statusFilter === 'All' || j.status === statusFilter
@@ -352,8 +339,7 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
             <label className="text-xs text-gray-400 font-medium px-1">Type</label>
             <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white">
               <option value="All">All</option>
-              <option>MCU</option><option>ROL</option><option>RAA</option>
-              <option>OW</option><option>SPS</option><option>PE</option>
+              {APP_TYPES.map(t => <option key={t.code} value={t.code}>{t.code} · {t.label}</option>)}
             </select>
           </div>
           <div className="flex flex-col gap-1 flex-1 sm:flex-none">
@@ -401,7 +387,7 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
                   {dueSoon && <span className="text-xs px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">Due soon</span>}
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${typeBadge[job.app_type] || 'bg-gray-100 text-gray-500'}`}>{job.app_type}</span>
+                  <span title={appTypeFull(job.app_type)} className={`text-xs px-2 py-0.5 rounded-full font-medium ${appTypeBadge(job.app_type)}`}>{job.app_type}</span>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge[job.status] || 'bg-gray-100 text-gray-500'}`}>{job.status}</span>
                   <button
                     onClick={e => { e.stopPropagation(); setJobToDelete(job) }}
@@ -409,10 +395,10 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
                   >✕</button>
                 </div>
               </div>
-              <div className="text-sm font-medium text-gray-800 mb-0.5">{job.name}</div>
-              <div className="text-xs text-gray-400 mb-1">{job.address}</div>
+              <div className="text-sm font-medium text-gray-800 mb-0.5">{jobListName(job)}</div>
+              <div className="text-xs text-gray-400 mb-1">{[job.lot_reference, job.council].filter(Boolean).join(' · ')}</div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-gray-500">{job.client_first_name} {job.client_last_name}</span>
+                <span className="text-xs text-gray-500">{isCompanyClient(job) ? `Contact: ${contactName(job)}` : clientName(job)}</span>
                 <div className="flex items-center gap-2">
                   {job.decision_due_date && job.status !== 'Complete' && (
                     <span className={`text-xs font-medium ${overdue ? 'text-red-600' : dueSoon ? 'text-amber-600' : 'text-gray-400'}`}>
@@ -467,17 +453,17 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
                 <div className="text-xs font-medium text-emerald-600 cursor-pointer" onClick={() => onNavigate('jobdetail', job)}>{job.code}</div>
                 <div className="cursor-pointer min-w-0" onClick={() => onNavigate('jobdetail', job)}>
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <div className="text-xs font-medium">{job.name}</div>
+                    <div className="text-xs font-medium">{jobListName(job)}</div>
                     {overdue && <span className="text-xs px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 font-medium flex-shrink-0">Overdue</span>}
                     {dueSoon && <span className="text-xs px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium flex-shrink-0">Due soon</span>}
                   </div>
-                  <div className="text-xs text-gray-400 truncate">{job.address}</div>
+                  <div className="text-xs text-gray-400 truncate">{[job.lot_reference, job.council].filter(Boolean).join(' · ')}</div>
                 </div>
-                <div className="text-xs text-gray-500 truncate cursor-pointer" onClick={() => onNavigate('jobdetail', job)}>
-                  {job.client_first_name} {job.client_last_name}
+                <div className="text-xs text-gray-500 truncate cursor-pointer" onClick={() => onNavigate('jobdetail', job)} title={isCompanyClient(job) ? `Contact: ${contactName(job)}` : undefined}>
+                  {clientName(job)}
                 </div>
                 <div className="cursor-pointer" onClick={() => onNavigate('jobdetail', job)}>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${typeBadge[job.app_type] || 'bg-gray-100 text-gray-500'}`}>{job.app_type}</span>
+                  <span title={appTypeFull(job.app_type)} className={`text-xs px-2 py-0.5 rounded-full font-medium ${appTypeBadge(job.app_type)}`}>{job.app_type}</span>
                 </div>
                 <div className="text-xs text-gray-500 cursor-pointer truncate" onClick={() => onNavigate('jobdetail', job)}>
                   {job.planner || '—'}

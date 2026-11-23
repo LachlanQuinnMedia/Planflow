@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
+import { jobListName, timerLabel } from './jobMeta'
 
 // Today's date as YYYY-MM-DD in Brisbane time (not UTC)
 function todayLocal() {
@@ -134,7 +135,7 @@ export default function TimeBudget({ currentUser }) {
                   <div key={j.id} className="grid grid-cols-[70px_1fr_70px_60px_60px_60px] gap-3 items-center py-2 border-b border-gray-100 last:border-0">
                     <div className="text-xs font-medium text-emerald-600">{j.code}</div>
                     <div>
-                      <div className="text-xs font-medium truncate">{j.name}</div>
+                      <div className="text-xs font-medium truncate">{jobListName(j)}</div>
                       <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mt-1">
                         <div className={`h-full rounded-full ${over ? 'bg-red-500' : warn ? 'bg-amber-400' : 'bg-emerald-500'}`} style={{ width: `${Math.min(pct, 100)}%` }} />
                       </div>
@@ -194,7 +195,7 @@ export default function TimeBudget({ currentUser }) {
                 <select value={logJob} onChange={e => setLogJob(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
                   <option value="">Select a job...</option>
                   {jobs.filter(j => j.status !== 'Complete').map(j => (
-                    <option key={j.id} value={j.code}>{j.code} — {j.name}</option>
+                    <option key={j.id} value={j.code}>{timerLabel(j)}</option>
                   ))}
                 </select>
               </div>

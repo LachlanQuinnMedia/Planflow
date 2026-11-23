@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
+import { jobTitle } from './jobMeta'
+import { holidayName } from './businessDays'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
@@ -367,7 +369,7 @@ function EditMeetingModal({ booking, onClose, onSave, staffList, jobs }) {
             <select value={jobId} onChange={e => setJobId(e.target.value)}
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
               <option value="">No job linked</option>
-              {jobs.map(j => <option key={j.id} value={j.id}>{j.code} — {j.name}</option>)}
+              {jobs.map(j => <option key={j.id} value={j.id}>{jobTitle(j)}</option>)}
             </select>
           </div>
           <div>
@@ -619,7 +621,7 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
             <select value={jobId} onChange={e => setJobId(e.target.value)}
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
               <option value="">No job linked</option>
-              {jobs.map(j => <option key={j.id} value={j.id}>{j.code} — {j.name}</option>)}
+              {jobs.map(j => <option key={j.id} value={j.id}>{jobTitle(j)}</option>)}
             </select>
           </div>
           <div>
@@ -722,7 +724,7 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
   }
 
   const fetchJobs = async () => {
-    const { data } = await supabase.from('jobs').select('id, code, name').order('created_at', { ascending: false })
+    const { data } = await supabase.from('jobs').select('id, code, name, address, client_type, client_company, client_first_name, client_last_name').order('created_at', { ascending: false })
     if (data) setJobs(data)
   }
 
@@ -817,10 +819,14 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
           <div className="border-r border-gray-100" />
           {weekDates.map((date, i) => {
             const { day, num, isToday } = formatDateHeader(date)
+            // Queensland public holidays, plus the Brisbane and Gold Coast show days
+            const dateStr = toLocalISODate(date)
+            const holiday = holidayName(dateStr, null) || holidayName(dateStr, 'Brisbane City Council') || holidayName(dateStr, 'City of Gold Coast')
             return (
-              <div key={i} className={`text-center py-3 border-r border-gray-100 last:border-0 ${isToday ? 'bg-emerald-50' : ''}`}>
+              <div key={i} className={`text-center py-3 border-r border-gray-100 last:border-0 ${isToday ? 'bg-emerald-50' : holiday ? 'bg-red-50/60' : ''}`}>
                 <div className="text-xs text-gray-400">{day}</div>
-                <div className={`text-sm font-semibold mt-0.5 ${isToday ? 'text-emerald-600' : 'text-gray-700'}`}>{num}</div>
+                <div className={`text-sm font-semibold mt-0.5 ${isToday ? 'text-emerald-600' : holiday ? 'text-red-600' : 'text-gray-700'}`}>{num}</div>
+                {holiday && <div className="text-[10px] leading-tight text-red-500 mt-0.5 px-1 truncate" title={`Public holiday: ${holiday}`}>{holiday}</div>}
               </div>
             )
           })}

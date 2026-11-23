@@ -1,6 +1,7 @@
 // supabase/functions/ms-graph/index.ts
 // Microsoft 365 / OneDrive / SharePoint integration for QPlan.
-// Actions: callback, status, disconnect, drives, list, search, preview, item
+// Actions: callback, status, disconnect, drives, list, search, preview, item,
+//          set_jobs_folder, create_folder
 //
 // Every file action accepts an optional drive_id. Without it, the connected
 // user's own OneDrive (/me/drive) is used. With it, any drive the connected
@@ -114,6 +115,30 @@ function cleanPath(parentPath?: string | null, name?: string | null) {
   return decodeURIComponent(parts.join('/'))
 }
 
+// Microsoft 365 does not allow these characters in folder names: " * : < > ? / \ |
+// (# and % are avoided too). Names also cannot end with a dot or a space.
+function safeFolderName(name: string) {
+  const cleaned = String(name || '')
+    .replace(/["*:<>?/\\|#%]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/[. ]+$/, '')
+  return cleaned.slice(0, 180)
+}
+
+// The firm's "jobs folder": where new job folders are created
+function jobsFolderOf(row: any) {
+  if (!row || !row.jobs_folder_name) return null
+  return {
+    driveId: row.jobs_drive_id || null,
+    folderId: row.jobs_folder_id || null,
+    name: row.jobs_folder_name,
+    path: row.jobs_folder_path || '',
+    webUrl: row.jobs_folder_url || null,
+    setBy: row.jobs_folder_set_by || null,
+  }
+}
+
 function mapItems(value: any[]) {
   return (value || []).map((item: any) => ({
     id: item.id,
@@ -154,6 +179,11 @@ Deno.serve(async (req) => {
       const me = await graphGet(tokens.access_token, '/me')
       const email = me.mail || me.userPrincipalName || ''
 
+      // A different Microsoft account means the saved jobs folder no longer points anywhere useful
+      const { data: existing } = await supabase
+        .from('msgraph_tokens').select('email').eq('company_id', company_id).maybeSingle()
+      const accountChanged = !!existing && (existing.email || '').toLowerCase() !== email.toLowerCase()
+
       const { error } = await supabase.from('msgraph_tokens').upsert({
         company_id,
         access_token: tokens.access_token,
@@ -161,6 +191,10 @@ Deno.serve(async (req) => {
         expires_at: new Date(Date.now() + (tokens.expires_in || 3600) * 1000).toISOString(),
         email,
         connected_by: username || null,
+        ...(accountChanged ? {
+          jobs_drive_id: null, jobs_folder_id: null, jobs_folder_name: null,
+          jobs_folder_path: null, jobs_folder_url: null, jobs_folder_set_by: null,
+        } : {}),
       }, { onConflict: 'company_id' })
 
       if (error) return json({ success: false, error: `Could not save connection: ${error.message}` }, 500)
@@ -171,10 +205,85 @@ Deno.serve(async (req) => {
       if (!company_id) return json({ connected: false })
       const { data } = await supabase
         .from('msgraph_tokens')
-        .select('email, connected_by')
+        .select('email, connected_by, jobs_drive_id, jobs_folder_id, jobs_folder_name, jobs_folder_path, jobs_folder_url, jobs_folder_set_by')
         .eq('company_id', company_id)
         .maybeSingle()
-      return json({ connected: !!data, email: data?.email || null, connected_by: data?.connected_by || null })
+      return json({
+        connected: !!data,
+        email: data?.email || null,
+        connected_by: data?.connected_by || null,
+        jobsFolder: jobsFolderOf(data),
+      })
+    }
+
+    // Save (or clear) the folder that new job folders are created in
+    if (action === 'set_jobs_folder') {
+      if (!company_id) return json({ success: false, error: 'Missing company_id' }, 400)
+      const { data: row } = await supabase
+        .from('msgraph_tokens').select('company_id').eq('company_id', company_id).maybeSingle()
+      if (!row) return json({ success: false, error: 'Not connected' }, 401)
+
+      const clear = body.clear === true
+      const update = clear ? {
+        jobs_drive_id: null, jobs_folder_id: null, jobs_folder_name: null,
+        jobs_folder_path: null, jobs_folder_url: null, jobs_folder_set_by: null,
+      } : {
+        jobs_drive_id: body.drive_id || null,
+        jobs_folder_id: body.folder_id || null,
+        jobs_folder_name: String(body.name || 'OneDrive').slice(0, 300),
+        jobs_folder_path: String(body.path || '').slice(0, 1000),
+        jobs_folder_url: body.web_url || null,
+        jobs_folder_set_by: body.username || null,
+      }
+      const { data: saved, error } = await supabase
+        .from('msgraph_tokens').update(update).eq('company_id', company_id).select().maybeSingle()
+      if (error) return json({ success: false, error: error.message }, 500)
+      return json({ success: true, jobsFolder: jobsFolderOf(saved) })
+    }
+
+    // Create a folder. With no parent given, it is created inside the firm's jobs folder.
+    // If a folder with that name is already there, that folder is returned instead.
+    if (action === 'create_folder') {
+      const token = await getValidToken(company_id)
+      if (!token) return json({ success: false, error: 'Not connected' }, 401)
+
+      const name = safeFolderName(body.name)
+      if (!name) return json({ success: false, error: 'Missing folder name' }, 400)
+
+      let parentDrive: string | null = driveId
+      let parentId: string | null = body.parent_id || null
+      if (!parentDrive && !parentId) {
+        const { data: row } = await supabase
+          .from('msgraph_tokens')
+          .select('jobs_drive_id, jobs_folder_id, jobs_folder_name')
+          .eq('company_id', company_id)
+          .maybeSingle()
+        if (!row?.jobs_folder_name) return json({ success: false, error: 'No jobs folder has been set yet' }, 400)
+        parentDrive = row.jobs_drive_id || null
+        parentId = row.jobs_folder_id || null
+      }
+
+      const base = driveBase(parentDrive)
+      const parentPath = parentId ? `${base}/items/${parentId}` : `${base}/root`
+      const created = await graphPost(token, `${parentPath}/children`, {
+        name,
+        folder: {},
+        '@microsoft.graph.conflictBehavior': 'fail',
+      })
+
+      if (created?.error) {
+        if (created.error.code === 'nameAlreadyExists') {
+          const existing = await graphGet(token, `${parentPath}:/${encodeURIComponent(name)}`)
+          if (existing?.error) return json({ success: false, error: existing.error.message }, 400)
+          if (!existing.folder) return json({ success: false, error: `A file called "${name}" already exists there` }, 400)
+          const [item] = mapItems([existing])
+          return json({ success: true, existed: true, item })
+        }
+        return json({ success: false, error: created.error.message }, 400)
+      }
+
+      const [item] = mapItems([created])
+      return json({ success: true, existed: false, item })
     }
 
     if (action === 'disconnect') {

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabase'
 import OneDriveBrowser from './OneDriveBrowser'
+import { jobTitle } from './jobMeta'
 
 const DOCS_PER_PAGE = 100
 
@@ -175,7 +176,7 @@ export default function Documents({ currentUser }) {
   const fetchJobs = async () => {
     const { data } = await supabase
       .from('jobs')
-      .select('id, code, name, client_first_name, client_last_name, app_type')
+      .select('id, code, name, address, client_type, client_company, client_first_name, client_last_name, app_type')
       .order('created_at', { ascending: false })
       .limit(500)
     if (data) setJobs(data)
@@ -447,9 +448,7 @@ export default function Documents({ currentUser }) {
                   >
                     <option value="">Not linked to a job</option>
                     {jobs.map(j => {
-                      const client = `${j.client_first_name || ''} ${j.client_last_name || ''}`.trim()
-                      const label = `${j.code} — ${client || j.name || 'Untitled'}${j.app_type ? ` (${j.app_type})` : ''}`
-                      return <option key={j.id} value={j.id}>{label}</option>
+                      return <option key={j.id} value={j.id}>{jobTitle(j) || 'Untitled'}</option>
                     })}
                   </select>
                   {assigningJob && <span className="text-xs text-gray-400">Saving...</span>}
