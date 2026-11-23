@@ -308,7 +308,7 @@ export default function NewJob({ onNavigate, currentUser }) {
     const fetchStaff = async () => {
       if (!currentUser?.company_id) return
       const { data: profiles } = await supabase.from('planner_profiles').select('full_name, user_id, hourly_rate').eq('company_id', currentUser.company_id)
-      const { data: users } = await supabase.from('app_users').select('id, username, role').eq('company_id', currentUser.company_id).eq('is_approved', true).order('username', { ascending: true })
+      const { data: users } = await supabase.from('app_users').select('id, username, role').eq('company_id', currentUser.company_id).eq('is_approved', true).not('is_platform_admin', 'is', true).order('username', { ascending: true })
       if (users) {
         // Planners are always stored by username so Dashboard, Workload and time logs all match.
         const merged = users.map(u => {

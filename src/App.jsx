@@ -492,6 +492,7 @@ export default function App() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [refreshing, setRefreshing] = useState(false)
   const [timerRunning, setTimerRunning] = useState(false)
+  const [isMaster, setIsMaster] = useState(false) // the QPlan master account, not a planner at the firm
   const [jobCount, setJobCount] = useState(0)
   const [jobs, setJobs] = useState([])
   const [notifications, setNotifications] = useState([])
@@ -700,9 +701,10 @@ export default function App() {
   useEffect(() => {
     if (!currentUser?.id) return
     const checkAccount = async () => {
-      const { data, error } = await supabase.from('app_users').select('is_approved').eq('id', currentUser.id).maybeSingle()
+      const { data, error } = await supabase.from('app_users').select('is_approved, is_platform_admin').eq('id', currentUser.id).maybeSingle()
       if (error) return
-      if (!data || data.is_approved === false) handleLogout()
+      if (!data || data.is_approved === false) { handleLogout(); return }
+      setIsMaster(data.is_platform_admin === true)
     }
     checkAccount()
     const interval = setInterval(checkAccount, 5 * 60 * 1000)
@@ -820,6 +822,7 @@ export default function App() {
   const handleLogout = () => {
     clearSession()
     try { localStorage.removeItem(LAST_PAGE_KEY) } catch { /* storage unavailable */ }
+    setIsMaster(false)
     setCurrentUser(null)
     setSelectedJob(null)
     setRestoreJobId(null)
@@ -997,7 +1000,7 @@ export default function App() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-xs font-medium truncate">{currentUser.username}</div>
-              <div className="text-xs text-gray-500 capitalize">{currentUser.role}</div>
+              <div className="text-xs text-gray-500 capitalize">{isMaster ? 'Master account' : currentUser.role}</div>
             </div>
           </div>
 

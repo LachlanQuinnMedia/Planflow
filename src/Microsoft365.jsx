@@ -89,7 +89,7 @@ export default function Microsoft365({ currentUser, notice, onNoticeShown }) {
     setMyCalendar(calRes || { connected: false })
     if (isDirector) {
       const [usersRes, teamRes] = await Promise.all([
-        supabase.from('app_users').select('username, role').eq('company_id', companyId).eq('is_approved', true).order('username'),
+        supabase.from('app_users').select('username, role').eq('company_id', companyId).eq('is_approved', true).not('is_platform_admin', 'is', true).order('username'),
         callCalendar('team_status', { company_id: companyId }).catch(() => ({ connections: [] })),
       ])
       setTeam(usersRes.data || [])

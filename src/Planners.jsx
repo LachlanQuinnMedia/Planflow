@@ -345,7 +345,7 @@ export default function Planners({ currentUser }) {
       .from('app_users')
       .select('id, username, role, is_approved')
       .eq('company_id', currentUser.company_id)
-      .eq('is_approved', true)
+      .eq('is_approved', true).not('is_platform_admin', 'is', true)
       .order('username', { ascending: true })
 
     // Deactivated staff only. Brand-new registrations awaiting approval are handled from the Notifications panel.

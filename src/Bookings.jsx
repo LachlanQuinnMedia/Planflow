@@ -146,7 +146,7 @@ function DirectorBookings({ currentUser }) {
       .from('app_users')
       .select('username, role')
       .eq('company_id', currentUser.company_id)
-      .eq('is_approved', true)
+      .eq('is_approved', true).not('is_platform_admin', 'is', true)
       .order('username', { ascending: true })
     if (data) setStaffList(data)
   }
@@ -190,6 +190,9 @@ function DirectorBookings({ currentUser }) {
         <select value={viewingAs} onChange={e => setViewingAs(e.target.value)}
           className="px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
           <option value="__all__">All staff</option>
+          {currentUser?.username && !staffList.some(s => s.username === currentUser.username) && (
+                <option value={currentUser.username}>{currentUser.username} (you)</option>
+              )}
           {staffList.map(s => (
             <option key={s.username} value={s.username}>
               {s.username} {s.role === 'director' ? '(Director)' : ''}

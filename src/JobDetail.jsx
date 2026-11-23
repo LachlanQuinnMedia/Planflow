@@ -585,7 +585,7 @@ function EditJobModal({ job, currentUser, onClose, onSaved }) {
   useEffect(() => {
     const fetchStaff = async () => {
       if (!currentUser?.company_id) return
-      const { data: users } = await supabase.from('app_users').select('id, username, role').eq('company_id', currentUser.company_id).eq('is_approved', true).order('username', { ascending: true })
+      const { data: users } = await supabase.from('app_users').select('id, username, role').eq('company_id', currentUser.company_id).eq('is_approved', true).not('is_platform_admin', 'is', true).order('username', { ascending: true })
       // Planners are always stored by username so Dashboard, Workload and time logs all match.
       if (users) setStaffList(users.map(u => ({ ...u, displayName: u.username })))
     }

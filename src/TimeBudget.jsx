@@ -32,7 +32,7 @@ export default function TimeBudget({ currentUser }) {
       supabase.from('jobs').select('*').order('created_at', { ascending: false }),
       supabase.from('time_logs').select('*').order('created_at', { ascending: false }),
       currentUser?.company_id
-        ? supabase.from('app_users').select('id, username, role').eq('company_id', currentUser.company_id).eq('is_approved', true).order('username', { ascending: true })
+        ? supabase.from('app_users').select('id, username, role').eq('company_id', currentUser.company_id).eq('is_approved', true).not('is_platform_admin', 'is', true).order('username', { ascending: true })
         : Promise.resolve({ data: [], error: null }),
     ])
     if (!jobsRes.error) setJobs(jobsRes.data || [])
@@ -202,7 +202,7 @@ export default function TimeBudget({ currentUser }) {
               <div>
                 <label className="text-xs text-gray-600 mb-1 block">Planner</label>
                 <select value={logPlanner} onChange={e => setLogPlanner(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
-                  {staff.length === 0 && currentUser?.username && <option value={currentUser.username}>{currentUser.username}</option>}
+                  {currentUser?.username && !staff.some(s => s.username === currentUser.username) && <option value={currentUser.username}>{currentUser.username} (you)</option>}
                   {staff.map(s => (
                     <option key={s.id} value={s.username}>{s.username}{s.role === 'director' ? ' (Director)' : ''}</option>
                   ))}

@@ -64,7 +64,7 @@ export default function Workload({ currentUser }) {
       .from('app_users')
       .select('id, username, role')
       .eq('company_id', currentUser?.company_id)
-      .eq('is_approved', true)
+      .eq('is_approved', true).not('is_platform_admin', 'is', true)
       .order('username', { ascending: true })
 
     // Fetch all active jobs

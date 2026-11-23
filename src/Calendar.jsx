@@ -791,7 +791,7 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
 
   const fetchStaff = async () => {
     const { data } = await supabase.from('app_users').select('username, role')
-      .eq('company_id', currentUser.company_id).eq('is_approved', true).order('username', { ascending: true })
+      .eq('company_id', currentUser.company_id).eq('is_approved', true).not('is_platform_admin', 'is', true).order('username', { ascending: true })
     if (data) setStaffList(data)
   }
 
@@ -885,6 +885,9 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
           {isDirector && (
             <select value={viewingAs} onChange={e => setViewingAs(e.target.value)}
               className="px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
+              {currentUser?.username && !staffList.some(s => s.username === currentUser.username) && (
+                <option value={currentUser.username}>{currentUser.username} (you)</option>
+              )}
               {staffList.map(s => <option key={s.username} value={s.username}>{s.username}</option>)}
             </select>
           )}
