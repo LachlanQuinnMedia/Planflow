@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { connectFirmDrive } from './microsoft'
+import { IconFolder } from './icons'
 
 const SUPABASE_URL = 'https://sltaaiumviyzgdsdkkbe.supabase.co'
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdGFhaXVtdml5emdkc2Rra2JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MTYyNTMsImV4cCI6MjA5MDQ5MjI1M30.xqWqvx8vdofj119nXDpasQ8xVD67YJU0RrjTrxycTGo'
@@ -37,7 +38,7 @@ function formatSize(bytes) {
 }
 
 function fileIcon(name, isFolder) {
-  if (isFolder) return { label: '📁', color: 'bg-amber-50 text-amber-600' }
+  if (isFolder) return { label: <IconFolder size={15} />, color: 'bg-amber-50 text-amber-600' }
   const ext = (name.split('.').pop() || '').toLowerCase()
   if (['doc', 'docx'].includes(ext)) return { label: 'W', color: 'bg-blue-100 text-blue-700' }
   if (['xls', 'xlsx'].includes(ext)) return { label: 'X', color: 'bg-green-100 text-green-700' }
@@ -88,21 +89,21 @@ function DocumentModal({ file, companyId, onClose }) {
           <div className="flex items-center gap-2 min-w-0">
             <div className={`w-7 h-7 rounded-md flex items-center justify-center text-xs font-semibold flex-shrink-0 ${icon.color}`}>{icon.label}</div>
             <div className="text-sm font-semibold truncate">{file.name}</div>
-            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full flex-shrink-0">Preview</span>
+            <span className="text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full flex-shrink-0">Preview</span>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <button onClick={openEditor}
               className="px-3 py-1.5 text-xs bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium"
               title={`Open the full ${app} Online editor with live co-authoring`}>
-              ✎ Edit in {app} · live co-authoring
+              Edit in {app} · live co-authoring
             </button>
-            <button onClick={onClose} className="px-3 py-1.5 text-xs text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100" title="Close">✕ Close</button>
+            <button onClick={onClose} className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-600 rounded-lg hover:bg-gray-100" title="Close">✕ Close</button>
           </div>
         </div>
 
         <div className="flex-1 bg-gray-100 relative">
           {state === 'loading' && (
-            <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-400">Loading preview...</div>
+            <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500">Loading preview...</div>
           )}
           {state === 'ready' && (
             <iframe src={previewUrl} title={file.name} className="w-full h-full border-0 bg-white" />
@@ -111,7 +112,7 @@ function DocumentModal({ file, companyId, onClose }) {
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6">
               <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-semibold mb-3 ${icon.color}`}>{icon.label}</div>
               <div className="text-sm font-semibold mb-1">Preview not available for this file</div>
-              <div className="text-xs text-gray-400 max-w-sm mb-4">You can still open it in {app} Online. Editing and co-authoring work as normal.</div>
+              <div className="text-xs text-gray-500 max-w-sm mb-4">You can still open it in {app} Online. Editing and co-authoring work as normal.</div>
               <button onClick={openEditor} className="px-4 py-2 text-xs bg-blue-700 text-white rounded-lg hover:bg-blue-800 font-medium">
                 Open in {app}
               </button>
@@ -119,7 +120,7 @@ function DocumentModal({ file, companyId, onClose }) {
           )}
         </div>
 
-        <div className="px-4 py-2 border-t border-gray-100 text-xs text-gray-400 flex-shrink-0">
+        <div className="px-4 py-2 border-t border-gray-100 text-xs text-gray-500 flex-shrink-0">
           This is a read-only preview. Click <span className="font-medium">Edit in {app}</span> to open the live document. Multiple planners can edit it at the same time, and changes save straight back to Microsoft 365.
         </div>
       </div>
@@ -134,7 +135,7 @@ function ConnectPrompt({ currentUser, compact }) {
     <div className={`bg-white rounded-xl border border-gray-200 text-center ${compact ? 'p-4' : 'p-6'}`}>
       <div className="w-12 h-12 bg-blue-700 rounded-xl flex items-center justify-center text-white text-lg font-bold mx-auto mb-3">M</div>
       <div className="text-sm font-semibold mb-1">Connect Microsoft 365</div>
-      <div className="text-xs text-gray-400 max-w-sm mx-auto mb-4">
+      <div className="text-xs text-gray-500 max-w-sm mx-auto mb-4">
         Link your firm's OneDrive or SharePoint so planners can browse, search and co-edit existing documents directly from QPlan. Files stay where they are. Nothing is moved or copied.
       </div>
       {isDirector ? (
@@ -142,7 +143,7 @@ function ConnectPrompt({ currentUser, compact }) {
           Connect Microsoft 365
         </button>
       ) : (
-        <div className="text-xs text-gray-400">Ask a director to connect Microsoft 365 from Settings &gt; Microsoft 365.</div>
+        <div className="text-xs text-gray-500">Ask a director to connect Microsoft 365 from Settings &gt; Microsoft 365.</div>
       )}
     </div>
   )
@@ -280,7 +281,7 @@ export default function OneDriveBrowser({ currentUser, mode = 'browse', onPick, 
   }
 
   if (connected === null) {
-    return <div className="bg-white rounded-xl border border-gray-200 px-4 py-8 text-center text-xs text-gray-400">Checking Microsoft 365 connection...</div>
+    return <div className="bg-white rounded-xl border border-gray-200 px-4 py-8 text-center text-xs text-gray-500">Checking Microsoft 365 connection...</div>
   }
 
   if (!connected) return <ConnectPrompt currentUser={currentUser} compact={compact} />
@@ -294,7 +295,7 @@ export default function OneDriveBrowser({ currentUser, mode = 'browse', onPick, 
           <select value={driveId || drives[0]?.id || ''} onChange={e => switchDrive(e.target.value)}
             className="px-3 py-2 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-emerald-400 max-w-[260px]"
             title="Choose where to look: your OneDrive or a SharePoint document library">
-            {drives.map(d => <option key={d.id} value={d.id}>{d.kind === 'sharepoint' ? '🏢 ' : '☁️ '}{d.name}</option>)}
+            {drives.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
         )}
         <input
@@ -336,10 +337,10 @@ export default function OneDriveBrowser({ currentUser, mode = 'browse', onPick, 
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50 gap-3">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider truncate">
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">
             {searching ? 'Search results' : (title || currentDrive?.name || 'OneDrive')}
           </div>
-          <div className="text-xs text-gray-400 truncate">{connectedEmail && `Connected: ${connectedEmail}`}</div>
+          <div className="text-xs text-gray-500 truncate">{connectedEmail && `Connected: ${connectedEmail}`}</div>
         </div>
 
         {error && <div className="px-4 py-3 text-xs text-red-600 bg-red-50 border-b border-red-100">{error}</div>}
@@ -350,9 +351,9 @@ export default function OneDriveBrowser({ currentUser, mode = 'browse', onPick, 
         )}
 
         {loading ? (
-          <div className="px-4 py-8 text-center text-xs text-gray-400">Loading...</div>
+          <div className="px-4 py-8 text-center text-xs text-gray-500">Loading...</div>
         ) : items.length === 0 ? (
-          <div className="px-4 py-8 text-center text-xs text-gray-400">{searching ? 'No files match your search.' : 'This folder is empty.'}</div>
+          <div className="px-4 py-8 text-center text-xs text-gray-500">{searching ? 'No files match your search.' : 'This folder is empty.'}</div>
         ) : (
           items.map(item => {
             const icon = fileIcon(item.name, item.isFolder)
@@ -363,7 +364,7 @@ export default function OneDriveBrowser({ currentUser, mode = 'browse', onPick, 
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-semibold flex-shrink-0 ${icon.color}`}>{icon.label}</div>
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-medium truncate">{item.name}</div>
-                  <div className="text-xs text-gray-400 truncate">
+                  <div className="text-xs text-gray-500 truncate">
                     {searching && item.path ? item.path : item.isFolder
                       ? `${item.childCount ?? 0} item${item.childCount === 1 ? '' : 's'}`
                       : `${item.lastModifiedBy || 'Unknown'}${item.lastModified ? ` · ${new Date(item.lastModified).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}`}
@@ -372,7 +373,7 @@ export default function OneDriveBrowser({ currentUser, mode = 'browse', onPick, 
                 {!item.isFolder && !pickMode && isOfficeFile(item.name) && (
                   <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex-shrink-0">Co-edit</span>
                 )}
-                <span className="text-xs text-gray-400 flex-shrink-0">{item.isFolder ? '' : formatSize(item.size)}</span>
+                <span className="text-xs text-gray-500 flex-shrink-0">{item.isFolder ? '' : formatSize(item.size)}</span>
               </div>
             )
           })
@@ -390,11 +391,11 @@ export function OneDriveFolderPicker({ currentUser, onPick, onClose, jobLabel, t
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div>
             <div className="text-sm font-semibold">{title || 'Link a OneDrive or SharePoint folder'}</div>
-            <div className="text-xs text-gray-400 mt-0.5">
+            <div className="text-xs text-gray-500 mt-0.5">
               {subtitle || `${jobLabel ? `${jobLabel}: ` : ''}browse to the job's folder, then click "Use this folder".`}
             </div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 px-2">✕</button>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-600 px-2">✕</button>
         </div>
         <div className="p-5">
           <OneDriveBrowser currentUser={currentUser} mode="pick" onPick={onPick} compact />

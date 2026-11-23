@@ -32,7 +32,7 @@ export async function fetchTemplateBuffer(templateFile) {
   return file.arrayBuffer();
 }
 
-// Brisbane is UTC+10 with no DST — the IANA zone handles this correctly.
+// Brisbane is UTC+10 with no DST - the IANA zone handles this correctly.
 function brisbaneDates(d = new Date()) {
   const tz = { timeZone: 'Australia/Brisbane' };
   return {

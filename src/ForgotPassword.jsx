@@ -58,14 +58,14 @@ export default function ForgotPassword({ onBack }) {
 
         <div className="bg-white rounded-2xl border border-gray-200 p-8">
           <div className="flex items-center gap-2 mb-1">
-            <button onClick={onBack} className="text-gray-400 hover:text-gray-600 text-sm">←</button>
+            <button onClick={onBack} className="text-gray-500 hover:text-gray-600 text-sm">←</button>
             <div className="text-base font-semibold">
               {step === 4 ? 'Password reset' : 'Forgot password'}
             </div>
           </div>
 
           {step !== 4 && (
-            <div className="text-xs text-gray-400 mb-6">
+            <div className="text-xs text-gray-500 mb-6">
               {step === 1 && 'Enter your details to find your account.'}
               {step === 2 && 'Answer your security question to verify your identity.'}
               {step === 3 && 'Choose a new password.'}
@@ -128,7 +128,7 @@ export default function ForgotPassword({ onBack }) {
           {step === 4 && (
             <div className="text-center">
               <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 text-2xl mx-auto mb-4">✓</div>
-              <div className="text-xs text-gray-500 mb-6">Your password has been reset. You can now sign in with your new password.</div>
+              <div className="text-xs text-gray-600 mb-6">Your password has been reset. You can now sign in with your new password.</div>
               <button onClick={onBack} className="w-full py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700">
                 Back to sign in
               </button>

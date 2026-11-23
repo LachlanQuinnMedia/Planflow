@@ -9,14 +9,14 @@ const STAGE_CATEGORIES = [
     color: 'bg-blue-100 text-blue-700',
     groups: [
       { name: 'Fee Proposals', items: [
-        { file: 'Fee_Proposal_Code.docx',         label: 'Fee Proposal — Code Assessable' },
-        { file: 'Fee_Proposal_Impact.docx',       label: 'Fee Proposal — Impact Assessable' },
-        { file: 'Fee_Proposal_Minor_Change.docx', label: 'Fee Proposal — Minor Change' },
-        { file: 'Fee_Proposal_RAA.docx',          label: 'Fee Proposal — Referral Agency Assessment' },
+        { file: 'Fee_Proposal_Code.docx',         label: 'Fee Proposal - Code Assessable' },
+        { file: 'Fee_Proposal_Impact.docx',       label: 'Fee Proposal - Impact Assessable' },
+        { file: 'Fee_Proposal_Minor_Change.docx', label: 'Fee Proposal - Minor Change' },
+        { file: 'Fee_Proposal_RAA.docx',          label: 'Fee Proposal - Referral Agency Assessment' },
       ]},
       { name: "Owner's Consent", items: [
-        { file: 'Consent_Individual.docx', label: "Owner's Consent — Individual" },
-        { file: 'Consent_Company.docx',    label: "Owner's Consent — Company" },
+        { file: 'Consent_Individual.docx', label: "Owner's Consent - Individual" },
+        { file: 'Consent_Company.docx',    label: "Owner's Consent - Company" },
       ]},
     ],
   },
@@ -29,14 +29,14 @@ const STAGE_CATEGORIES = [
       ]},
       { name: 'Planning Reports', items: [
         { file: 'Town_Planning_Assessment.docx',         label: 'Town Planning Assessment (generic)' },
-        { file: 'DA_Report_Brisbane.docx',               label: 'DA Report — Brisbane' },
-        { file: 'DA_Report_Brisbane_RiskSmart.docx',     label: 'DA Report — Brisbane RiskSmart' },
-        { file: 'DA_Report_Express_Code.docx',           label: 'DA Report — Express DA (Code)' },
-        { file: 'DA_Report_Express_Accepted.docx',       label: 'DA Report — Express DA (Accepted to Code)' },
-        { file: 'DA_Report_Gold_Coast.docx',             label: 'DA Report — Gold Coast' },
-        { file: 'DA_Report_Gold_Coast_RAA.docx',         label: 'DA Report — Gold Coast RAA' },
-        { file: 'DA_Report_Gold_Coast_Sch6_RAA.docx',    label: 'DA Report — Gold Coast Sch6 RAA' },
-        { file: 'DA_Report_OPW.docx',                    label: 'DA Report — Operational Works' },
+        { file: 'DA_Report_Brisbane.docx',               label: 'DA Report - Brisbane' },
+        { file: 'DA_Report_Brisbane_RiskSmart.docx',     label: 'DA Report - Brisbane RiskSmart' },
+        { file: 'DA_Report_Express_Code.docx',           label: 'DA Report - Express DA (Code)' },
+        { file: 'DA_Report_Express_Accepted.docx',       label: 'DA Report - Express DA (Accepted to Code)' },
+        { file: 'DA_Report_Gold_Coast.docx',             label: 'DA Report - Gold Coast' },
+        { file: 'DA_Report_Gold_Coast_RAA.docx',         label: 'DA Report - Gold Coast RAA' },
+        { file: 'DA_Report_Gold_Coast_Sch6_RAA.docx',    label: 'DA Report - Gold Coast Sch6 RAA' },
+        { file: 'DA_Report_OPW.docx',                    label: 'DA Report - Operational Works' },
       ]},
       { name: 'Referrals', items: [
         { file: 'Referral_Cover_Letter.docx',      label: 'Referral Cover Letter' },
@@ -47,7 +47,7 @@ const STAGE_CATEGORIES = [
       ]},
       { name: 'Change Applications', items: [
         { file: 'Minor_Change_Application.docx',                 label: 'Minor Change Application' },
-        { file: 'Minor_Change_Application_Affected_Entity.docx', label: 'Minor Change — Affected Entity Notice' },
+        { file: 'Minor_Change_Application_Affected_Entity.docx', label: 'Minor Change - Affected Entity Notice' },
         { file: 'Other_Change_Application.docx',                 label: 'Other Change Application' },
       ]},
     ],
@@ -181,7 +181,7 @@ function GenerateModal({ items, currentUser, planner, onClose, onDone }) {
       <div className="bg-white rounded-xl border border-gray-200 w-full max-w-md max-h-[90vh] flex flex-col">
         <div className="px-5 py-4 border-b border-gray-100">
           <div className="text-sm font-semibold">Generate {items.length} document{items.length !== 1 ? 's' : ''}</div>
-          <div className="text-xs text-gray-400 mt-0.5">
+          <div className="text-xs text-gray-500 mt-0.5">
             {docxCount > 0 && `${docxCount} Word doc${docxCount !== 1 ? 's' : ''}`}
             {docxCount > 0 && rawCount > 0 && ' + '}
             {rawCount > 0 && `${rawCount} raw file${rawCount !== 1 ? 's' : ''}`}
@@ -190,25 +190,25 @@ function GenerateModal({ items, currentUser, planner, onClose, onDone }) {
 
         <div className="px-5 py-4 overflow-y-auto flex-1">
           <label className="text-xs font-medium text-gray-600 mb-1.5 block">
-            Job to fill from <span className="text-gray-400 font-normal">(optional)</span>
+            Job to fill from <span className="text-gray-500 font-normal">(optional)</span>
           </label>
 
           {loadingJobs ? (
-            <div className="text-xs text-gray-400 py-2">Loading jobs...</div>
+            <div className="text-xs text-gray-500 py-2">Loading jobs...</div>
           ) : (
             <select
               value={selectedJobId}
               onChange={e => setSelectedJobId(e.target.value)}
               className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400 bg-white"
             >
-              <option value="">No job — planner details only</option>
+              <option value="">No job (planner details only)</option>
               {jobs.map(j => {
                 return <option key={j.id} value={j.id}>{jobTitle(j) || 'Untitled'}</option>
               })}
             </select>
           )}
 
-          <div className="text-xs text-gray-400 mt-2 mb-4">
+          <div className="text-xs text-gray-500 mt-2 mb-4">
             {selectedJobId
               ? 'Job details + your planner details will fill the Word docs. Excel and Illustrator files download blank.'
               : 'Only your planner details will fill the Word docs. Other placeholders stay as editable text. Excel and Illustrator files download blank.'}
@@ -233,7 +233,7 @@ function GenerateModal({ items, currentUser, planner, onClose, onDone }) {
           {error && <div className="mt-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700 whitespace-pre-line">{error}</div>}
           {done && (
             <div className="mt-3 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-xs text-emerald-700">
-              ✓ {items.length} document{items.length !== 1 ? 's' : ''} downloaded — check your downloads folder.
+              ✓ {items.length} document{items.length !== 1 ? 's' : ''} downloaded. Check your downloads folder.
             </div>
           )}
         </div>
@@ -305,24 +305,24 @@ function MyDetailsModal({ currentUser, onClose, onSaved }) {
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div>
             <div className="text-sm font-semibold">My details</div>
-            <div className="text-xs text-gray-400 mt-0.5">Fills <span className="font-mono">{'{planner_name}'}</span>, <span className="font-mono">{'{planner_position}'}</span> and <span className="font-mono">{'{planner_email}'}</span> in your generated documents.</div>
+            <div className="text-xs text-gray-500 mt-0.5">Fills <span className="font-mono">{'{planner_name}'}</span>, <span className="font-mono">{'{planner_position}'}</span> and <span className="font-mono">{'{planner_email}'}</span> in your generated documents.</div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-600 text-lg">✕</button>
         </div>
         <div className="px-5 py-4 space-y-3">
-          {!currentUser?.id && <div className="bg-amber-50 text-amber-700 text-xs px-3 py-2 rounded-lg">Not signed in — open this page from inside the app.</div>}
-          {loading ? <div className="text-xs text-gray-400">Loading...</div> : (
+          {!currentUser?.id && <div className="bg-amber-50 text-amber-700 text-xs px-3 py-2 rounded-lg">Not signed in. Open this page from inside the app.</div>}
+          {loading ? <div className="text-xs text-gray-500">Loading...</div> : (
             <>
               <div>
-                <label className="text-xs text-gray-500 mb-1 block">Full name</label>
+                <label className="text-xs text-gray-600 mb-1 block">Full name</label>
                 <input value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} placeholder="Lachlan Quinn" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
               </div>
               <div>
-                <label className="text-xs text-gray-500 mb-1 block">Position</label>
+                <label className="text-xs text-gray-600 mb-1 block">Position</label>
                 <input value={form.position} onChange={e => setForm(f => ({ ...f, position: e.target.value }))} placeholder="Senior Urban Planner" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
               </div>
               <div>
-                <label className="text-xs text-gray-500 mb-1 block">Email</label>
+                <label className="text-xs text-gray-600 mb-1 block">Email</label>
                 <input value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="lachlan@hpcplanning.com.au" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
               </div>
               {error && <div className="bg-red-50 text-red-600 text-xs px-3 py-2 rounded-lg">{error}</div>}
@@ -394,7 +394,7 @@ export default function Templates({ currentUser }) {
       <div className="flex items-start justify-between mb-4 gap-3">
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 flex-1">
           <div className="text-xs font-medium text-emerald-700 mb-0.5">Generate documents</div>
-          <div className="text-xs text-emerald-600">Tick the templates you want, then click <span className="font-medium">Generate</span> at the top. A modal lets you pick a job to auto-fill — or skip the job and just fill your planner details. Excel and Illustrator files download blank.</div>
+          <div className="text-xs text-emerald-600">Tick the templates you want, then click <span className="font-medium">Generate</span> at the top. A modal lets you pick a job to auto-fill, or skip the job and just fill your planner details. Excel and Illustrator files download blank.</div>
         </div>
         <div className="flex flex-col gap-2 flex-shrink-0">
           <button
@@ -434,14 +434,14 @@ export default function Templates({ currentUser }) {
                     <span className="text-xs text-emerald-600 font-medium">{selectedCount} selected</span>
                   )}
                 </div>
-                <span className="text-xs text-gray-400">{totalItems} template{totalItems !== 1 ? 's' : ''}</span>
+                <span className="text-xs text-gray-500">{totalItems} template{totalItems !== 1 ? 's' : ''}</span>
               </div>
 
               {cat.groups.map(group => (
                 <div key={group.name} className="mb-3 last:mb-0">
                   <div className="text-xs font-semibold text-gray-600 mb-1.5">{group.name}</div>
                   {group.items.length === 0 ? (
-                    <div className="text-xs text-gray-400 italic px-1 py-1">No templates uploaded yet.</div>
+                    <div className="text-xs text-gray-500 italic px-1 py-1">No templates uploaded yet.</div>
                   ) : (
                     group.items.map(item => {
                       const ext = fileExt(item.file)
@@ -463,7 +463,7 @@ export default function Templates({ currentUser }) {
                           <div className={`w-7 h-7 rounded-md flex items-center justify-center text-xs font-semibold flex-shrink-0 ${icon.bg}`}>{icon.label}</div>
                           <div className="flex-1 min-w-0">
                             <div className={`text-xs font-medium truncate ${isSelected ? 'text-emerald-700' : ''}`}>{item.label}</div>
-                            <div className="text-xs text-gray-400 truncate">{item.file}</div>
+                            <div className="text-xs text-gray-500 truncate">{item.file}</div>
                           </div>
                         </button>
                       )

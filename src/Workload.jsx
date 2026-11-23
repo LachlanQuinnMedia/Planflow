@@ -174,7 +174,7 @@ export default function Workload({ currentUser }) {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-xs text-gray-400">
+      <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-xs text-gray-500">
         Loading workload data...
       </div>
     )
@@ -182,7 +182,7 @@ export default function Workload({ currentUser }) {
 
   if (plannerData.length === 0) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-xs text-gray-400">
+      <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-xs text-gray-500">
         No planners found.
       </div>
     )
@@ -195,34 +195,34 @@ export default function Workload({ currentUser }) {
       {/* Summary stats */}
       <div className="grid grid-cols-4 gap-3 mb-4">
         <div className="bg-gray-50 rounded-lg p-3">
-          <div className="text-xs text-gray-400 mb-1">Total planners</div>
+          <div className="text-xs text-gray-500 mb-1">Total planners</div>
           <div className="text-xl font-semibold">{plannerData.length}</div>
-          <div className="text-xs text-gray-400 mt-0.5">Active this week</div>
+          <div className="text-xs text-gray-500 mt-0.5">Active this week</div>
         </div>
         <div className="bg-gray-50 rounded-lg p-3">
-          <div className="text-xs text-gray-400 mb-1">Avg capacity</div>
+          <div className="text-xs text-gray-500 mb-1">Avg capacity</div>
           <div className="text-xl font-semibold">{avgCapacity}%</div>
-          <div className="text-xs text-gray-400 mt-0.5">{view === 'weighted' ? 'Complexity weighted' : 'Raw hours'}</div>
+          <div className="text-xs text-gray-500 mt-0.5">{view === 'weighted' ? 'Complexity weighted' : 'Raw hours'}</div>
         </div>
         <div className={`rounded-lg p-3 ${nearCapacity.length > 0 ? 'bg-red-50' : 'bg-gray-50'}`}>
-          <div className={`text-xs mb-1 ${nearCapacity.length > 0 ? 'text-red-400' : 'text-gray-400'}`}>Near capacity</div>
+          <div className={`text-xs mb-1 ${nearCapacity.length > 0 ? 'text-red-400' : 'text-gray-500'}`}>Near capacity</div>
           <div className={`text-xl font-semibold ${nearCapacity.length > 0 ? 'text-red-600' : 'text-gray-800'}`}>{nearCapacity.length}</div>
-          <div className={`text-xs mt-0.5 ${nearCapacity.length > 0 ? 'text-red-400' : 'text-gray-400'}`}>
+          <div className={`text-xs mt-0.5 ${nearCapacity.length > 0 ? 'text-red-400' : 'text-gray-500'}`}>
             {nearCapacity.length > 0
               ? nearCapacity.map(p => p.initials).join(' · ')
               : 'All within capacity'}
           </div>
         </div>
         <div className="bg-gray-50 rounded-lg p-3">
-          <div className="text-xs text-gray-400 mb-1">Available hrs</div>
+          <div className="text-xs text-gray-500 mb-1">Available hrs</div>
           <div className="text-xl font-semibold text-emerald-600">{totalAvailableHrs.toFixed(0)} hrs</div>
-          <div className="text-xs text-gray-400 mt-0.5">Across team this week</div>
+          <div className="text-xs text-gray-500 mt-0.5">Across team this week</div>
         </div>
       </div>
 
       {/* View toggle */}
       <div className="flex items-center gap-2 mb-4 flex-wrap">
-        <div className="text-xs text-gray-400">Capacity view:</div>
+        <div className="text-xs text-gray-500">Capacity view:</div>
         <button
           onClick={() => setView('weighted')}
           className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${view === 'weighted' ? 'bg-emerald-600 text-white border-emerald-600' : 'border-gray-200 hover:bg-gray-50'}`}
@@ -239,7 +239,7 @@ export default function Workload({ currentUser }) {
           {Object.entries(COMPLEXITY).map(([key, c]) => (
             <div key={key} className="flex items-center gap-1">
               <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${c.color}`}>{c.label}</span>
-              <span className="text-xs text-gray-400">{c.description}</span>
+              <span className="text-xs text-gray-500">{c.description}</span>
             </div>
           ))}
         </div>
@@ -248,7 +248,7 @@ export default function Workload({ currentUser }) {
       <div className="grid grid-cols-2 gap-4">
         {/* Team list */}
         <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Team — {weekLabel}</div>
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Team: {weekLabel}</div>
           {plannerData.map(p => {
             const capacityPct = view === 'weighted' ? p.weightedPct : p.rawPct
             return (
@@ -274,7 +274,7 @@ export default function Workload({ currentUser }) {
                     style={{ width: `${Math.min(capacityPct, 100)}%` }}
                   />
                 </div>
-                <div className={`text-xs font-medium w-8 text-right ${capacityPct >= 90 ? 'text-red-500' : capacityPct >= 75 ? 'text-amber-500' : 'text-gray-500'}`}>
+                <div className={`text-xs font-medium w-8 text-right ${capacityPct >= 90 ? 'text-red-500' : capacityPct >= 75 ? 'text-amber-500' : 'text-gray-600'}`}>
                   {capacityPct}%
                 </div>
               </div>
@@ -294,14 +294,14 @@ export default function Workload({ currentUser }) {
         {selectedPlanner && (
           <div className="flex flex-col gap-3">
             <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Planner profile</div>
+              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Planner profile</div>
               <div className="flex items-center gap-3 mb-4">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0 ${selectedPlanner.color}`}>
                   {selectedPlanner.initials}
                 </div>
                 <div>
                   <div className="text-sm font-semibold">{selectedPlanner.name}</div>
-                  <div className="text-xs text-gray-400 capitalize">{selectedPlanner.role}</div>
+                  <div className="text-xs text-gray-500 capitalize">{selectedPlanner.role}</div>
                 </div>
               </div>
               {[
@@ -312,12 +312,12 @@ export default function Workload({ currentUser }) {
                 ['Revenue MTD', `$${selectedPlanner.revenueMTD.toLocaleString()}`],
               ].map(([k, v]) => (
                 <div key={k} className="flex py-1.5 border-b border-gray-50 last:border-0">
-                  <div className="text-xs text-gray-400 w-32 flex-shrink-0">{k}</div>
+                  <div className="text-xs text-gray-500 w-32 flex-shrink-0">{k}</div>
                   <div className="text-xs font-medium">{v}</div>
                 </div>
               ))}
               <div className="mt-3">
-                <div className="flex justify-between text-xs text-gray-400 mb-1">
+                <div className="flex justify-between text-xs text-gray-500 mb-1">
                   <span>{view === 'weighted' ? 'Weighted' : 'Raw'} capacity</span>
                   <span>{pct}%</span>
                 </div>
@@ -332,33 +332,33 @@ export default function Workload({ currentUser }) {
 
             {/* Active jobs with complexity editor */}
             <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                Active jobs — set complexity
+              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                Active jobs: set complexity
               </div>
               {selectedPlanner.jobs.length === 0 ? (
-                <div className="text-xs text-gray-400 text-center py-4">No active jobs assigned.</div>
+                <div className="text-xs text-gray-500 text-center py-4">No active jobs assigned.</div>
               ) : selectedPlanner.jobs.map(job => (
                 <div key={job.id} className="flex items-center gap-2 py-2 border-b border-gray-100 last:border-0">
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-medium">{job.code}</div>
-                    <div className="text-xs text-gray-400 truncate">{job.name}</div>
-                    <div className="text-xs text-gray-400">{job.hrs} hrs this week</div>
+                    <div className="text-xs text-gray-500 truncate">{job.name}</div>
+                    <div className="text-xs text-gray-500">{job.hrs} hrs this week</div>
                   </div>
                   <select
                     value={job.complexity}
                     onChange={e => updateJobComplexity(job.id, e.target.value)}
                     className={`text-xs px-2 py-1 rounded-lg border border-gray-200 font-medium focus:outline-none focus:border-emerald-400 ${COMPLEXITY[job.complexity]?.color || 'bg-gray-100 text-gray-600'}`}
                   >
-                    <option value="C1">C1 — Simple</option>
-                    <option value="C2">C2 — Moderate</option>
-                    <option value="C3">C3 — Complex</option>
-                    <option value="C4">C4 — High</option>
+                    <option value="C1">C1: Simple</option>
+                    <option value="C2">C2: Moderate</option>
+                    <option value="C3">C3: Complex</option>
+                    <option value="C4">C4: High</option>
                   </select>
                 </div>
               ))}
               {selectedPlanner.jobs.length > 0 && (
                 <div className="mt-3 pt-2 border-t border-gray-100 flex justify-between">
-                  <span className="text-xs text-gray-400">Total this week</span>
+                  <span className="text-xs text-gray-500">Total this week</span>
                   <span className="text-xs font-semibold">{selectedPlanner.totalHrs} hrs · weighted {selectedPlanner.weightedPct}%</span>
                 </div>
               )}
@@ -366,7 +366,7 @@ export default function Workload({ currentUser }) {
 
             {/* All planners grid */}
             <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">All planners</div>
+              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">All planners</div>
               <div className="grid grid-cols-3 gap-2">
                 {plannerData.map(p => {
                   const capacityPct = view === 'weighted' ? p.weightedPct : p.rawPct
@@ -389,7 +389,7 @@ export default function Workload({ currentUser }) {
                         />
                       </div>
                       <div className="flex items-center justify-between mt-1">
-                        <div className="text-xs text-gray-400">{capacityPct}%</div>
+                        <div className="text-xs text-gray-500">{capacityPct}%</div>
                         <div className="flex gap-0.5">
                           {p.jobs.slice(0, 3).map(j => (
                             <span key={j.id} className={`rounded font-medium ${COMPLEXITY[j.complexity]?.color || 'bg-gray-100 text-gray-600'}`} style={{ fontSize: '8px', padding: '0px 3px' }}>

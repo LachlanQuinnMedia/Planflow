@@ -3,6 +3,7 @@ import { supabase } from './supabase'
 import { jobTitle } from './jobMeta'
 import { holidayName } from './businessDays'
 import { connectMyCalendar } from './microsoft'
+import { IconCalendar, IconPeople, IconFolder, IconLink } from './icons'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
@@ -107,13 +108,13 @@ function DatePickerModal({ currentDate, onSelect, onClose }) {
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-32" onClick={onClose}>
       <div className="bg-white rounded-2xl border border-gray-200 shadow-xl p-4 w-72" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
-          <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">‹</button>
+          <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600">‹</button>
           <div className="text-sm font-semibold">{MONTHS[viewMonth]} {viewYear}</div>
-          <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">›</button>
+          <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600">›</button>
         </div>
         <div className="grid grid-cols-7 mb-1">
           {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
-            <div key={d} className="text-center text-xs text-gray-400 py-1 font-medium">{d}</div>
+            <div key={d} className="text-center text-xs text-gray-500 py-1 font-medium">{d}</div>
           ))}
         </div>
         <div className="grid grid-cols-7 gap-0.5">
@@ -213,12 +214,12 @@ function ConnectCalendarModal({ onClose, currentUser, onConnectionChange }) {
       <div className="bg-white rounded-2xl border border-gray-200 w-full max-w-md">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div className="text-sm font-semibold">Connect Calendar</div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-600">✕</button>
         </div>
         <div className="px-6 py-4 space-y-3">
-          <div className="text-xs text-gray-400 mb-2">Connect your calendar so meetings created in QPlan sync automatically — and bookings from your external calendar appear here.</div>
+          <div className="text-xs text-gray-500 mb-2">Connect your calendar so meetings created in QPlan sync automatically, and bookings from your external calendar appear here.</div>
           {loading ? (
-            <div className="text-xs text-gray-400 text-center py-4">Checking connections...</div>
+            <div className="text-xs text-gray-500 text-center py-4">Checking connections...</div>
           ) : providers.map(p => (
             <div key={p.id} className="border border-gray-200 rounded-xl p-4">
               <div className="flex items-center justify-between">
@@ -226,9 +227,9 @@ function ConnectCalendarModal({ onClose, currentUser, onConnectionChange }) {
                   <div className={`w-8 h-8 ${p.color} rounded-lg flex items-center justify-center text-white text-sm font-bold`}>{p.letter}</div>
                   <div>
                     <div className="text-xs font-semibold">{p.label}</div>
-                    <div className="text-xs text-gray-400">
+                    <div className="text-xs text-gray-500">
                       {connections[p.id] ? (
-                        <span className="text-emerald-600">● Connected — {connections[p.id]}</span>
+                        <span className="text-emerald-600">● Connected: {connections[p.id]}</span>
                       ) : p.sub}
                     </div>
                   </div>
@@ -299,7 +300,7 @@ function EditMeetingModal({ booking, onClose, onSave, staffList, jobs }) {
       <div className="bg-white rounded-2xl border border-gray-200 w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div className="text-sm font-semibold">Edit Meeting</div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-600">✕</button>
         </div>
         <div className="px-6 py-4 space-y-4">
           <div>
@@ -314,7 +315,7 @@ function EditMeetingModal({ booking, onClose, onSave, staffList, jobs }) {
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Start time <span className="text-gray-400 font-normal">({formatTime12(startTime)})</span></label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Start time <span className="text-gray-500 font-normal">({formatTime12(startTime)})</span></label>
               <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
             </div>
@@ -333,7 +334,7 @@ function EditMeetingModal({ booking, onClose, onSave, staffList, jobs }) {
           </div>
           {booking.type === 'client' && (
             <div className="space-y-3 border border-gray-100 rounded-xl p-3">
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Client details</div>
+              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Client details</div>
               <input value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Client name"
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
               <input value={clientEmail} onChange={e => setClientEmail(e.target.value)} placeholder="Email"
@@ -369,7 +370,7 @@ function EditMeetingModal({ booking, onClose, onSave, staffList, jobs }) {
                   <input type="checkbox" checked={selectedAttendees.includes(s.username)}
                     onChange={() => toggleAttendee(s.username)} className="w-3.5 h-3.5 accent-emerald-600" />
                   <span className="text-xs font-medium">{s.username}</span>
-                  <span className="text-xs text-gray-400 capitalize ml-auto">{s.role}</span>
+                  <span className="text-xs text-gray-500 capitalize ml-auto">{s.role}</span>
                 </label>
               ))}
             </div>
@@ -414,50 +415,50 @@ function MeetingReviewModal({ booking, onClose, onDelete, onEdit }) {
                 {booking.type === 'client' ? 'Client meeting' : 'Staff meeting'}
               </span>
               <div className="text-sm font-semibold text-gray-800 mt-1">{booking.title}</div>
-              {booking.client_name && <div className="text-xs text-gray-500 mt-0.5">with {booking.client_name}</div>}
+              {booking.client_name && <div className="text-xs text-gray-600 mt-0.5">with {booking.client_name}</div>}
             </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 ml-3 flex-shrink-0">✕</button>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-600 ml-3 flex-shrink-0">✕</button>
           </div>
         </div>
         <div className="px-6 py-4 space-y-3">
           <div className="flex items-start gap-3">
-            <span className="text-gray-400 mt-0.5">📅</span>
+            <span className="text-gray-500 mt-0.5"><IconCalendar /></span>
             <div>
               <div className="text-xs font-medium text-gray-700">{formatDateFull(booking.date)}</div>
-              <div className="text-xs text-gray-500">{formatTime12(booking.start_time)} · {formatDuration(booking.duration_minutes)}</div>
+              <div className="text-xs text-gray-600">{formatTime12(booking.start_time)} · {formatDuration(booking.duration_minutes)}</div>
             </div>
           </div>
           {booking.attendees?.length > 0 && (
             <div className="flex items-start gap-3">
-              <span className="text-gray-400 mt-0.5">👥</span>
+              <span className="text-gray-500 mt-0.5"><IconPeople /></span>
               <div className="text-xs text-gray-700">{booking.attendees.join(', ')}</div>
             </div>
           )}
           {booking.job_code && (
             <div className="flex items-start gap-3">
-              <span className="text-gray-400 mt-0.5">📁</span>
+              <span className="text-gray-500 mt-0.5"><IconFolder /></span>
               <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">{booking.job_code}</span>
             </div>
           )}
           {booking.external_source && (
             <div className="flex items-start gap-3">
-              <span className="text-gray-400 mt-0.5">🔗</span>
-              <span className="text-xs text-gray-500 capitalize">Synced from {booking.external_source}</span>
+              <span className="text-gray-500 mt-0.5"><IconLink /></span>
+              <span className="text-xs text-gray-600 capitalize">Synced from {booking.external_source}</span>
             </div>
           )}
           {booking.type === 'client' && (booking.client_name || clientEmail || clientPhone || clientAddress || agenda) && (
             <div className="border border-gray-100 rounded-xl p-3 space-y-2">
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Client details</div>
-              {booking.client_name && <div className="flex justify-between text-xs"><span className="text-gray-400">Name</span><span className="font-medium text-gray-700">{booking.client_name}</span></div>}
-              {clientEmail && <div className="flex justify-between text-xs"><span className="text-gray-400">Email</span><span className="font-medium text-gray-700">{clientEmail}</span></div>}
-              {clientPhone && <div className="flex justify-between text-xs"><span className="text-gray-400">Phone</span><span className="font-medium text-gray-700">{clientPhone}</span></div>}
-              {clientAddress && <div className="flex justify-between text-xs"><span className="text-gray-400">Address</span><span className="font-medium text-gray-700 text-right max-w-[200px]">{clientAddress}</span></div>}
-              {agenda && <div className="pt-1 border-t border-gray-50"><div className="text-xs text-gray-400 mb-1">Agenda</div><div className="text-xs text-gray-700">{agenda}</div></div>}
+              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Client details</div>
+              {booking.client_name && <div className="flex justify-between text-xs"><span className="text-gray-500">Name</span><span className="font-medium text-gray-700">{booking.client_name}</span></div>}
+              {clientEmail && <div className="flex justify-between text-xs"><span className="text-gray-500">Email</span><span className="font-medium text-gray-700">{clientEmail}</span></div>}
+              {clientPhone && <div className="flex justify-between text-xs"><span className="text-gray-500">Phone</span><span className="font-medium text-gray-700">{clientPhone}</span></div>}
+              {clientAddress && <div className="flex justify-between text-xs"><span className="text-gray-500">Address</span><span className="font-medium text-gray-700 text-right max-w-[200px]">{clientAddress}</span></div>}
+              {agenda && <div className="pt-1 border-t border-gray-50"><div className="text-xs text-gray-500 mb-1">Agenda</div><div className="text-xs text-gray-700">{agenda}</div></div>}
             </div>
           )}
           {booking.type === 'internal' && booking.notes && (
             <div className="border border-gray-100 rounded-xl p-3">
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Notes</div>
+              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Notes</div>
               <div className="text-xs text-gray-700">{booking.notes}</div>
             </div>
           )}
@@ -551,13 +552,13 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
       <div className="bg-white rounded-2xl border border-gray-200 w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div className="text-sm font-semibold">New Meeting</div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-600">✕</button>
         </div>
         <div className="px-6 py-4 space-y-4">
           <div className="flex gap-2">
             {[{ id: 'client', label: 'Client meeting' }, { id: 'internal', label: 'Staff meeting' }].map(t => (
               <button key={t.id} onClick={() => setType(t.id)}
-                className={`flex-1 py-2 text-xs rounded-lg font-medium transition-colors ${type === t.id ? 'bg-emerald-600 text-white' : 'border border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+                className={`flex-1 py-2 text-xs rounded-lg font-medium transition-colors ${type === t.id ? 'bg-emerald-600 text-white' : 'border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
                 {t.label}
               </button>
             ))}
@@ -575,7 +576,7 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Start time <span className="text-gray-400 font-normal">({formatTime12(startTime)})</span></label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Start time <span className="text-gray-500 font-normal">({formatTime12(startTime)})</span></label>
               <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
             </div>
@@ -594,7 +595,7 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
           </div>
           {type === 'client' && (
             <div className="space-y-3 border border-gray-100 rounded-xl p-3">
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Client details</div>
+              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Client details</div>
               <input value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Client name"
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
               <input value={clientEmail} onChange={e => setClientEmail(e.target.value)} placeholder="Email address" type="email"
@@ -621,7 +622,7 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
               <div className="flex gap-2">
                 <button onClick={selectAll} className="text-xs text-emerald-600 hover:underline">Select all</button>
                 <span className="text-gray-300">·</span>
-                <button onClick={clearAll} className="text-xs text-gray-400 hover:underline">Clear</button>
+                <button onClick={clearAll} className="text-xs text-gray-500 hover:underline">Clear</button>
               </div>
             </div>
             <div className="border border-gray-200 rounded-xl overflow-hidden max-h-40 overflow-y-auto">
@@ -633,7 +634,7 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
                     {s.username.slice(0, 2).toUpperCase()}
                   </div>
                   <span className="text-xs font-medium">{s.username}</span>
-                  <span className="text-xs text-gray-400 capitalize ml-auto">{s.role}</span>
+                  <span className="text-xs text-gray-500 capitalize ml-auto">{s.role}</span>
                 </label>
               ))}
             </div>
@@ -761,13 +762,13 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
 
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <div className="flex items-center gap-2">
-          <button onClick={goBack} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 text-lg">‹</button>
+          <button onClick={goBack} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 text-lg">‹</button>
           <button onClick={goToday} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Today</button>
-          <button onClick={goForward} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 text-lg">›</button>
+          <button onClick={goForward} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 text-lg">›</button>
           <div className="flex items-center gap-1.5 ml-2">
             <span className="text-sm font-semibold">{formatWeekRange(weekDates)}</span>
             <button onClick={() => setShowDatePicker(true)}
-              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors" title="Jump to date">
+              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-600 transition-colors" title="Jump to date">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                 <rect x="1" y="2" width="12" height="11" rx="2" stroke="currentColor" strokeWidth="1.2"/>
                 <line x1="1" y1="5.5" x2="13" y2="5.5" stroke="currentColor" strokeWidth="1.2"/>
@@ -782,11 +783,11 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5">
               <div className="w-3 h-3 rounded-sm bg-emerald-400 flex-shrink-0" />
-              <span className="text-xs text-gray-500">Client meeting</span>
+              <span className="text-xs text-gray-600">Client meeting</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-3 h-3 rounded-sm bg-purple-400 flex-shrink-0" />
-              <span className="text-xs text-gray-500">Staff meeting</span>
+              <span className="text-xs text-gray-600">Staff meeting</span>
             </div>
           </div>
           {isDirector && (
@@ -796,7 +797,7 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
             </select>
           )}
           <button onClick={() => setShowConnect(true)} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">
-            🔗 Connect calendar
+            Connect calendar
           </button>
           <button onClick={() => { setSelectedDate(null); setShowNewMeeting(true) }}
             className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium">
@@ -815,7 +816,7 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
             const holiday = holidayName(dateStr, null) || holidayName(dateStr, 'Brisbane City Council') || holidayName(dateStr, 'City of Gold Coast')
             return (
               <div key={i} className={`text-center py-3 border-r border-gray-100 last:border-0 ${isToday ? 'bg-emerald-50' : holiday ? 'bg-red-50/60' : ''}`}>
-                <div className="text-xs text-gray-400">{day}</div>
+                <div className="text-xs text-gray-500">{day}</div>
                 <div className={`text-sm font-semibold mt-0.5 ${isToday ? 'text-emerald-600' : holiday ? 'text-red-600' : 'text-gray-700'}`}>{num}</div>
                 {holiday && <div className="text-[10px] leading-tight text-red-500 mt-0.5 px-1 truncate" title={`Public holiday: ${holiday}`}>{holiday}</div>}
               </div>
@@ -828,7 +829,7 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
             {hours.map(hour => (
               <div key={hour} className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-gray-50 last:border-0" style={{ height: `${SLOT_HEIGHT}px` }}>
                 <div className="border-r border-gray-100 px-2 pt-1 flex-shrink-0">
-                  <span className="text-xs text-gray-400">{formatTime(hour)}</span>
+                  <span className="text-xs text-gray-500">{formatTime(hour)}</span>
                 </div>
                 {weekDates.map((date, di) => {
                   const dateStr = toLocalISODate(date)
@@ -878,13 +879,13 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
       </div>
 
       <div className="mt-4 bg-white rounded-xl border border-gray-200 p-4">
-        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-          This week — {viewingAs}
+        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+          This week: {viewingAs}
         </div>
         {loading ? (
-          <div className="text-xs text-gray-400 text-center py-4">Loading...</div>
+          <div className="text-xs text-gray-500 text-center py-4">Loading...</div>
         ) : bookings.length === 0 ? (
-          <div className="text-xs text-gray-400 text-center py-4">No meetings this week.</div>
+          <div className="text-xs text-gray-500 text-center py-4">No meetings this week.</div>
         ) : bookings.map((b, i) => {
           const [by, bm, bd] = (b.date || '').split('-').map(Number)
           const bookingDate = by ? new Date(by, bm - 1, bd) : null
@@ -894,9 +895,9 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
               <div className={`w-2 h-2 rounded-full flex-shrink-0 ${b.type === 'client' ? 'bg-emerald-500' : 'bg-purple-500'}`} />
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-medium truncate">
-                  {b.client_name ? `${b.client_name} — ${b.title}` : b.title}
+                  {b.client_name ? `${b.client_name}: ${b.title}` : b.title}
                 </div>
-                <div className="text-xs text-gray-400">
+                <div className="text-xs text-gray-500">
                   {bookingDate && bookingDate.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })} · {formatTime12(b.start_time)} · {formatDuration(b.duration_minutes)}
                   {b.attendees?.length > 1 && ` · ${b.attendees.length} attendees`}
                   {b.external_source && ` · via ${b.external_source}`}

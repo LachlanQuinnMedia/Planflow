@@ -88,9 +88,9 @@ export default function Register({ onBack, onSuccess }) {
             <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 text-2xl mx-auto mb-4">✓</div>
             <div className="text-base font-semibold mb-2">Account created!</div>
             {createdRole === 'director' ? (
-              <div className="text-xs text-gray-500 mb-6">Your director account is ready. You can sign in now.</div>
+              <div className="text-xs text-gray-600 mb-6">Your director account is ready. You can sign in now.</div>
             ) : (
-              <div className="text-xs text-gray-500 mb-6">Your account has been created and is pending approval from a director. A director approves new accounts from the Notifications panel in QPlan. You can sign in as soon as that is done.</div>
+              <div className="text-xs text-gray-600 mb-6">Your account has been created and is pending approval from a director. A director approves new accounts from the Notifications panel in QPlan. You can sign in as soon as that is done.</div>
             )}
             <button
               onClick={onBack}
@@ -114,10 +114,10 @@ export default function Register({ onBack, onSuccess }) {
 
         <div className="bg-white rounded-2xl border border-gray-200 p-8">
           <div className="flex items-center gap-2 mb-1">
-            <button onClick={step === 1 ? onBack : () => setStep(1)} className="text-gray-400 hover:text-gray-600 text-sm">←</button>
+            <button onClick={step === 1 ? onBack : () => setStep(1)} className="text-gray-500 hover:text-gray-600 text-sm">←</button>
             <div className="text-base font-semibold">Create account</div>
           </div>
-          <div className="text-xs text-gray-400 mb-2">Step {step} of 2</div>
+          <div className="text-xs text-gray-500 mb-2">Step {step} of 2</div>
 
           {/* Step indicator */}
           <div className="flex gap-1 mb-6">
@@ -175,7 +175,7 @@ export default function Register({ onBack, onSuccess }) {
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">
-                  Director code <span className="text-gray-400 font-normal">(optional — directors only)</span>
+                  Director code <span className="text-gray-500 font-normal">(optional, directors only)</span>
                 </label>
                 <input
                   type="text"
@@ -217,7 +217,7 @@ export default function Register({ onBack, onSuccess }) {
                   placeholder="Your answer (not case sensitive)"
                   className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400"
                 />
-                <div className="text-xs text-gray-400 mt-1">This is used to recover your account if you forget your password.</div>
+                <div className="text-xs text-gray-500 mt-1">This is used to recover your account if you forget your password.</div>
               </div>
               <button
                 onClick={handleSubmit}
@@ -230,7 +230,7 @@ export default function Register({ onBack, onSuccess }) {
           )}
 
           <div className="mt-5 text-center">
-            <span className="text-xs text-gray-400">Already have an account? </span>
+            <span className="text-xs text-gray-500">Already have an account? </span>
             <button onClick={onBack} className="text-xs text-emerald-600 font-medium hover:underline">
               Sign in
             </button>

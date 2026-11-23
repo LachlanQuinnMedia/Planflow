@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabase'
+import { IconAlert } from './icons'
 
 // Profile colours. 24 clearly different colours so everyone on the team can have their own.
 // The first ten keep their original values, so profiles saved before this list grew are unchanged.
@@ -71,10 +72,10 @@ function DeactivateModal({ staff, profile, onConfirm, onCancel }) {
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
       <div className="bg-white rounded-xl border border-gray-200 p-6 w-full max-w-sm">
         <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center mb-3">
-          <span className="text-red-600 text-lg">⚠</span>
+          <span className="text-red-600"><IconAlert size={18} /></span>
         </div>
         <div className="text-sm font-semibold mb-1">Deactivate {name}?</div>
-        <div className="text-xs text-gray-500 mb-4">
+        <div className="text-xs text-gray-600 mb-4">
           This will prevent <span className="font-medium">{name}</span> from logging into QPlan. Their job history, time logs and documents will be preserved. You can reactivate their account at any time.
         </div>
         <div className="bg-red-50 border border-red-100 rounded-lg px-3 py-2 text-xs text-red-600 mb-4">
@@ -98,7 +99,7 @@ function ReactivateModal({ staff, profile, onConfirm, onCancel }) {
           <span className="text-emerald-600 text-lg">✓</span>
         </div>
         <div className="text-sm font-semibold mb-1">Reactivate {name}?</div>
-        <div className="text-xs text-gray-500 mb-4">
+        <div className="text-xs text-gray-600 mb-4">
           This will restore <span className="font-medium">{name}</span>'s access to QPlan. They will be able to log in immediately with their existing credentials.
         </div>
         <div className="flex gap-2">
@@ -185,14 +186,14 @@ function EditProfileModal({ staffUser, profile, currentUser, takenColors = {}, o
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div>
             <div className="text-sm font-semibold">Edit profile</div>
-            <div className="text-xs text-gray-400 mt-0.5">{staffUser?.username}</div>
+            <div className="text-xs text-gray-500 mt-0.5">{staffUser?.username}</div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-600 text-lg">✕</button>
         </div>
 
         <div className="px-6 py-5 space-y-5 overflow-y-auto max-h-[70vh]">
           <div>
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Profile picture</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Profile picture</div>
             <div className="flex items-center gap-4">
               <Avatar profile={{ ...form, avatar_url: avatarUrl }} username={staffUser?.username} size="lg" />
               <div className="flex-1">
@@ -209,7 +210,7 @@ function EditProfileModal({ staffUser, profile, currentUser, takenColors = {}, o
                     </button>
                   )}
                 </div>
-                <div className="text-xs text-gray-400 mb-2">Or pick a colour. A small dot means a teammate already uses it.</div>
+                <div className="text-xs text-gray-500 mb-2">Or pick a colour. A small dot means a teammate already uses it.</div>
                 <div className="grid grid-cols-8 gap-2 max-w-[280px]">
                   {AVATAR_COLORS.map(c => {
                     const takenBy = takenColors[c.hex]
@@ -229,16 +230,16 @@ function EditProfileModal({ staffUser, profile, currentUser, takenColors = {}, o
           </div>
 
           <div>
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Personal info</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Personal info</div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs text-gray-500 mb-1 block">Full name</label>
+                <label className="text-xs text-gray-600 mb-1 block">Full name</label>
                 <input value={form.full_name} onChange={e => set('full_name', e.target.value)}
                   placeholder="Sarah Barnes"
                   className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
               </div>
               <div>
-                <label className="text-xs text-gray-500 mb-1 block">Position / title</label>
+                <label className="text-xs text-gray-600 mb-1 block">Position / title</label>
                 <select value={form.position} onChange={e => set('position', e.target.value)}
                   className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
                   <option value="">Select position...</option>
@@ -252,25 +253,25 @@ function EditProfileModal({ staffUser, profile, currentUser, takenColors = {}, o
                 </select>
               </div>
               <div>
-                <label className="text-xs text-gray-500 mb-1 block">Email</label>
+                <label className="text-xs text-gray-600 mb-1 block">Email</label>
                 <input value={form.email} onChange={e => set('email', e.target.value)}
                   placeholder="sarah@hpcplanning.com.au"
                   className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
               </div>
               <div>
-                <label className="text-xs text-gray-500 mb-1 block">Phone</label>
+                <label className="text-xs text-gray-600 mb-1 block">Phone</label>
                 <input value={form.phone} onChange={e => set('phone', e.target.value)}
                   placeholder="04XX XXX XXX"
                   className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
               </div>
               <div>
-                <label className="text-xs text-gray-500 mb-1 block">Specialisation</label>
+                <label className="text-xs text-gray-600 mb-1 block">Specialisation</label>
                 <input value={form.specialisation} onChange={e => set('specialisation', e.target.value)}
                   placeholder="MCU, RAA, Impact assessable"
                   className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
               </div>
               <div>
-                <label className="text-xs text-gray-500 mb-1 block">Calendly link</label>
+                <label className="text-xs text-gray-600 mb-1 block">Calendly link</label>
                 <input value={form.calendly} onChange={e => set('calendly', e.target.value)}
                   placeholder="calendly.com/yourname"
                   className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
@@ -279,9 +280,9 @@ function EditProfileModal({ staffUser, profile, currentUser, takenColors = {}, o
           </div>
 
           <div>
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Billing</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Billing</div>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Hourly rate ($/hr excl. GST)</label>
+              <label className="text-xs text-gray-600 mb-1 block">Hourly rate ($/hr excl. GST)</label>
               <input type="number" value={form.hourly_rate} onChange={e => set('hourly_rate', e.target.value)}
                 placeholder="185"
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
@@ -289,17 +290,17 @@ function EditProfileModal({ staffUser, profile, currentUser, takenColors = {}, o
           </div>
 
           <div>
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Document sign-off</div>
-            <div className="text-xs text-gray-400 mb-3">How your name appears on letters, reports and quotes — fill this in once and it autofills every document.</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Document sign-off</div>
+            <div className="text-xs text-gray-500 mb-3">How your name appears on letters, reports and quotes. Fill this in once and it autofills every document.</div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs text-gray-500 mb-1 block">Sign-off name</label>
+                <label className="text-xs text-gray-600 mb-1 block">Sign-off name</label>
                 <input value={form.sign_off_name} onChange={e => set('sign_off_name', e.target.value)}
                   placeholder="Sarah Barnes"
                   className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
               </div>
               <div>
-                <label className="text-xs text-gray-500 mb-1 block">Sign-off position</label>
+                <label className="text-xs text-gray-600 mb-1 block">Sign-off position</label>
                 <input value={form.sign_off_position} onChange={e => set('sign_off_position', e.target.value)}
                   placeholder="Urban Planner"
                   className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
@@ -398,7 +399,7 @@ export default function Planners({ currentUser }) {
   const canEdit = (staffId) => isDirector || staffId === currentUser.id
 
   if (loading) return (
-    <div className="text-sm text-gray-400 text-center py-12">Loading planners...</div>
+    <div className="text-sm text-gray-500 text-center py-12">Loading planners...</div>
   )
 
   const PlannerCard = ({ staff, isInactive = false }) => {
@@ -426,17 +427,17 @@ export default function Planners({ currentUser }) {
               {isMe && <span className="text-xs px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded-full flex-shrink-0">You</span>}
               {isInactive && <span className="text-xs px-1.5 py-0.5 bg-red-100 text-red-600 rounded-full flex-shrink-0">Inactive</span>}
             </div>
-            <div className="text-xs text-gray-400">{profile?.position || staff.role}</div>
+            <div className="text-xs text-gray-500">{profile?.position || staff.role}</div>
           </div>
         </div>
         {profile?.specialisation && (
-          <div className="text-xs text-gray-400 mb-2 truncate">{profile.specialisation}</div>
+          <div className="text-xs text-gray-500 mb-2 truncate">{profile.specialisation}</div>
         )}
         {!profile && (
-          <div className="text-xs text-gray-300 italic mb-2">Profile not set up yet</div>
+          <div className="text-xs text-gray-500 italic mb-2">Profile not set up yet</div>
         )}
-        <div className="flex justify-between text-xs text-gray-400 mt-2">
-          <span>{isInactive ? 'Account inactive' : '—'}</span>
+        <div className="flex justify-between text-xs text-gray-500 mt-2">
+          <span>{isInactive ? 'Account inactive' : '-'}</span>
           <span>{staff.role}</span>
         </div>
       </div>
@@ -482,7 +483,7 @@ export default function Planners({ currentUser }) {
       )}
 
       <div className="flex justify-between items-center mb-4">
-        <div className="text-xs text-gray-400">
+        <div className="text-xs text-gray-500">
           {activeStaff.length} active · {inactiveStaff.length} inactive
         </div>
         <button
@@ -500,10 +501,10 @@ export default function Planners({ currentUser }) {
         ))}
       </div>
 
-      {/* Inactive planners — directors only */}
+      {/* Inactive planners - directors only */}
       {isDirector && inactiveStaff.length > 0 && (
         <div className="mt-6">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Inactive accounts</div>
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Inactive accounts</div>
           <div className="grid grid-cols-3 gap-3">
             {inactiveStaff.map(staff => (
               <PlannerCard key={staff.id} staff={staff} isInactive={true} />
@@ -537,7 +538,7 @@ export default function Planners({ currentUser }) {
                     <span className="text-xs px-2 py-0.5 bg-red-100 text-red-600 rounded-full">Inactive</span>
                   )}
                 </div>
-                <div className="text-xs text-gray-400">
+                <div className="text-xs text-gray-500">
                   {profile?.position || selected.role}
                   {profile?.hourly_rate > 0 ? ` · $${profile.hourly_rate}/hr` : ''}
                 </div>
@@ -570,27 +571,27 @@ export default function Planners({ currentUser }) {
                     </button>
                   )
                 )}
-                <button onClick={() => setSelected(null)} className="text-xs text-gray-400 hover:text-gray-600 px-2">✕</button>
+                <button onClick={() => setSelected(null)} className="text-xs text-gray-500 hover:text-gray-600 px-2">✕</button>
               </div>
             </div>
 
             <div className="grid grid-cols-3 gap-4">
               {[
-                ['Specialisation', profile?.specialisation || '—'],
-                ['Email', profile?.email || '—'],
-                ['Phone', profile?.phone || '—'],
-                ['Hourly rate', profile?.hourly_rate ? `$${profile.hourly_rate}/hr` : '—'],
+                ['Specialisation', profile?.specialisation || '-'],
+                ['Email', profile?.email || '-'],
+                ['Phone', profile?.phone || '-'],
+                ['Hourly rate', profile?.hourly_rate ? `$${profile.hourly_rate}/hr` : '-'],
                 ['Sign-off name', profile?.sign_off_name || name],
-                ['Sign-off position', profile?.sign_off_position || profile?.position || '—'],
+                ['Sign-off position', profile?.sign_off_position || profile?.position || '-'],
               ].map(([k, v]) => (
                 <div key={k}>
-                  <div className="text-xs text-gray-400 mb-0.5">{k}</div>
+                  <div className="text-xs text-gray-500 mb-0.5">{k}</div>
                   <div className="text-xs font-medium">{v}</div>
                 </div>
               ))}
               {profile?.calendly && (
                 <div>
-                  <div className="text-xs text-gray-400 mb-0.5">Calendly</div>
+                  <div className="text-xs text-gray-500 mb-0.5">Calendly</div>
                   <div className="text-xs font-medium text-emerald-600">{profile.calendly}</div>
                 </div>
               )}
@@ -605,7 +606,7 @@ export default function Planners({ currentUser }) {
             {!profile && !isInactive && (
               <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700">
                 {selected.id === currentUser.id
-                  ? 'Your profile isn\'t set up yet. Click "Edit profile" to get started — it only takes a minute and will autofill all your documents.'
+                  ? 'Your profile isn\'t set up yet. Click "Edit profile" to get started. It only takes a minute and will autofill all your documents.'
                   : `${selected.username} hasn't set up their profile yet.`}
               </div>
             )}

@@ -20,6 +20,7 @@ import Xero from './XeroPage'
 import Microsoft365 from './Microsoft365'
 import qplanLogo from './assets/plan_logo.PNG'
 import { timerLabel } from './jobMeta'
+import { IconPlay, IconStop } from './icons'
 
 const SUPABASE_URL = 'https://sltaaiumviyzgdsdkkbe.supabase.co'
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdGFhaXVtdml5emdkc2Rra2JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MTYyNTMsImV4cCI6MjA5MDQ5MjI1M30.xqWqvx8vdofj119nXDpasQ8xVD67YJU0RrjTrxycTGo'
@@ -103,7 +104,7 @@ function GlobalTimer({ jobs, currentUser, activeJob }) {
       if (totalSeconds < 10) return
       const job = jobsRef.current.find(j => String(j.id) === String(record.job_id))
       if (!job) return
-      const shouldSave = window.confirm(`You have an unfinished timer for ${record.job_code} — "${record.task}" (${formatTimer(totalSeconds)}). Save it to the time log?`)
+      const shouldSave = window.confirm(`You have an unfinished timer for ${record.job_code}: "${record.task}" (${formatTimer(totalSeconds)}). Save it to the time log?`)
       if (shouldSave) {
         await supabase.from('time_logs').insert({
           job_id: job.id, job_code: job.code, planner: plannerName,
@@ -245,16 +246,16 @@ function GlobalTimer({ jobs, currentUser, activeJob }) {
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
           <div className="bg-white rounded-xl border border-gray-200 p-5 w-full max-w-sm">
             <div className="text-sm font-semibold mb-2">Switch the timer to this job?</div>
-            <div className="text-xs text-gray-500 leading-relaxed mb-3">
+            <div className="text-xs text-gray-600 leading-relaxed mb-3">
               Your timer is running on <span className="font-medium text-gray-700">{selectedJob ? timerLabel(selectedJob) : 'another job'}</span> ({formatTimer(displaySeconds)}).
               You have opened <span className="font-medium text-gray-700">{timerLabel(switchPrompt)}</span>.
             </div>
-            <label className="block text-xs text-gray-500 mb-1">What are you working on for {switchPrompt.code}?</label>
+            <label className="block text-xs text-gray-600 mb-1">What are you working on for {switchPrompt.code}?</label>
             <input type="text" value={switchTask} onChange={e => setSwitchTask(e.target.value)} autoFocus
               onKeyDown={e => { if (e.key === 'Enter') confirmSwitch() }}
               placeholder="e.g. IR response"
               className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400 mb-1" />
-            <div className="text-xs text-gray-400 mb-4">Switching saves the time so far to {selectedJob?.code || 'the current job'} and starts a new entry.</div>
+            <div className="text-xs text-gray-500 mb-4">Switching saves the time so far to {selectedJob?.code || 'the current job'} and starts a new entry.</div>
             <div className="flex gap-2">
               <button onClick={declineSwitch} className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium">Keep current timer</button>
               <button onClick={confirmSwitch} disabled={!switchTask.trim()}
@@ -267,7 +268,7 @@ function GlobalTimer({ jobs, currentUser, activeJob }) {
         document.body
       )}
 
-      <div className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-2">Time tracker</div>
+      <div className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-2">Time tracker</div>
       <select value={selectedJobId} onChange={e => setSelectedJobId(e.target.value)} disabled={isRunning || busy}
         className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-emerald-400 mb-2 disabled:bg-gray-50 disabled:text-gray-400">
         <option value="">Select job...</option>
@@ -277,14 +278,14 @@ function GlobalTimer({ jobs, currentUser, activeJob }) {
         disabled={isRunning || busy} onKeyDown={e => { if (e.key === 'Enter' && !isRunning && !e.repeat) startTimer() }}
         className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-emerald-400 mb-2 disabled:bg-gray-50 disabled:text-gray-400" />
       <div className="flex items-center gap-2">
-        <div className={`font-mono text-sm font-bold flex-1 text-center py-1.5 rounded-lg ${isRunning ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-50 text-gray-400'}`}>
+        <div className={`font-mono text-sm font-bold flex-1 text-center py-1.5 rounded-lg ${isRunning ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-50 text-gray-500'}`}>
           {formatTimer(displaySeconds)}
         </div>
         {!isRunning ? (
-          <button onClick={startTimer} disabled={busy} className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium disabled:opacity-50" title="Start timer">{starting ? '...' : '▶'}</button>
+          <button onClick={startTimer} disabled={busy} className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium disabled:opacity-50" title="Start timer" aria-label="Start timer">{starting ? '...' : <IconPlay size={12} />}</button>
         ) : (
-          <button onClick={stopTimer} disabled={saving} className="px-3 py-1.5 text-xs bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium disabled:opacity-50" title="Stop and save">
-            {saving ? '...' : '⏹'}
+          <button onClick={stopTimer} disabled={saving} className="px-3 py-1.5 text-xs bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium disabled:opacity-50" title="Stop and save" aria-label="Stop timer and save">
+            {saving ? '...' : <IconStop size={12} />}
           </button>
         )}
       </div>
@@ -311,10 +312,10 @@ function NotificationPanel({ notifications, lastSeenAt, onClose, onApprove, onRe
     <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-80 overflow-y-auto">
       <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
         <div className="text-xs font-semibold text-gray-600">Notifications</div>
-        <button onClick={onClose} className="text-xs text-gray-400 hover:text-gray-600 px-2 py-0.5 rounded hover:bg-gray-100">✕ Close</button>
+        <button onClick={onClose} className="text-xs text-gray-500 hover:text-gray-600 px-2 py-0.5 rounded hover:bg-gray-100">✕ Close</button>
       </div>
       {notifications.length === 0 ? (
-        <div className="px-3 py-6 text-xs text-gray-400 text-center">No notifications</div>
+        <div className="px-3 py-6 text-xs text-gray-500 text-center">No notifications</div>
       ) : (
         notifications.map(n => {
           const username = extractUsername(n.message)
@@ -330,7 +331,7 @@ function NotificationPanel({ notifications, lastSeenAt, onClose, onApprove, onRe
                 </div>
               )}
               <div className="text-xs font-medium text-gray-700 mb-1">{n.message}</div>
-              <div className="text-xs text-gray-400 mb-2">
+              <div className="text-xs text-gray-500 mb-2">
                 {new Date(n.created_at).toLocaleString('en-AU', {
                   timeZone: 'Australia/Brisbane',
                   day: 'numeric', month: 'short',
@@ -359,7 +360,7 @@ function NotificationPanel({ notifications, lastSeenAt, onClose, onApprove, onRe
                 <button
                   onClick={() => onDismiss(n)}
                   disabled={isProcessing}
-                  className="w-full py-1 text-xs text-gray-400 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                  className="w-full py-1 text-xs text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50"
                 >
                   {isProcessing ? '...' : 'Dismiss'}
                 </button>
@@ -719,7 +720,7 @@ export default function App() {
       case 'jobs': return <Jobs onNavigate={handleNavigate} onJobCountChange={setJobCount} currentUser={currentUser} />
       case 'newjob': return <NewJob onNavigate={handleNavigate} currentUser={currentUser} />
       case 'jobdetail': return <JobDetail job={selectedJob} onNavigate={handleNavigate} currentUser={currentUser} />
-      case 'workload': return isDirector ? <Workload currentUser={currentUser} /> : <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-sm text-gray-400">Access restricted to directors.</div>
+      case 'workload': return isDirector ? <Workload currentUser={currentUser} /> : <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-sm text-gray-500">Access restricted to directors.</div>
       case 'xero': return <Xero currentUser={currentUser} />
       case 'calendly': return <Bookings onNavigate={handleNavigate} currentUser={currentUser} />
       case 'calendar': return (
@@ -734,7 +735,7 @@ export default function App() {
       case 'time': return <TimeBudget currentUser={currentUser} />
       case 'planners': return <Planners currentUser={currentUser} />
       case 'microsoft': return <Microsoft365 currentUser={currentUser} notice={msNotice} onNoticeShown={() => setMsNotice(null)} />
-      default: return <div className="bg-white rounded-xl border border-gray-200 p-6"><p className="text-sm text-gray-400">This page is coming soon.</p></div>
+      default: return <div className="bg-white rounded-xl border border-gray-200 p-6"><p className="text-sm text-gray-500">This page is coming soon.</p></div>
     }
   }
 
@@ -757,10 +758,10 @@ export default function App() {
           <span className="text-sm font-semibold text-gray-800">QPlan</span>
           <div className="flex items-center gap-0.5 ml-auto">
             <button onClick={goBack} disabled={!canGoBack}
-              className={`w-8 h-8 flex items-center justify-center rounded-md transition-colors ${canGoBack ? 'text-gray-500 hover:bg-gray-100 hover:text-gray-900' : 'text-gray-200 cursor-not-allowed'}`}
+              className={`w-8 h-8 flex items-center justify-center rounded-md transition-colors ${canGoBack ? 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' : 'text-gray-200 cursor-not-allowed'}`}
               style={{ fontSize: '22px', lineHeight: 1 }}>‹</button>
             <button onClick={goForward} disabled={!canGoForward}
-              className={`w-8 h-8 flex items-center justify-center rounded-md transition-colors ${canGoForward ? 'text-gray-500 hover:bg-gray-100 hover:text-gray-900' : 'text-gray-200 cursor-not-allowed'}`}
+              className={`w-8 h-8 flex items-center justify-center rounded-md transition-colors ${canGoForward ? 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' : 'text-gray-200 cursor-not-allowed'}`}
               style={{ fontSize: '22px', lineHeight: 1 }}>›</button>
           </div>
         </div>
@@ -768,10 +769,10 @@ export default function App() {
         <div className="flex-1 overflow-y-auto py-2">
           {['main', 'tools', 'settings'].map(section => (
             <div key={section} className="px-2 mb-2">
-              <div className="text-xs text-gray-400 uppercase tracking-wider px-2 py-1">{section}</div>
+              <div className="text-xs text-gray-500 uppercase tracking-wider px-2 py-1">{section}</div>
               {visibleNavItems.filter(i => i.section === section).map(item => (
                 <button key={item.id} onClick={() => handleNavigate(item.id)}
-                  className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-sm mb-0.5 transition-colors ${activePage === item.id ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'}`}>
+                  className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-sm mb-0.5 transition-colors ${activePage === item.id ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-800'}`}>
                   {item.label}
                   {item.id === 'jobs' && jobCount > 0 && (
                     <span className="bg-emerald-600 text-white text-xs px-1.5 py-0.5 rounded-full">{jobCount}</span>
@@ -789,9 +790,9 @@ export default function App() {
             <div className="relative">
               <button
                 onClick={handleOpenNotifications}
-                className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-gray-100 text-xs text-gray-500 transition-colors"
+                className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-gray-100 text-xs text-gray-600 transition-colors"
               >
-                <span>🔔 Notifications</span>
+                <span>Notifications</span>
                 {unreadCount > 0 && (
                   <span className="bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full font-medium">{unreadCount}</span>
                 )}
@@ -816,7 +817,7 @@ export default function App() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-xs font-medium truncate">{currentUser.username}</div>
-              <div className="text-xs text-gray-400 capitalize">{currentUser.role}</div>
+              <div className="text-xs text-gray-500 capitalize">{currentUser.role}</div>
             </div>
           </div>
 
@@ -831,7 +832,7 @@ export default function App() {
         <div className="h-12 bg-white border-b border-gray-200 flex items-center px-4 gap-3 flex-shrink-0">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="md:hidden p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 flex-shrink-0"
+            className="md:hidden p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 flex-shrink-0"
             aria-label="Open menu"
           >
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -842,7 +843,7 @@ export default function App() {
           </button>
           <div className="flex-1 text-sm font-medium truncate">{pageTitles[activePage]}</div>
           {isDirector && currentUser.companyName && (
-            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-lg hidden sm:block">{currentUser.companyName}</span>
+            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-lg hidden sm:block">{currentUser.companyName}</span>
           )}
           <button onClick={() => handleNavigate('newjob')} className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex-shrink-0">+ New Job</button>
         </div>

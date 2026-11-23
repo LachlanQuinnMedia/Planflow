@@ -20,7 +20,7 @@ const statusColors = {
 const stageTone = {
   complete: { dot: 'bg-emerald-500', text: 'text-emerald-700', label: 'Complete' },
   active: { dot: 'bg-amber-400', text: 'text-amber-700', label: 'In progress' },
-  pending: { dot: 'bg-gray-300', text: 'text-gray-400', label: 'Not started' },
+  pending: { dot: 'bg-gray-300', text: 'text-gray-500', label: 'Not started' },
 }
 
 function formatDate(dateStr) {
@@ -40,7 +40,7 @@ function formatDateTime(iso) {
 function Card({ title, children, className = '' }) {
   return (
     <section className={`bg-white rounded-xl border border-gray-200 p-5 break-inside-avoid ${className}`}>
-      <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">{title}</h2>
+      <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">{title}</h2>
       {children}
     </section>
   )
@@ -50,7 +50,7 @@ function Row({ label, value, href }) {
   if (value === null || value === undefined || value === '') return null
   return (
     <div className="flex gap-3 py-1.5 border-b border-gray-50 last:border-0">
-      <div className="text-xs text-gray-400 w-28 flex-shrink-0">{label}</div>
+      <div className="text-xs text-gray-500 w-28 flex-shrink-0">{label}</div>
       <div className="text-xs text-gray-800 min-w-0 break-words">
         {href ? <a href={href} className="text-emerald-700 hover:underline">{value}</a> : value}
       </div>
@@ -64,7 +64,7 @@ function Shell({ company, children }) {
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-3">
           <div className="text-sm font-semibold text-gray-800">{company || 'Job summary'}</div>
-          <div className="text-xs text-gray-400">Job summary</div>
+          <div className="text-xs text-gray-500">Job summary</div>
         </div>
       </header>
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6">{children}</main>
@@ -92,7 +92,7 @@ export default function JobSummary({ token }) {
   }, [token])
 
   if (state === 'loading') {
-    return <Shell><div className="bg-white rounded-xl border border-gray-200 p-10 text-center text-sm text-gray-400">Loading job summary...</div></Shell>
+    return <Shell><div className="bg-white rounded-xl border border-gray-200 p-10 text-center text-sm text-gray-500">Loading job summary...</div></Shell>
   }
 
   if (state === 'missing' || state === 'error') {
@@ -102,7 +102,7 @@ export default function JobSummary({ token }) {
           <div className="text-sm font-semibold text-gray-800 mb-1">
             {state === 'missing' ? 'This summary link is not active' : 'The summary could not be loaded'}
           </div>
-          <div className="text-xs text-gray-400 max-w-sm mx-auto">
+          <div className="text-xs text-gray-500 max-w-sm mx-auto">
             {state === 'missing'
               ? 'The link may have been turned off or replaced. Ask the person who sent it for a new one.'
               : 'Check your connection and reload the page. If it keeps happening, ask the person who sent the link.'}
@@ -140,8 +140,8 @@ export default function JobSummary({ token }) {
           <h1 className="text-xl font-semibold text-gray-900 leading-snug break-words">{buildJobName(job) || job.code}</h1>
           <div className="flex items-center gap-2 mt-2 flex-wrap">
             {job.status && <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[job.status] || 'bg-gray-100 text-gray-600'}`}>{job.status}</span>}
-            {job.app_type && <span className="text-xs text-gray-500">{appTypeFull(job.app_type)}</span>}
-            {job.assessment_level && <span className="text-xs text-gray-400">· {job.assessment_level}</span>}
+            {job.app_type && <span className="text-xs text-gray-600">{appTypeFull(job.app_type)}</span>}
+            {job.assessment_level && <span className="text-xs text-gray-500">· {job.assessment_level}</span>}
           </div>
         </div>
         <button onClick={() => window.print()} className="print:hidden px-3 py-1.5 text-xs border border-gray-200 bg-white rounded-lg hover:bg-gray-50 text-gray-600 flex-shrink-0">
@@ -174,15 +174,15 @@ export default function JobSummary({ token }) {
 
         <Card title="Project team">
           {(job.team || []).length === 0 ? (
-            <div className="text-xs text-gray-400">No planners assigned yet.</div>
+            <div className="text-xs text-gray-500">No planners assigned yet.</div>
           ) : (job.team || []).map((p, i) => (
             <div key={`${p.username}-${i}`} className="py-2 border-b border-gray-50 last:border-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs font-semibold text-gray-800">{p.name}</span>
                 {p.lead && <span className="text-xs px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-medium">Lead</span>}
               </div>
-              {p.position && <div className="text-xs text-gray-500">{p.position}</div>}
-              <div className="text-xs text-gray-500 flex gap-x-3 flex-wrap">
+              {p.position && <div className="text-xs text-gray-600">{p.position}</div>}
+              <div className="text-xs text-gray-600 flex gap-x-3 flex-wrap">
                 {p.email && <a href={`mailto:${p.email}`} className="text-emerald-700 hover:underline">{p.email}</a>}
                 {p.phone && <a href={`tel:${String(p.phone).replace(/\s+/g, '')}`} className="text-emerald-700 hover:underline">{p.phone}</a>}
               </div>
@@ -208,15 +208,15 @@ export default function JobSummary({ token }) {
                   <div className="flex items-start gap-2">
                     <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${tone.dot}`} />
                     <div className="min-w-0 flex-1">
-                      <div className="text-xs font-medium text-gray-800">{stage.label.replace(' — ', ': ')}</div>
+                      <div className="text-xs font-medium text-gray-800">{stage.label}</div>
                       <div className={`text-xs ${tone.text}`}>
                         {tone.label}
-                        {total > 0 && <span className="text-gray-400"> · {done} of {total} tasks done</span>}
-                        {data.completedDate && <span className="text-gray-400"> · {formatDate(data.completedDate)}</span>}
+                        {total > 0 && <span className="text-gray-500"> · {done} of {total} tasks done</span>}
+                        {data.completedDate && <span className="text-gray-500"> · {formatDate(data.completedDate)}</span>}
                       </div>
                     </div>
                     {job.include_budget && data.fee !== undefined && data.fee !== null && data.fee !== '' && (
-                      <div className="text-xs text-gray-500 flex-shrink-0">${Number(data.fee).toLocaleString('en-AU')}</div>
+                      <div className="text-xs text-gray-600 flex-shrink-0">${Number(data.fee).toLocaleString('en-AU')}</div>
                     )}
                   </div>
                 </div>
@@ -234,7 +234,7 @@ export default function JobSummary({ token }) {
                 <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                   <div className={`h-full rounded-full ${pct > 100 ? 'bg-red-500' : pct > 75 ? 'bg-amber-400' : 'bg-emerald-500'}`} style={{ width: `${Math.min(pct, 100)}%` }} />
                 </div>
-                <div className="text-xs text-gray-400 mt-1">{pct}% of budget used</div>
+                <div className="text-xs text-gray-500 mt-1">{pct}% of budget used</div>
               </div>
             )}
           </Card>
@@ -257,18 +257,18 @@ export default function JobSummary({ token }) {
                   <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${tone.dot}`} />
                   <div className="min-w-0 flex-1">
                     <div className="text-xs font-medium text-gray-800">{stage.label}</div>
-                    <div className="text-xs text-gray-400">{stage.description.replace(' — ', ': ')}</div>
+                    <div className="text-xs text-gray-500">{stage.description}</div>
                   </div>
                   <div className="text-right flex-shrink-0">
                     <div className={`text-xs font-medium ${tone.text}`}>
                       {data.isStopped ? 'Clock stopped' : tone.label}
                     </div>
                     {(data.startDate || data.endDate) && (
-                      <div className="text-xs text-gray-400">
+                      <div className="text-xs text-gray-500">
                         {[data.startDate && formatDate(data.startDate), data.endDate && formatDate(data.endDate)].filter(Boolean).join(' to ')}
                       </div>
                     )}
-                    {left && <div className={`text-xs ${left.overdue ? 'text-red-600' : 'text-gray-500'}`}>{left.label}</div>}
+                    {left && <div className={`text-xs ${left.overdue ? 'text-red-600' : 'text-gray-600'}`}>{left.label}</div>}
                   </div>
                 </div>
               )
@@ -283,7 +283,7 @@ export default function JobSummary({ token }) {
         )}
       </div>
 
-      <footer className="text-xs text-gray-400 mt-6 text-center leading-relaxed">
+      <footer className="text-xs text-gray-500 mt-6 text-center leading-relaxed">
         Live summary from QPlan{job.company ? ` for ${job.company}` : ''}. Shows the job as at {formatDateTime(job.generated_at)} (Brisbane time). Reload the page for the latest.
       </footer>
     </Shell>

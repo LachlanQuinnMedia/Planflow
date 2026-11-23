@@ -45,7 +45,7 @@ export default function Login({ onLogin, onRegister, onForgotPassword }) {
 
         <div className="bg-white rounded-2xl border border-gray-200 p-8">
           <div className="text-base font-semibold mb-1">Welcome back</div>
-          <div className="text-xs text-gray-400 mb-6">Sign in to your account</div>
+          <div className="text-xs text-gray-500 mb-6">Sign in to your account</div>
 
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-600 text-xs rounded-lg px-3 py-2 mb-4">
@@ -99,7 +99,7 @@ export default function Login({ onLogin, onRegister, onForgotPassword }) {
                     onChange={e => setRememberMe(e.target.checked)}
                     className="w-3.5 h-3.5 accent-emerald-600"
                   />
-                  <span className="text-xs text-gray-500">Remember me</span>
+                  <span className="text-xs text-gray-600">Remember me</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -108,7 +108,7 @@ export default function Login({ onLogin, onRegister, onForgotPassword }) {
                     onChange={e => setStayLoggedIn(e.target.checked)}
                     className="w-3.5 h-3.5 accent-emerald-600"
                   />
-                  <span className="text-xs text-gray-500">Stay logged in</span>
+                  <span className="text-xs text-gray-600">Stay logged in</span>
                 </label>
               </div>
               <button
@@ -130,14 +130,14 @@ export default function Login({ onLogin, onRegister, onForgotPassword }) {
           </form>
 
           <div className="mt-5 text-center">
-            <span className="text-xs text-gray-400">Don't have an account? </span>
+            <span className="text-xs text-gray-500">Don't have an account? </span>
             <button onClick={onRegister} className="text-xs text-emerald-600 font-medium hover:underline">
               Create account
             </button>
           </div>
         </div>
 
-        <div className="text-center mt-4 text-xs text-gray-300">
+        <div className="text-center mt-4 text-xs text-gray-500">
           QPlan · Less process. More progress.
         </div>
       </div>

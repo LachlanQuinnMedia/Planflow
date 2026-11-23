@@ -28,7 +28,7 @@ function formatDate(ts) {
 function StepCard({ number, title, done, warn, children }) {
   const badge = done
     ? 'bg-emerald-100 text-emerald-700'
-    : warn ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'
+    : warn ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'
   return (
     <div className={`bg-white rounded-xl border p-5 ${warn ? 'border-amber-300' : 'border-gray-200'}`}>
       <div className="flex items-start gap-3">
@@ -158,7 +158,7 @@ export default function Microsoft365({ currentUser, notice, onNoticeShown }) {
   }
 
   if (loading) {
-    return <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-xs text-gray-400">Checking Microsoft 365...</div>
+    return <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-xs text-gray-500">Checking Microsoft 365...</div>
   }
 
   const calendarFor = (username) => teamCalendars.find(c => c.username === username)
@@ -168,7 +168,7 @@ export default function Microsoft365({ currentUser, notice, onNoticeShown }) {
     <div className="max-w-3xl space-y-4">
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <div className="text-sm font-semibold text-gray-800 mb-1">Microsoft 365</div>
-        <div className="text-xs text-gray-500 leading-relaxed">
+        <div className="text-xs text-gray-600 leading-relaxed">
           Connect {firmName}'s Microsoft 365 so planners can open and co-edit Word files from QPlan, and meetings appear in their own Outlook calendars.
           Each step is done once. {isDirector ? 'Steps 1 and 2 are for the firm. Step 3 is for each person.' : 'A director looks after steps 1 and 2. Step 3 is yours.'}
         </div>
@@ -184,13 +184,13 @@ export default function Microsoft365({ currentUser, notice, onNoticeShown }) {
       {/* Step 1: admin approval */}
       <StepCard number={1} title={`Approve QPlan for ${firmName}`} done={approved}>
         {approved ? (
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-gray-600">
             Approved {formatDate(company.ms_admin_consent_at)}{company.ms_admin_consent_by ? ` by ${company.ms_admin_consent_by}` : ''}. Nobody at {firmName} will be asked for Microsoft permissions again.
             {isDirector && <> <button onClick={() => startAdminConsent(currentUser)} className="text-blue-700 hover:underline ml-1">Approve again</button></>}
           </div>
         ) : isDirector ? (
           <>
-            <div className="text-xs text-gray-500 leading-relaxed mb-3">
+            <div className="text-xs text-gray-600 leading-relaxed mb-3">
               Your Microsoft 365 admin approves QPlan once for the whole firm. After that, nobody sees a "Permissions requested" screen.
               The admin signs in with their work account and clicks <span className="font-medium">Accept</span>.
             </div>
@@ -200,7 +200,7 @@ export default function Microsoft365({ currentUser, notice, onNoticeShown }) {
             </div>
           </>
         ) : (
-          <div className="text-xs text-gray-500">Not done yet. A director sends the approval link to {firmName}'s Microsoft 365 admin.</div>
+          <div className="text-xs text-gray-600">Not done yet. A director sends the approval link to {firmName}'s Microsoft 365 admin.</div>
         )}
       </StepCard>
 
@@ -209,13 +209,13 @@ export default function Microsoft365({ currentUser, notice, onNoticeShown }) {
         {!drive.connected ? (
           isDirector ? (
             <>
-              <div className="text-xs text-gray-500 leading-relaxed mb-3">
+              <div className="text-xs text-gray-600 leading-relaxed mb-3">
                 Sign in with your <span className="font-medium">{firmName} work account</span> (your work email), not a personal Outlook or Hotmail account. This connects the firm's files for everyone.
               </div>
               <Button onClick={() => connectFirmDrive(currentUser)} disabled={busy}>Connect Microsoft 365</Button>
             </>
           ) : (
-            <div className="text-xs text-gray-500">Not connected yet. A director connects this once for the firm.</div>
+            <div className="text-xs text-gray-600">Not connected yet. A director connects this once for the firm.</div>
           )
         ) : (
           <div className="space-y-3">
@@ -228,7 +228,7 @@ export default function Microsoft365({ currentUser, notice, onNoticeShown }) {
                 {isDirector ? ' Click "Switch to our work account" and sign in with your work email.' : ' Ask a director to switch it to the firm\'s work account.'}
               </div>
             )}
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-gray-600">
               Jobs folder: {jobsFolder
                 ? <span className="font-medium text-gray-700">{jobsFolder.path || jobsFolder.name}</span>
                 : <span className="text-amber-700">not set. New jobs cannot create their own folder until it is.</span>}
@@ -256,7 +256,7 @@ export default function Microsoft365({ currentUser, notice, onNoticeShown }) {
           </div>
         ) : (
           <>
-            <div className="text-xs text-gray-500 leading-relaxed mb-3">
+            <div className="text-xs text-gray-600 leading-relaxed mb-3">
               {myCalendar.needs_reconnect
                 ? 'Microsoft signed you out of this connection. Click below and sign in again. It takes a few seconds.'
                 : 'Sign in with your work email. Meetings you make in QPlan then appear in your own Outlook calendar.'}
@@ -269,17 +269,17 @@ export default function Microsoft365({ currentUser, notice, onNoticeShown }) {
       {isDirector && team.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <div className="flex items-center justify-between mb-3">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Team calendars</div>
-            <div className="text-xs text-gray-400">{connectedCount} of {team.length} connected</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Team calendars</div>
+            <div className="text-xs text-gray-500">{connectedCount} of {team.length} connected</div>
           </div>
           <div className="divide-y divide-gray-100">
             {team.map(u => {
               const c = calendarFor(u.username)
               return (
                 <div key={u.username} className="flex items-center justify-between py-2">
-                  <div className="text-xs font-medium text-gray-700">{u.username}{u.role === 'director' ? <span className="text-gray-400 font-normal"> · Director</span> : ''}</div>
+                  <div className="text-xs font-medium text-gray-700">{u.username}{u.role === 'director' ? <span className="text-gray-500 font-normal"> · Director</span> : ''}</div>
                   <div className="text-xs">
-                    {!c ? <span className="text-gray-400">Not connected</span>
+                    {!c ? <span className="text-gray-500">Not connected</span>
                       : c.needs_reconnect ? <span className="text-amber-700">Needs to reconnect</span>
                       : <span className="text-emerald-600">● {c.email || 'Connected'}</span>}
                   </div>
@@ -287,11 +287,11 @@ export default function Microsoft365({ currentUser, notice, onNoticeShown }) {
               )
             })}
           </div>
-          <div className="text-xs text-gray-400 mt-3">Each person connects their own calendar from Settings &gt; Microsoft 365.</div>
+          <div className="text-xs text-gray-500 mt-3">Each person connects their own calendar from Settings &gt; Microsoft 365.</div>
         </div>
       )}
 
-      <div className="bg-gray-50 rounded-xl border border-gray-200 px-5 py-4 text-xs text-gray-500 leading-relaxed">
+      <div className="bg-gray-50 rounded-xl border border-gray-200 px-5 py-4 text-xs text-gray-600 leading-relaxed">
         <span className="font-medium text-gray-700">Opening Word files:</span> stay signed in to your {firmName} Microsoft account in this browser. Word then opens files straight away with no sign-in or permission request.
       </div>
 

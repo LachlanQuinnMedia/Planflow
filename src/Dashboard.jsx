@@ -7,7 +7,7 @@ import { businessDaysUntil, calendarDaysUntil, todayBrisbane, stageDayRules } fr
 const statusBadge = {
   Active: 'bg-emerald-100 text-emerald-700',
   Review: 'bg-amber-100 text-amber-700',
-  Draft: 'bg-gray-100 text-gray-500',
+  Draft: 'bg-gray-100 text-gray-600',
   Complete: 'bg-green-100 text-green-700',
 }
 
@@ -31,7 +31,7 @@ function daysUntil(dateStr) {
 }
 
 function formatDateShort(dateStr) {
-  if (!dateStr) return '—'
+  if (!dateStr) return '-'
   return new Date(dateStr).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
@@ -131,7 +131,7 @@ function DueDateBadge({ daysUntil, businessDays }) {
   const n = hasBusiness ? businessDays : daysUntil
   const text = hasBusiness ? `${n} bus. day${n === 1 ? '' : 's'}` : `${n}d`
   const title = hasBusiness ? `${n} business day${n === 1 ? '' : 's'} left (${daysUntil} calendar)` : undefined
-  const tone = n <= 2 ? 'bg-red-100 text-red-700' : n <= 5 ? 'bg-amber-100 text-amber-700' : n <= 10 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-500'
+  const tone = n <= 2 ? 'bg-red-100 text-red-700' : n <= 5 ? 'bg-amber-100 text-amber-700' : n <= 10 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'
   return <span title={title} className={`${base} ${tone}`}>{text}</span>
 }
 
@@ -200,9 +200,9 @@ function StatStrip({ myJobs, planner, onNavigate }) {
 
       {/* Jobs touched this week */}
       <div className="bg-gray-50 rounded-xl p-3">
-        <div className="text-xs text-gray-500 mb-1">Jobs touched</div>
+        <div className="text-xs text-gray-600 mb-1">Jobs touched</div>
         <div className="text-2xl font-semibold">{weekStats.jobsTouched}</div>
-        <div className="text-xs text-gray-400 mt-0.5">This week</div>
+        <div className="text-xs text-gray-500 mt-0.5">This week</div>
       </div>
 
       {/* Due in 30 days */}
@@ -216,13 +216,13 @@ function StatStrip({ myJobs, planner, onNavigate }) {
               : 'bg-gray-50 hover:bg-gray-100'
         }`}
       >
-        <div className={`text-xs mb-1 ${dueIn7 > 0 ? 'text-red-700' : dueIn30 > 0 ? 'text-amber-700' : 'text-gray-500'}`}>
+        <div className={`text-xs mb-1 ${dueIn7 > 0 ? 'text-red-700' : dueIn30 > 0 ? 'text-amber-700' : 'text-gray-600'}`}>
           Due in 30 days
         </div>
         <div className={`text-2xl font-semibold ${dueIn7 > 0 ? 'text-red-700' : dueIn30 > 0 ? 'text-amber-700' : ''}`}>
           {dueIn30}
         </div>
-        <div className={`text-xs mt-0.5 ${dueIn7 > 0 ? 'text-red-600/70' : dueIn30 > 0 ? 'text-amber-600/70' : 'text-gray-400'} group-hover:underline`}>
+        <div className={`text-xs mt-0.5 ${dueIn7 > 0 ? 'text-red-600/70' : dueIn30 > 0 ? 'text-amber-600/70' : 'text-gray-500'} group-hover:underline`}>
           {dueIn7 > 0 ? `${dueIn7} this week →` : dueIn30 > 0 ? 'View →' : 'All clear'}
         </div>
       </button>
@@ -231,59 +231,59 @@ function StatStrip({ myJobs, planner, onNavigate }) {
 }
 
 function KeyDatesPanel({ myJobs, allJobs, viewingAs }) {
-  // My jobs due dates — only jobs assigned to this user
+  // My jobs due dates - only jobs assigned to this user
   const myDueDates = myJobs.flatMap(job => extractDueDates(job, 30))
     .sort((a, b) => a.daysUntil - b.daysUntil)
 
-  // All firm due dates — every active job within 30 days
+  // All firm due dates - every active job within 30 days
   const allDueDates = allJobs.flatMap(job => extractDueDates(job, 30))
     .sort((a, b) => a.daysUntil - b.daysUntil)
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-      {/* Left — my jobs */}
+      {/* Left - my jobs */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">My upcoming deadlines</div>
-          <div className="text-xs text-gray-400 mt-0.5">Dates due within 30 days — {viewingAs}</div>
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">My upcoming deadlines</div>
+          <div className="text-xs text-gray-500 mt-0.5">Dates due within 30 days: {viewingAs}</div>
         </div>
         {myDueDates.length === 0 ? (
-          <div className="px-4 py-8 text-center text-xs text-gray-400">No deadlines in the next 30 days.</div>
+          <div className="px-4 py-8 text-center text-xs text-gray-500">No deadlines in the next 30 days.</div>
         ) : myDueDates.map((d, i) => (
           <div key={i} className={`flex items-center gap-3 px-4 py-3 border-b border-gray-100 last:border-0 ${d.daysUntil <= 7 ? 'bg-amber-50/40' : ''}`}>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-0.5">
                 <span className="text-xs font-semibold text-emerald-600">{d.jobCode}</span>
-                <span className="text-xs text-gray-500 truncate">{d.label}</span>
+                <span className="text-xs text-gray-600 truncate">{d.label}</span>
               </div>
-              <div className="text-xs text-gray-400 truncate">{d.jobName}</div>
-              <div className="text-xs text-gray-400">{formatDateShort(d.date)}</div>
+              <div className="text-xs text-gray-500 truncate">{d.jobName}</div>
+              <div className="text-xs text-gray-500">{formatDateShort(d.date)}</div>
             </div>
             <DueDateBadge daysUntil={d.daysUntil} businessDays={d.businessDays} />
           </div>
         ))}
       </div>
 
-      {/* Right — all firm jobs */}
+      {/* Right - all firm jobs */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Firm-wide upcoming deadlines</div>
-          <div className="text-xs text-gray-400 mt-0.5">All active jobs due within 30 days</div>
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Firm-wide upcoming deadlines</div>
+          <div className="text-xs text-gray-500 mt-0.5">All active jobs due within 30 days</div>
         </div>
         {allDueDates.length === 0 ? (
-          <div className="px-4 py-8 text-center text-xs text-gray-400">No firm-wide deadlines in the next 30 days.</div>
+          <div className="px-4 py-8 text-center text-xs text-gray-500">No firm-wide deadlines in the next 30 days.</div>
         ) : allDueDates.map((d, i) => (
           <div key={i} className={`flex items-center gap-3 px-4 py-3 border-b border-gray-100 last:border-0 ${d.daysUntil <= 7 ? 'bg-amber-50/40' : ''}`}>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-0.5">
                 <span className="text-xs font-semibold text-emerald-600">{d.jobCode}</span>
-                <span className="text-xs text-gray-500 truncate">{d.label}</span>
+                <span className="text-xs text-gray-600 truncate">{d.label}</span>
               </div>
-              <div className="text-xs text-gray-400 truncate">{d.jobName}</div>
+              <div className="text-xs text-gray-500 truncate">{d.jobName}</div>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-400">{formatDateShort(d.date)}</span>
+                <span className="text-xs text-gray-500">{formatDateShort(d.date)}</span>
                 <span className="text-xs text-gray-300">·</span>
-                <span className="text-xs text-gray-400">{d.planner}</span>
+                <span className="text-xs text-gray-500">{d.planner}</span>
               </div>
             </div>
             <DueDateBadge daysUntil={d.daysUntil} businessDays={d.businessDays} />
@@ -312,7 +312,7 @@ function JobSearchPanel({ onNavigate, isDirector, jobs }) {
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
-      <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Search all jobs — active & past</div>
+      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Search all jobs, active and past</div>
       <div className="flex flex-col sm:flex-row gap-2 mb-3">
         <input
           type="text"
@@ -338,31 +338,31 @@ function JobSearchPanel({ onNavigate, isDirector, jobs }) {
       </div>
       {search || typeFilter !== 'All' || statusFilter !== 'All' || plannerFilter !== 'All' ? (
         <div>
-          <div className="text-xs text-gray-400 mb-2">{filtered.length} result{filtered.length !== 1 ? 's' : ''} found</div>
+          <div className="text-xs text-gray-500 mb-2">{filtered.length} result{filtered.length !== 1 ? 's' : ''} found</div>
           {filtered.length === 0 ? (
-            <div className="text-xs text-gray-400 py-4 text-center">No jobs match your search.</div>
+            <div className="text-xs text-gray-500 py-4 text-center">No jobs match your search.</div>
           ) : filtered.map(job => (
             <div key={job.id || job.code} onClick={() => onNavigate('jobdetail', job)} className="flex items-center gap-2 py-2.5 border-b border-gray-100 last:border-0 cursor-pointer hover:bg-gray-50 rounded-lg px-2">
               <div className="text-xs font-medium text-emerald-600 w-16 flex-shrink-0">{job.code}</div>
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-medium truncate">{jobListName(job)}</div>
-                <div className="text-xs text-gray-400 truncate">{[job.lot_reference, job.council].filter(Boolean).join(' · ')}</div>
+                <div className="text-xs text-gray-500 truncate">{[job.lot_reference, job.council].filter(Boolean).join(' · ')}</div>
               </div>
-              <div className="hidden sm:block text-xs text-gray-400 w-20 text-right flex-shrink-0">{job.planner || '—'}</div>
+              <div className="hidden sm:block text-xs text-gray-500 w-20 text-right flex-shrink-0">{job.planner || '-'}</div>
               <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${appTypeBadge(job.app_type)}`}>{job.app_type}</span>
-              <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${statusBadge[job.status] || 'bg-gray-100 text-gray-500'}`}>{job.status}</span>
+              <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${statusBadge[job.status] || 'bg-gray-100 text-gray-600'}`}>{job.status}</span>
             </div>
           ))}
         </div>
       ) : (
-        <div className="text-xs text-gray-400 text-center py-2">Type to search across all jobs including past completed jobs</div>
+        <div className="text-xs text-gray-500 text-center py-2">Type to search across all jobs including past completed jobs</div>
       )}
     </div>
   )
 }
 
 function PlannerView({ planner, onNavigate, allJobs }) {
-  // My jobs — jobs where this planner is assigned
+  // My jobs - jobs where this planner is assigned
   const myJobs = allJobs.filter(j =>
     j.status !== 'Complete' &&
     (j.planner === planner || j.planners?.includes(planner))
@@ -395,17 +395,17 @@ function PlannerView({ planner, onNavigate, allJobs }) {
   return (
     <div>
       <div className="mb-4">
-        <div className="text-base font-semibold">{getTimeGreeting()}, {planner.split(' ')[0]} 👋</div>
+        <div className="text-base font-semibold">{getTimeGreeting()}, {planner.split(' ')[0]}</div>
       </div>
 
       <StatStrip myJobs={myJobs} planner={planner} onNavigate={onNavigate} />
 
       {urgentDates.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
-          <div className="text-xs font-semibold text-amber-700 mb-2">⚑ Dates due this week</div>
+          <div className="text-xs font-semibold text-amber-700 mb-2">Dates due this week</div>
           {urgentDates.map((d, i) => (
             <div key={i} className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs py-1 border-b border-amber-100 last:border-0 gap-0.5">
-              <span className="text-amber-800 font-medium">{d.job} — {d.name}</span>
+              <span className="text-amber-800 font-medium">{d.job} · {d.name}</span>
               <span className="text-amber-600">{d.label} · {formatDateShort(d.date)}</span>
             </div>
           ))}
@@ -417,39 +417,39 @@ function PlannerView({ planner, onNavigate, allJobs }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-center justify-between mb-3">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">My active jobs</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">My active jobs</div>
             <button onClick={() => onNavigate('jobs')} className="text-xs text-emerald-600 hover:underline">All jobs →</button>
           </div>
           {myJobs.length === 0 ? (
-            <div className="text-xs text-gray-400">No active jobs assigned.</div>
+            <div className="text-xs text-gray-500">No active jobs assigned.</div>
           ) : myJobs.map(job => (
             <div key={job.id} onClick={() => onNavigate('jobdetail', job)} className="cursor-pointer hover:opacity-80 py-2 border-b border-gray-100 last:border-0">
               <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                 <div className="text-xs font-medium text-emerald-600 w-16 flex-shrink-0">{job.code}</div>
                 <div className="flex-1 text-xs font-medium truncate">{jobListName(job)}</div>
                 <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${appTypeBadge(job.app_type)}`}>{job.app_type}</span>
-                <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${statusBadge[job.status] || 'bg-gray-100 text-gray-500'}`}>{job.status}</span>
+                <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${statusBadge[job.status] || 'bg-gray-100 text-gray-600'}`}>{job.status}</span>
               </div>
               <div className="ml-0 sm:ml-16 flex flex-wrap gap-x-4">
                 {job.date_ir_response && (
-                  <div className={`text-xs ${isUrgent(job.date_ir_response) ? 'text-amber-600 font-medium' : 'text-gray-400'}`}>
+                  <div className={`text-xs ${isUrgent(job.date_ir_response) ? 'text-amber-600 font-medium' : 'text-gray-500'}`}>
                     IR: {formatDateShort(job.date_ir_response)}
                   </div>
                 )}
                 {job.decision_due_date && (
-                  <div className="text-xs text-gray-400">Decision: {formatDateShort(job.decision_due_date)}</div>
+                  <div className="text-xs text-gray-500">Decision: {formatDateShort(job.decision_due_date)}</div>
                 )}
               </div>
             </div>
           ))}
-          <button onClick={() => onNavigate('newjob')} className="mt-3 w-full py-1.5 text-xs border border-dashed border-gray-300 rounded-lg text-gray-400 hover:border-emerald-400 hover:text-emerald-600 transition-colors">
+          <button onClick={() => onNavigate('newjob')} className="mt-3 w-full py-1.5 text-xs border border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-emerald-400 hover:text-emerald-600 transition-colors">
             + New job
           </button>
         </div>
 
         <div className="flex flex-col gap-3">
           <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Quick actions</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Quick actions</div>
             <div className="grid grid-cols-2 gap-2">
               <button onClick={() => onNavigate('newjob')} className="py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">+ New job</button>
               <button onClick={() => onNavigate('time')} className="py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Log time</button>
@@ -460,7 +460,7 @@ function PlannerView({ planner, onNavigate, allJobs }) {
         </div>
       </div>
 
-      {/* Key dates — two column panel */}
+      {/* Key dates - two column panel */}
       <KeyDatesPanel myJobs={myJobs} allJobs={activeAllJobs} viewingAs={planner} />
     </div>
   )
@@ -499,13 +499,13 @@ function DirectorView({ onNavigate, allJobs, viewingAs }) {
   return (
     <div>
       <div className="mb-4">
-        <div className="text-base font-semibold">Director overview 📋</div>
-        <div className="text-xs text-gray-400 mt-0.5">{activeJobs.length} active jobs · {allPlanners.length} planners · {urgentAll.length} dates due this week</div>
+        <div className="text-base font-semibold">Director overview</div>
+        <div className="text-xs text-gray-500 mt-0.5">{activeJobs.length} active jobs · {allPlanners.length} planners · {urgentAll.length} dates due this week</div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-4">
-        <div className="bg-gray-50 rounded-lg p-3"><div className="text-xs text-gray-400 mb-1">Active jobs</div><div className="text-xl font-semibold">{activeJobs.length}</div></div>
-        <div className="bg-gray-50 rounded-lg p-3"><div className="text-xs text-gray-400 mb-1">Total jobs</div><div className="text-xl font-semibold">{allJobs.length}</div></div>
+        <div className="bg-gray-50 rounded-lg p-3"><div className="text-xs text-gray-500 mb-1">Active jobs</div><div className="text-xl font-semibold">{activeJobs.length}</div></div>
+        <div className="bg-gray-50 rounded-lg p-3"><div className="text-xs text-gray-500 mb-1">Total jobs</div><div className="text-xl font-semibold">{allJobs.length}</div></div>
         <div className="bg-emerald-50 rounded-lg p-3"><div className="text-xs text-emerald-600 mb-1">Planners</div><div className="text-xl font-semibold text-emerald-600">{allPlanners.length}</div></div>
         <div className="bg-amber-50 rounded-lg p-3"><div className="text-xs text-amber-600 mb-1">Due this week</div><div className="text-xl font-semibold text-amber-600">{urgentAll.length}</div></div>
         <div className="bg-red-50 rounded-lg p-3 col-span-2 sm:col-span-1"><div className="text-xs text-red-400 mb-1">Due in 30 days</div><div className="text-xl font-semibold text-red-600">{activeJobs.flatMap(j => extractDueDates(j, 30)).length}</div></div>
@@ -515,10 +515,10 @@ function DirectorView({ onNavigate, allJobs, viewingAs }) {
 
       {urgentAll.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
-          <div className="text-xs font-semibold text-amber-700 mb-2">⚑ Firm-wide dates due this week</div>
+          <div className="text-xs font-semibold text-amber-700 mb-2">Firm-wide dates due this week</div>
           {urgentAll.map((d, i) => (
             <div key={i} className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs py-1 border-b border-amber-100 last:border-0 gap-0.5">
-              <span className="text-amber-800 font-medium">{d.job} — {d.name}</span>
+              <span className="text-amber-800 font-medium">{d.job} · {d.name}</span>
               <span className="text-amber-600">{d.planner} · {d.label} · {formatDateShort(d.date)}</span>
             </div>
           ))}
@@ -527,47 +527,47 @@ function DirectorView({ onNavigate, allJobs, viewingAs }) {
 
       {/* Active jobs table */}
       <div className="hidden md:block bg-white rounded-xl border border-gray-200 p-4 mb-4">
-        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">All active jobs — allocated by planner</div>
+        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">All active jobs by planner</div>
         <div className="grid grid-cols-[80px_1fr_90px_55px_65px_70px_80px] gap-2 pb-2 mb-1 border-b border-gray-200">
           {['Job', 'Name', 'Planner', 'Type', 'Status', 'Budget', 'Decision'].map(h => (
-            <div key={h} className="text-xs text-gray-400">{h}</div>
+            <div key={h} className="text-xs text-gray-500">{h}</div>
           ))}
         </div>
         {activeJobs.map(job => (
           <div key={job.id} onClick={() => onNavigate('jobdetail', job)} className="grid grid-cols-[80px_1fr_90px_55px_65px_70px_80px] gap-2 py-2 border-b border-gray-100 last:border-0 items-center cursor-pointer hover:bg-gray-50 rounded-lg px-1">
             <div className="text-xs font-medium text-emerald-600">{job.code}</div>
             <div className="text-xs font-medium truncate">{jobListName(job)}</div>
-            <div className="text-xs text-gray-500 truncate">{job.planner || '—'}</div>
+            <div className="text-xs text-gray-600 truncate">{job.planner || '-'}</div>
             <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${appTypeBadge(job.app_type)}`}>{job.app_type}</span>
-            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${statusBadge[job.status] || 'bg-gray-100 text-gray-500'}`}>{job.status}</span>
-            <div className="text-xs text-gray-500">{job.budget_hours ? `${job.budget_hours}h` : '—'}</div>
-            <div className="text-xs text-gray-500">{formatDateShort(job.decision_due_date || job.date_decision)}</div>
+            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${statusBadge[job.status] || 'bg-gray-100 text-gray-600'}`}>{job.status}</span>
+            <div className="text-xs text-gray-600">{job.budget_hours ? `${job.budget_hours}h` : '-'}</div>
+            <div className="text-xs text-gray-600">{formatDateShort(job.decision_due_date || job.date_decision)}</div>
           </div>
         ))}
       </div>
 
       {/* Mobile active jobs */}
       <div className="md:hidden space-y-2 mb-4">
-        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Active jobs</div>
+        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Active jobs</div>
         {activeJobs.map(job => (
           <div key={job.id} onClick={() => onNavigate('jobdetail', job)} className="bg-white rounded-xl border border-gray-200 p-3 cursor-pointer active:bg-gray-50">
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs font-semibold text-emerald-600">{job.code}</span>
               <div className="flex gap-1.5">
                 <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${appTypeBadge(job.app_type)}`}>{job.app_type}</span>
-                <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${statusBadge[job.status] || 'bg-gray-100 text-gray-500'}`}>{job.status}</span>
+                <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${statusBadge[job.status] || 'bg-gray-100 text-gray-600'}`}>{job.status}</span>
               </div>
             </div>
             <div className="text-xs font-medium text-gray-800 mb-0.5">{jobListName(job)}</div>
             <div className="flex items-center justify-between mt-1.5">
-              <span className="text-xs text-gray-400">{job.planner || '—'}</span>
-              <span className="text-xs text-gray-400">Decision: {formatDateShort(job.decision_due_date || job.date_decision)}</span>
+              <span className="text-xs text-gray-500">{job.planner || '-'}</span>
+              <span className="text-xs text-gray-500">Decision: {formatDateShort(job.decision_due_date || job.date_decision)}</span>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Key dates — two column panel */}
+      {/* Key dates - two column panel */}
       <KeyDatesPanel myJobs={myJobs} allJobs={activeJobs} viewingAs={viewingAs} />
 
       {/* Planner cards */}
@@ -578,7 +578,7 @@ function DirectorView({ onNavigate, allJobs, viewingAs }) {
           return (
             <div key={planner} className="bg-white rounded-xl border border-gray-200 p-3">
               <div className="text-xs font-semibold mb-1">{planner}</div>
-              <div className="text-xs text-gray-400 mb-2">{pJobs.length} active jobs · {pUrgent.length} dates due this week</div>
+              <div className="text-xs text-gray-500 mb-2">{pJobs.length} active jobs · {pUrgent.length} dates due this week</div>
               {pJobs.map(j => (
                 <div key={j.id} className="flex items-center gap-1.5 py-1 border-b border-gray-50 last:border-0">
                   <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${appTypeBadge(j.app_type)}`}>{j.app_type}</span>
@@ -633,7 +633,7 @@ export default function Dashboard({ onNavigate, currentUser }) {
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4 bg-white rounded-xl border border-gray-200 p-3">
         {isDirector ? (
           <>
-            <div className="text-xs font-medium text-gray-500">View as:</div>
+            <div className="text-xs font-medium text-gray-600">View as:</div>
             <select
               value={viewingAs}
               onChange={e => setViewingAs(e.target.value)}
@@ -657,14 +657,14 @@ export default function Dashboard({ onNavigate, currentUser }) {
             </div>
           </>
         ) : (
-          <div className="text-xs font-medium text-gray-500">
+          <div className="text-xs font-medium text-gray-600">
             Viewing as: <span className="font-semibold text-gray-700">{currentUser?.username}</span>
           </div>
         )}
       </div>
 
       {loadingJobs ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-xs text-gray-400">Loading dashboard...</div>
+        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-xs text-gray-500">Loading dashboard...</div>
       ) : view === 'planner'
         ? <PlannerView planner={viewingAs} onNavigate={onNavigate} allJobs={allJobs} />
         : <DirectorView onNavigate={onNavigate} allJobs={allJobs} viewingAs={viewingAs} />

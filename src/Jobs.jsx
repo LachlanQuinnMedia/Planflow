@@ -43,7 +43,7 @@ function DeleteConfirmModal({ job, onConfirm, onCancel }) {
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
       <div className="bg-white rounded-xl border border-gray-200 p-6 w-full max-w-sm">
         <div className="text-sm font-semibold mb-1">Delete job</div>
-        <div className="text-xs text-gray-500 mb-1">Are you sure you want to delete this job?</div>
+        <div className="text-xs text-gray-600 mb-1">Are you sure you want to delete this job?</div>
         <div className="text-xs font-medium text-gray-800 mb-4">{jobTitle(job)}</div>
         <div className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2 mb-4">
           This will permanently delete the job, its time logs and its uploaded documents. This cannot be undone.
@@ -112,21 +112,21 @@ function XeroPushModal({ job, companyId, onClose, onGoToXero, onPushed }) {
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div>
             <div className="text-sm font-semibold">Push to Xero</div>
-            <div className="text-xs text-gray-400 mt-0.5">{jobTitle(job)}</div>
+            <div className="text-xs text-gray-500 mt-0.5">{jobTitle(job)}</div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-600">✕</button>
         </div>
 
         <div className="px-5 py-4">
           {stage === 'checking' && (
-            <div className="text-xs text-gray-400 text-center py-4">Checking Xero connection...</div>
+            <div className="text-xs text-gray-500 text-center py-4">Checking Xero connection...</div>
           )}
 
           {stage === 'notconnected' && (
             <div className="text-center py-2">
               <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center mx-auto mb-3 text-sm font-bold">X</div>
               <div className="text-sm font-semibold mb-1">Xero isn't connected yet</div>
-              <div className="text-xs text-gray-400 max-w-xs mx-auto">
+              <div className="text-xs text-gray-500 max-w-xs mx-auto">
                 Connect your firm's Xero account once, and every job gets a one-click draft invoice built from its logged time.
               </div>
             </div>
@@ -134,7 +134,7 @@ function XeroPushModal({ job, companyId, onClose, onGoToXero, onPushed }) {
 
           {stage === 'confirm' && (
             <div>
-              <div className="text-xs text-gray-500 mb-3">
+              <div className="text-xs text-gray-600 mb-3">
                 This creates a <span className="font-medium">draft</span> invoice in Xero{tenantName ? ` (${tenantName})` : ''} for <span className="font-medium">{clientName(job)}</span>. You can review it in Xero before sending.
               </div>
               {logs.length === 0 ? (
@@ -147,7 +147,7 @@ function XeroPushModal({ job, companyId, onClose, onGoToXero, onPushed }) {
                     {logs.map(l => (
                       <div key={l.id} className="flex items-center justify-between px-3 py-2 border-b border-gray-50 last:border-0 text-xs">
                         <div className="truncate flex-1 pr-2">{l.task || 'General work'}</div>
-                        <div className="text-gray-400 flex-shrink-0">{((l.duration_seconds || 0) / 3600).toFixed(2)}h</div>
+                        <div className="text-gray-500 flex-shrink-0">{((l.duration_seconds || 0) / 3600).toFixed(2)}h</div>
                       </div>
                     ))}
                   </div>
@@ -164,7 +164,7 @@ function XeroPushModal({ job, companyId, onClose, onGoToXero, onPushed }) {
             <div className="text-center py-2">
               <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center mx-auto mb-3 text-sm font-bold">X</div>
               <div className="text-sm font-semibold mb-1">Already invoiced</div>
-              <div className="text-xs text-gray-400 max-w-xs mx-auto">
+              <div className="text-xs text-gray-500 max-w-xs mx-auto">
                 {job.xero_invoice_number ? `Invoice ${job.xero_invoice_number}` : 'A draft invoice'} was already created in Xero for this job
                 {job.xero_pushed_at ? ` on ${new Date(job.xero_pushed_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}.
                 Open it in Xero to edit it rather than creating a duplicate.
@@ -175,14 +175,14 @@ function XeroPushModal({ job, companyId, onClose, onGoToXero, onPushed }) {
           )}
 
           {stage === 'pushing' && (
-            <div className="text-xs text-gray-400 text-center py-4">Creating draft invoice in Xero...</div>
+            <div className="text-xs text-gray-500 text-center py-4">Creating draft invoice in Xero...</div>
           )}
 
           {stage === 'done' && (
             <div className="text-center py-2">
               <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto mb-3 text-lg">✓</div>
               <div className="text-sm font-semibold mb-1">Draft invoice created</div>
-              <div className="text-xs text-gray-400">
+              <div className="text-xs text-gray-500">
                 {result?.InvoiceNumber ? `Invoice ${result.InvoiceNumber}` : 'Invoice'} is now in Xero as a draft, ready for review.
               </div>
             </div>
@@ -319,7 +319,7 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
           </div>
           <div className="flex-1">
             <div className="text-xs font-semibold text-red-700">{overdueCount} job{overdueCount !== 1 ? 's' : ''} overdue</div>
-            <div className="text-xs text-red-500">Decision due dates have passed — review and update these jobs.</div>
+            <div className="text-xs text-red-500">Decision due dates have passed. Review and update these jobs.</div>
           </div>
         </div>
       )}
@@ -336,21 +336,21 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
         </div>
         <div className="flex gap-2">
           <div className="flex flex-col gap-1 flex-1 sm:flex-none">
-            <label className="text-xs text-gray-400 font-medium px-1">Type</label>
+            <label className="text-xs text-gray-500 font-medium px-1">Type</label>
             <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white">
               <option value="All">All</option>
               {APP_TYPES.map(t => <option key={t.code} value={t.code}>{t.code} · {t.label}</option>)}
             </select>
           </div>
           <div className="flex flex-col gap-1 flex-1 sm:flex-none">
-            <label className="text-xs text-gray-400 font-medium px-1">Planner</label>
+            <label className="text-xs text-gray-500 font-medium px-1">Planner</label>
             <select value={plannerFilter} onChange={e => setPlannerFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white">
               <option value="All">All</option>
               {uniquePlanners.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
           <div className="flex flex-col gap-1 flex-1 sm:flex-none">
-            <label className="text-xs text-gray-400 font-medium px-1">Status</label>
+            <label className="text-xs text-gray-500 font-medium px-1">Status</label>
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white">
               <option value="All">All</option>
               <option>Active</option><option>Review</option><option>Draft</option>
@@ -363,10 +363,10 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
       {/* Mobile card view */}
       <div className="md:hidden space-y-2">
         {loading ? (
-          <div className="bg-white rounded-xl border border-gray-200 px-4 py-8 text-center text-sm text-gray-400">Loading jobs...</div>
+          <div className="bg-white rounded-xl border border-gray-200 px-4 py-8 text-center text-sm text-gray-500">Loading jobs...</div>
         ) : sorted.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 px-4 py-8 text-center text-sm text-gray-400">
-            {jobs.length === 0 ? 'No jobs yet — create your first job!' : 'No jobs match your search.'}
+          <div className="bg-white rounded-xl border border-gray-200 px-4 py-8 text-center text-sm text-gray-500">
+            {jobs.length === 0 ? 'No jobs yet. Create your first job.' : 'No jobs match your search.'}
           </div>
         ) : sorted.map(job => {
           const overdue = isOverdue(job)
@@ -388,24 +388,24 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span title={appTypeFull(job.app_type)} className={`text-xs px-2 py-0.5 rounded-full font-medium ${appTypeBadge(job.app_type)}`}>{job.app_type}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge[job.status] || 'bg-gray-100 text-gray-500'}`}>{job.status}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge[job.status] || 'bg-gray-100 text-gray-600'}`}>{job.status}</span>
                   <button
                     onClick={e => { e.stopPropagation(); setJobToDelete(job) }}
-                    className="w-7 h-7 flex items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                    className="w-7 h-7 flex items-center justify-center rounded text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors"
                   >✕</button>
                 </div>
               </div>
               <div className="text-sm font-medium text-gray-800 mb-0.5">{jobListName(job)}</div>
-              <div className="text-xs text-gray-400 mb-1">{[job.lot_reference, job.council].filter(Boolean).join(' · ')}</div>
+              <div className="text-xs text-gray-500 mb-1">{[job.lot_reference, job.council].filter(Boolean).join(' · ')}</div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-gray-500">{isCompanyClient(job) ? `Contact: ${contactName(job)}` : clientName(job)}</span>
+                <span className="text-xs text-gray-600">{isCompanyClient(job) ? `Contact: ${contactName(job)}` : clientName(job)}</span>
                 <div className="flex items-center gap-2">
                   {job.decision_due_date && job.status !== 'Complete' && (
-                    <span className={`text-xs font-medium ${overdue ? 'text-red-600' : dueSoon ? 'text-amber-600' : 'text-gray-400'}`}>
+                    <span className={`text-xs font-medium ${overdue ? 'text-red-600' : dueSoon ? 'text-amber-600' : 'text-gray-500'}`}>
                       {overdue ? `${Math.abs(days)}d overdue` : `Due ${formatDateShort(job.decision_due_date)}`}
                     </span>
                   )}
-                  <span className="text-xs text-gray-400">{job.planner || '—'}</span>
+                  <span className="text-xs text-gray-500">{job.planner || '-'}</span>
                 </div>
               </div>
               <XeroButton job={job} />
@@ -413,7 +413,7 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
           )
         })}
         {!loading && (
-          <div className="text-xs text-gray-400 text-center py-2">
+          <div className="text-xs text-gray-500 text-center py-2">
             Showing {sorted.length} of {jobs.length} jobs
           </div>
         )}
@@ -422,21 +422,21 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
       {/* Desktop table view */}
       <div className="hidden md:block bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="grid grid-cols-[70px_1fr_90px_55px_65px_70px_100px_110px_50px] gap-3 px-4 py-2 border-b border-gray-100 bg-gray-50">
-          <div className="text-xs text-gray-400">Job #</div>
-          <div className="text-xs text-gray-400">Name / address</div>
-          <div className="text-xs text-gray-400">Client</div>
-          <div className="text-xs text-gray-400">Type</div>
-          <div className="text-xs text-gray-400">Planner</div>
-          <div className="text-xs text-gray-400">Status</div>
-          <div className="text-xs text-gray-400">Decision due</div>
-          <div className="text-xs text-gray-400">Invoice</div>
-          <div className="text-xs text-gray-400">Delete</div>
+          <div className="text-xs text-gray-500">Job #</div>
+          <div className="text-xs text-gray-500">Name / address</div>
+          <div className="text-xs text-gray-500">Client</div>
+          <div className="text-xs text-gray-500">Type</div>
+          <div className="text-xs text-gray-500">Planner</div>
+          <div className="text-xs text-gray-500">Status</div>
+          <div className="text-xs text-gray-500">Decision due</div>
+          <div className="text-xs text-gray-500">Invoice</div>
+          <div className="text-xs text-gray-500">Delete</div>
         </div>
         {loading ? (
-          <div className="px-4 py-8 text-center text-sm text-gray-400">Loading jobs...</div>
+          <div className="px-4 py-8 text-center text-sm text-gray-500">Loading jobs...</div>
         ) : sorted.length === 0 ? (
-          <div className="px-4 py-8 text-center text-sm text-gray-400">
-            {jobs.length === 0 ? 'No jobs yet — create your first job!' : 'No jobs match your search.'}
+          <div className="px-4 py-8 text-center text-sm text-gray-500">
+            {jobs.length === 0 ? 'No jobs yet. Create your first job.' : 'No jobs match your search.'}
           </div>
         ) : (
           sorted.map(job => {
@@ -457,19 +457,19 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
                     {overdue && <span className="text-xs px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 font-medium flex-shrink-0">Overdue</span>}
                     {dueSoon && <span className="text-xs px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium flex-shrink-0">Due soon</span>}
                   </div>
-                  <div className="text-xs text-gray-400 truncate">{[job.lot_reference, job.council].filter(Boolean).join(' · ')}</div>
+                  <div className="text-xs text-gray-500 truncate">{[job.lot_reference, job.council].filter(Boolean).join(' · ')}</div>
                 </div>
-                <div className="text-xs text-gray-500 truncate cursor-pointer" onClick={() => onNavigate('jobdetail', job)} title={isCompanyClient(job) ? `Contact: ${contactName(job)}` : undefined}>
+                <div className="text-xs text-gray-600 truncate cursor-pointer" onClick={() => onNavigate('jobdetail', job)} title={isCompanyClient(job) ? `Contact: ${contactName(job)}` : undefined}>
                   {clientName(job)}
                 </div>
                 <div className="cursor-pointer" onClick={() => onNavigate('jobdetail', job)}>
                   <span title={appTypeFull(job.app_type)} className={`text-xs px-2 py-0.5 rounded-full font-medium ${appTypeBadge(job.app_type)}`}>{job.app_type}</span>
                 </div>
-                <div className="text-xs text-gray-500 cursor-pointer truncate" onClick={() => onNavigate('jobdetail', job)}>
-                  {job.planner || '—'}
+                <div className="text-xs text-gray-600 cursor-pointer truncate" onClick={() => onNavigate('jobdetail', job)}>
+                  {job.planner || '-'}
                 </div>
                 <div className="cursor-pointer" onClick={() => onNavigate('jobdetail', job)}>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge[job.status] || 'bg-gray-100 text-gray-500'}`}>{job.status}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge[job.status] || 'bg-gray-100 text-gray-600'}`}>{job.status}</span>
                 </div>
                 <div className="cursor-pointer" onClick={() => onNavigate('jobdetail', job)}>
                   {job.decision_due_date && job.status !== 'Complete' ? (
@@ -477,10 +477,10 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
                       <div className={`text-xs font-medium ${overdue ? 'text-red-600' : dueSoon ? 'text-amber-600' : 'text-gray-600'}`}>
                         {overdue ? `${Math.abs(days)}d overdue` : days === 0 ? 'Due today' : `${days}d left`}
                       </div>
-                      <div className="text-xs text-gray-400">{formatDateShort(job.decision_due_date)}</div>
+                      <div className="text-xs text-gray-500">{formatDateShort(job.decision_due_date)}</div>
                     </div>
                   ) : (
-                    <span className="text-xs text-gray-300">—</span>
+                    <span className="text-xs text-gray-400">-</span>
                   )}
                 </div>
                 <div>
@@ -489,7 +489,7 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
                 <div className="flex items-center justify-center">
                   <button
                     onClick={e => { e.stopPropagation(); setJobToDelete(job) }}
-                    className="w-7 h-7 flex items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors text-base"
+                    className="w-7 h-7 flex items-center justify-center rounded text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors text-base"
                     title="Delete job"
                   >✕</button>
                 </div>
@@ -497,7 +497,7 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
             )
           })
         )}
-        <div className="px-4 py-2 text-xs text-gray-400 border-t border-gray-100">
+        <div className="px-4 py-2 text-xs text-gray-500 border-t border-gray-100">
           {loading ? 'Loading...' : `Showing ${sorted.length} of ${jobs.length} jobs · ${overdueCount} overdue`}
         </div>
       </div>

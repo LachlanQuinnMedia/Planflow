@@ -6,14 +6,14 @@ import { callGraph, OneDriveFolderPicker } from './OneDriveBrowser'
 
 const STAGE1_TEMPLATES = [
   { group: 'Fee Proposals', items: [
-    { file: 'Fee_Proposal_Code.docx',         label: 'Fee Proposal — Code Assessable' },
-    { file: 'Fee_Proposal_Impact.docx',       label: 'Fee Proposal — Impact Assessable' },
-    { file: 'Fee_Proposal_Minor_Change.docx', label: 'Fee Proposal — Minor Change' },
-    { file: 'Fee_Proposal_RAA.docx',          label: 'Fee Proposal — Referral Agency Assessment' },
+    { file: 'Fee_Proposal_Code.docx',         label: 'Fee Proposal - Code Assessable' },
+    { file: 'Fee_Proposal_Impact.docx',       label: 'Fee Proposal - Impact Assessable' },
+    { file: 'Fee_Proposal_Minor_Change.docx', label: 'Fee Proposal - Minor Change' },
+    { file: 'Fee_Proposal_RAA.docx',          label: 'Fee Proposal - Referral Agency Assessment' },
   ]},
   { group: "Owner's Consent", items: [
-    { file: 'Consent_Individual.docx', label: "Owner's Consent — Individual" },
-    { file: 'Consent_Company.docx',    label: "Owner's Consent — Company" },
+    { file: 'Consent_Individual.docx', label: "Owner's Consent - Individual" },
+    { file: 'Consent_Company.docx',    label: "Owner's Consent - Company" },
   ]},
 ]
 
@@ -23,14 +23,14 @@ const STAGE2_TEMPLATES = [
   ]},
   { group: 'Planning Reports', items: [
     { file: 'Town_Planning_Assessment.docx',         label: 'Town Planning Assessment (generic)' },
-    { file: 'DA_Report_Brisbane.docx',               label: 'DA Report — Brisbane' },
-    { file: 'DA_Report_Brisbane_RiskSmart.docx',     label: 'DA Report — Brisbane RiskSmart' },
-    { file: 'DA_Report_Express_Code.docx',           label: 'DA Report — Express DA (Code)' },
-    { file: 'DA_Report_Express_Accepted.docx',       label: 'DA Report — Express DA (Accepted to Code)' },
-    { file: 'DA_Report_Gold_Coast.docx',             label: 'DA Report — Gold Coast' },
-    { file: 'DA_Report_Gold_Coast_RAA.docx',         label: 'DA Report — Gold Coast RAA' },
-    { file: 'DA_Report_Gold_Coast_Sch6_RAA.docx',    label: 'DA Report — Gold Coast Sch6 RAA' },
-    { file: 'DA_Report_OPW.docx',                    label: 'DA Report — Operational Works' },
+    { file: 'DA_Report_Brisbane.docx',               label: 'DA Report - Brisbane' },
+    { file: 'DA_Report_Brisbane_RiskSmart.docx',     label: 'DA Report - Brisbane RiskSmart' },
+    { file: 'DA_Report_Express_Code.docx',           label: 'DA Report - Express DA (Code)' },
+    { file: 'DA_Report_Express_Accepted.docx',       label: 'DA Report - Express DA (Accepted to Code)' },
+    { file: 'DA_Report_Gold_Coast.docx',             label: 'DA Report - Gold Coast' },
+    { file: 'DA_Report_Gold_Coast_RAA.docx',         label: 'DA Report - Gold Coast RAA' },
+    { file: 'DA_Report_Gold_Coast_Sch6_RAA.docx',    label: 'DA Report - Gold Coast Sch6 RAA' },
+    { file: 'DA_Report_OPW.docx',                    label: 'DA Report - Operational Works' },
   ]},
   { group: 'Referrals', items: [
     { file: 'Referral_Cover_Letter.docx',      label: 'Referral Cover Letter' },
@@ -41,7 +41,7 @@ const STAGE2_TEMPLATES = [
   ]},
   { group: 'Change Applications', items: [
     { file: 'Minor_Change_Application.docx',                 label: 'Minor Change Application' },
-    { file: 'Minor_Change_Application_Affected_Entity.docx', label: 'Minor Change — Affected Entity Notice' },
+    { file: 'Minor_Change_Application_Affected_Entity.docx', label: 'Minor Change - Affected Entity Notice' },
     { file: 'Other_Change_Application.docx',                 label: 'Other Change Application' },
   ]},
 ]
@@ -100,10 +100,10 @@ const COUNCILS = [
 ]
 
 const COMPLEXITY_OPTIONS = [
-  { value: 'C1', label: 'C1 — Simple', description: 'Straightforward application, minimal issues expected', color: 'border-gray-300 bg-gray-50 text-gray-700', activeColor: 'border-gray-500 bg-gray-100 text-gray-800' },
-  { value: 'C2', label: 'C2 — Moderate', description: 'Standard application with some complexity', color: 'border-blue-200 bg-blue-50 text-blue-700', activeColor: 'border-blue-500 bg-blue-100 text-blue-800' },
-  { value: 'C3', label: 'C3 — Complex', description: 'Complex application, multiple issues or referrals', color: 'border-amber-200 bg-amber-50 text-amber-700', activeColor: 'border-amber-500 bg-amber-100 text-amber-800' },
-  { value: 'C4', label: 'C4 — High complexity', description: 'Impact assessable or highly contentious application', color: 'border-red-200 bg-red-50 text-red-700', activeColor: 'border-red-500 bg-red-100 text-red-800' },
+  { value: 'C1', label: 'C1: Simple', description: 'Straightforward application, minimal issues expected', color: 'border-gray-300 bg-gray-50 text-gray-700', activeColor: 'border-gray-500 bg-gray-100 text-gray-800' },
+  { value: 'C2', label: 'C2: Moderate', description: 'Standard application with some complexity', color: 'border-blue-200 bg-blue-50 text-blue-700', activeColor: 'border-blue-500 bg-blue-100 text-blue-800' },
+  { value: 'C3', label: 'C3: Complex', description: 'Complex application, multiple issues or referrals', color: 'border-amber-200 bg-amber-50 text-amber-700', activeColor: 'border-amber-500 bg-amber-100 text-amber-800' },
+  { value: 'C4', label: 'C4: High complexity', description: 'Impact assessable or highly contentious application', color: 'border-red-200 bg-red-50 text-red-700', activeColor: 'border-red-500 bg-red-100 text-red-800' },
 ]
 
 async function downloadRawTemplate(filename) {
@@ -168,12 +168,12 @@ function DocGenerateModal({ job, planner, folderResult, onClose, onNavigate }) {
       <div className="bg-white rounded-xl border border-gray-200 w-full max-w-md max-h-[90vh] flex flex-col">
         <div className="px-5 py-4 border-b border-gray-100">
           <div className="text-sm font-semibold">Job created ✓</div>
-          <div className="text-xs text-gray-400 mt-0.5">{jobTitle(job)} · Generate documents now?</div>
+          <div className="text-xs text-gray-500 mt-0.5">{jobTitle(job)} · Generate documents now?</div>
         </div>
 
         <div className="px-5 py-4 overflow-y-auto">
           <FolderResultNote result={folderResult} />
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Stage 1</div>
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Stage 1</div>
           {STAGE1_TEMPLATES.map(group => (
             <div key={group.group} className="mb-3">
               <div className="text-xs font-medium text-gray-600 mb-1">{group.group}</div>
@@ -181,7 +181,7 @@ function DocGenerateModal({ job, planner, folderResult, onClose, onNavigate }) {
             </div>
           ))}
 
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-4">Stage 2</div>
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-4">Stage 2</div>
           {STAGE2_TEMPLATES.map(group => (
             <div key={group.group} className="mb-3">
               <div className="text-xs font-medium text-gray-600 mb-1">{group.group}</div>
@@ -189,7 +189,7 @@ function DocGenerateModal({ job, planner, folderResult, onClose, onNavigate }) {
             </div>
           ))}
 
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-4">Stage 3</div>
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-4">Stage 3</div>
           {STAGE3_TEMPLATES.map(group => (
             <div key={group.group} className="mb-3">
               <div className="text-xs font-medium text-gray-600 mb-1">{group.group}</div>
@@ -197,7 +197,7 @@ function DocGenerateModal({ job, planner, folderResult, onClose, onNavigate }) {
             </div>
           ))}
 
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-4">Miscellaneous</div>
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-4">Miscellaneous</div>
           {MISC_TEMPLATES.map(group => (
             <div key={group.group} className="mb-3">
               {group.items.map(renderRow)}
@@ -207,17 +207,17 @@ function DocGenerateModal({ job, planner, folderResult, onClose, onNavigate }) {
           {error && <div className="mt-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700 whitespace-pre-line">{error}</div>}
           {done && (
             <div className="mt-3 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-xs text-emerald-700">
-              ✓ {selected.size} document{selected.size !== 1 ? 's' : ''} downloaded — check your downloads folder.
+              ✓ {selected.size} document{selected.size !== 1 ? 's' : ''} downloaded. Check your downloads folder.
             </div>
           )}
         </div>
 
         <div className="px-5 py-4 border-t border-gray-100 flex gap-2">
-          <button onClick={() => { onClose(); onNavigate('jobs') }} className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Skip — go to jobs</button>
+          <button onClick={() => { onClose(); onNavigate('jobs') }} className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Skip and go to jobs</button>
           <button onClick={done ? () => { onClose(); onNavigate('jobs') } : handleGenerate}
             disabled={generating || (!done && selected.size === 0)}
             className="flex-1 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 font-medium">
-            {generating ? 'Generating...' : done ? 'Done — go to jobs' : `Generate ${selected.size > 0 ? `(${selected.size})` : ''}`}
+            {generating ? 'Generating...' : done ? 'Done, go to jobs' : `Generate ${selected.size > 0 ? `(${selected.size})` : ''}`}
           </button>
         </div>
       </div>
@@ -240,7 +240,7 @@ function FolderResultNote({ result }) {
     : 'OneDrive folder linked'
   return (
     <div className="mb-3 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-xs text-blue-800">
-      📁 {lead}: <span className="font-medium">{result.path}</span>
+      {lead}: <span className="font-medium">{result.path}</span>
       {result.url && <> · <a href={result.url} target="_blank" rel="noopener noreferrer" className="underline">Open</a></>}
     </div>
   )
@@ -506,9 +506,9 @@ export default function NewJob({ onNavigate, currentUser }) {
         {error && <div className="bg-red-50 text-red-600 text-xs px-3 py-2 rounded-lg mb-4">{error}</div>}
 
         <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Client details</div>
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Client details</div>
           <div className="flex items-center gap-2">
-            <label htmlFor="client-type" className="text-xs text-gray-500">Client is</label>
+            <label htmlFor="client-type" className="text-xs text-gray-600">Client is</label>
             <select id="client-type" value={clientType} onChange={e => setClientType(e.target.value)}
               className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-emerald-400 font-medium">
               <option value="individual">An individual</option>
@@ -519,62 +519,62 @@ export default function NewJob({ onNavigate, currentUser }) {
 
         {isCompany && (
           <div className="mb-3">
-            <label className="text-xs text-gray-500 mb-1 block">Company name</label>
+            <label className="text-xs text-gray-600 mb-1 block">Company name</label>
             <input value={form.company} onChange={e => update('company', e.target.value)} placeholder="Company name" className={inputClass} />
           </div>
         )}
         {isCompany && <div className="text-xs font-medium text-gray-600 mb-2">Contact person</div>}
         <div className="grid grid-cols-2 gap-3 mb-3">
-          <div><label className="text-xs text-gray-500 mb-1 block">{isCompany ? 'Contact first name' : 'First name'}</label>
+          <div><label className="text-xs text-gray-600 mb-1 block">{isCompany ? 'Contact first name' : 'First name'}</label>
             <input value={form.firstName} onChange={e => update('firstName', e.target.value)} placeholder="First name" className={inputClass} /></div>
-          <div><label className="text-xs text-gray-500 mb-1 block">{isCompany ? 'Contact last name' : 'Last name'}</label>
+          <div><label className="text-xs text-gray-600 mb-1 block">{isCompany ? 'Contact last name' : 'Last name'}</label>
             <input value={form.lastName} onChange={e => update('lastName', e.target.value)} placeholder="Last name" className={inputClass} /></div>
         </div>
         <div className="grid grid-cols-2 gap-3 mb-5">
-          <div><label className="text-xs text-gray-500 mb-1 block">{isCompany ? 'Contact email' : 'Email'}</label>
+          <div><label className="text-xs text-gray-600 mb-1 block">{isCompany ? 'Contact email' : 'Email'}</label>
             <input value={form.email} onChange={e => update('email', e.target.value)} placeholder="client@email.com.au" className={inputClass} /></div>
-          <div><label className="text-xs text-gray-500 mb-1 block">{isCompany ? 'Contact phone' : 'Phone'}</label>
+          <div><label className="text-xs text-gray-600 mb-1 block">{isCompany ? 'Contact phone' : 'Phone'}</label>
             <input value={form.phone} onChange={e => update('phone', e.target.value)} placeholder="04XX XXX XXX" className={inputClass} /></div>
         </div>
 
         <div className="border-t border-gray-100 mb-5" />
-        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Application details</div>
+        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Application details</div>
         <div className="grid grid-cols-2 gap-3 mb-3">
-          <div><label className="text-xs text-gray-500 mb-1 block">Application type</label>
+          <div><label className="text-xs text-gray-600 mb-1 block">Application type</label>
             <select value={form.appType} onChange={e => update('appType', e.target.value)} className={inputClass}>
               {APP_TYPES.map(t => <option key={t.code} value={t.code}>{t.code} · {t.label}</option>)}
             </select>
           </div>
-          <div><label className="text-xs text-gray-500 mb-1 block">Assessment level</label>
+          <div><label className="text-xs text-gray-600 mb-1 block">Assessment level</label>
             <select value={form.assessment} onChange={e => update('assessment', e.target.value)} className={inputClass}>
               <option>Code Assessable</option><option>Impact Assessable</option><option>Accepted Development</option><option>Exempt</option>
             </select>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3 mb-3">
-          <div><label className="text-xs text-gray-500 mb-1 block">Site address</label>
+          <div><label className="text-xs text-gray-600 mb-1 block">Site address</label>
             <input value={form.address} onChange={e => update('address', e.target.value)} placeholder="12 Marine Parade, Southport QLD 4215" className={inputClass} /></div>
-          <div><label className="text-xs text-gray-500 mb-1 block">Lot / RP reference</label>
+          <div><label className="text-xs text-gray-600 mb-1 block">Lot / RP reference</label>
             <input value={form.lot} onChange={e => update('lot', e.target.value)} placeholder="Lot 7 SP123456" className={inputClass} /></div>
         </div>
         <div className="grid grid-cols-2 gap-3 mb-3">
-          <div><label className="text-xs text-gray-500 mb-1 block">Council / LGA</label>
+          <div><label className="text-xs text-gray-600 mb-1 block">Council / LGA</label>
             <select value={form.council} onChange={e => update('council', e.target.value)} className={inputClass}>
               {COUNCILS.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
-          <div><label className="text-xs text-gray-500 mb-1 block">Planning zone</label>
+          <div><label className="text-xs text-gray-600 mb-1 block">Planning zone</label>
             <input value={form.zone} onChange={e => update('zone', e.target.value)} placeholder="Medium Density Residential" className={inputClass} /></div>
         </div>
         <div className="grid grid-cols-2 gap-3 mb-3">
-          <div><label className="text-xs text-gray-500 mb-1 block">Proposed use</label>
+          <div><label className="text-xs text-gray-600 mb-1 block">Proposed use</label>
             <input value={form.proposedUse} onChange={e => update('proposedUse', e.target.value)} placeholder="Mixed-use: retail GF + 12 units" className={inputClass} /></div>
-          <div><label className="text-xs text-gray-500 mb-1 block">Referral agencies</label>
+          <div><label className="text-xs text-gray-600 mb-1 block">Referral agencies</label>
             <input value={form.referrals} onChange={e => update('referrals', e.target.value)} placeholder="SARA, Energex..." className={inputClass} /></div>
         </div>
 
         <div className="mb-5">
-          <label className="text-xs text-gray-500 mb-2 block">Job complexity</label>
+          <label className="text-xs text-gray-600 mb-2 block">Job complexity</label>
           <div className="grid grid-cols-4 gap-2">
             {COMPLEXITY_OPTIONS.map(opt => {
               const isSelected = form.complexity === opt.value
@@ -582,24 +582,24 @@ export default function NewJob({ onNavigate, currentUser }) {
                 <button key={opt.value} type="button" onClick={() => update('complexity', opt.value)}
                   className={`px-3 py-2.5 rounded-lg border text-left transition-all ${isSelected ? opt.activeColor + ' border-2' : opt.color + ' hover:opacity-80'}`}>
                   <div className="text-xs font-semibold">{opt.value}</div>
-                  <div className="text-xs opacity-75 mt-0.5 leading-tight">{opt.label.split('—')[1].trim()}</div>
+                  <div className="text-xs opacity-75 mt-0.5 leading-tight">{opt.label.split(':')[1].trim()}</div>
                 </button>
               )
             })}
           </div>
           {form.complexity && (
-            <div className="text-xs text-gray-400 mt-1.5">
+            <div className="text-xs text-gray-500 mt-1.5">
               {COMPLEXITY_OPTIONS.find(o => o.value === form.complexity)?.description}
             </div>
           )}
         </div>
 
         <div className="border-t border-gray-100 mb-5" />
-        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Assign & budget</div>
+        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Assign & budget</div>
 
         <div className="mb-3">
-          <label className="text-xs text-gray-500 mb-2 block">
-            Assigned planners <span className="text-gray-400 font-normal">(select all who will work on this job. First selected is lead)</span>
+          <label className="text-xs text-gray-600 mb-2 block">
+            Assigned planners <span className="text-gray-500 font-normal">(select all who will work on this job. First selected is lead)</span>
           </label>
           <div className="flex flex-wrap gap-2">
             {staffList.map(s => (
@@ -616,7 +616,7 @@ export default function NewJob({ onNavigate, currentUser }) {
             ))}
           </div>
           {selectedPlanners.length > 0 && (
-            <div className="text-xs text-gray-400 mt-1.5">
+            <div className="text-xs text-gray-500 mt-1.5">
               Lead: <span className="font-medium text-gray-600">{selectedPlanners[0]}</span>
               {selectedPlanners.length > 1 && ` · Also assigned: ${selectedPlanners.slice(1).join(', ')}`}
             </div>
@@ -624,31 +624,31 @@ export default function NewJob({ onNavigate, currentUser }) {
         </div>
 
         <div className="grid grid-cols-3 gap-3 mb-5">
-          <div><label className="text-xs text-gray-500 mb-1 block">Budget (hours)</label>
+          <div><label className="text-xs text-gray-600 mb-1 block">Budget (hours)</label>
             <input type="number" value={form.budget} onChange={e => update('budget', e.target.value)} placeholder="60" className={inputClass} /></div>
-          <div><label className="text-xs text-gray-500 mb-1 block">Lodgement date</label>
+          <div><label className="text-xs text-gray-600 mb-1 block">Lodgement date</label>
             <input type="date" value={form.lodgement} onChange={e => update('lodgement', e.target.value)} className={inputClass} /></div>
-          <div><label className="text-xs text-gray-500 mb-1 block">Decision due date</label>
+          <div><label className="text-xs text-gray-600 mb-1 block">Decision due date</label>
             <input type="date" value={form.decisionDue} onChange={e => update('decisionDue', e.target.value)} className={inputClass} /></div>
         </div>
 
         <div className="border-t border-gray-100 mb-5" />
-        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Job folder · Microsoft 365</div>
+        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Job folder · Microsoft 365</div>
         {ms.loading ? (
-          <div className="text-xs text-gray-400 mb-5">Checking Microsoft 365...</div>
+          <div className="text-xs text-gray-500 mb-5">Checking Microsoft 365...</div>
         ) : !ms.connected ? (
-          <div className="text-xs text-gray-400 mb-5">
+          <div className="text-xs text-gray-500 mb-5">
             Microsoft 365 is not connected, so no folder will be created. {isDirector ? 'Connect it from the Documents page.' : 'Ask a director to connect it from the Documents page.'} A folder can still be linked later from the job's Documents tab.
           </div>
         ) : (
           <div className="mb-5">
-            <div className="text-xs text-gray-400 mb-3">
+            <div className="text-xs text-gray-500 mb-3">
               The job is named <span className="font-medium text-gray-600">{hasPreview ? previewName : '[Client Name] - [Address] [job number]'}</span>. Its folder gets the same name.
             </div>
             <div className="space-y-2">
               <button type="button" disabled={!ms.jobsFolder} onClick={() => ms.jobsFolder && setFolderMode('create')} className={optionClass(folderMode === 'create', !ms.jobsFolder)}>
                 <div className="text-xs font-semibold text-gray-700">{folderMode === 'create' ? '● ' : '○ '}Create a new folder for this job</div>
-                <div className="text-xs text-gray-500 mt-0.5">
+                <div className="text-xs text-gray-600 mt-0.5">
                   {ms.jobsFolder
                     ? <>Created automatically inside <span className="font-medium">{ms.jobsFolder.path || ms.jobsFolder.name}</span> when you save.</>
                     : isDirector
@@ -658,7 +658,7 @@ export default function NewJob({ onNavigate, currentUser }) {
               </button>
               <button type="button" onClick={() => { if (pickedFolder) setFolderMode('existing'); else setPicker('existing') }} className={optionClass(folderMode === 'existing', false)}>
                 <div className="text-xs font-semibold text-gray-700">{folderMode === 'existing' ? '● ' : '○ '}Link a folder that already exists</div>
-                <div className="text-xs text-gray-500 mt-0.5">
+                <div className="text-xs text-gray-600 mt-0.5">
                   {pickedFolder
                     ? <>Linked to <span className="font-medium">{pickedFolder.path || pickedFolder.name}</span>.</>
                     : 'For a job whose folder is already in OneDrive or SharePoint.'}
@@ -666,7 +666,7 @@ export default function NewJob({ onNavigate, currentUser }) {
               </button>
               <button type="button" onClick={() => setFolderMode('none')} className={optionClass(folderMode === 'none', false)}>
                 <div className="text-xs font-semibold text-gray-700">{folderMode === 'none' ? '● ' : '○ '}No folder for now</div>
-                <div className="text-xs text-gray-500 mt-0.5">Link one later from the job's Documents tab.</div>
+                <div className="text-xs text-gray-600 mt-0.5">Link one later from the job's Documents tab.</div>
               </button>
             </div>
             <div className="flex items-center gap-3 mt-2 flex-wrap">
@@ -683,8 +683,8 @@ export default function NewJob({ onNavigate, currentUser }) {
         )}
 
         <div className="border-t border-gray-100 mb-5" />
-        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Documents available to generate</div>
-        <div className="text-xs text-gray-400 mb-3">After creating the job you'll be prompted to generate fee proposals, consents, planning reports, IR responses, public notices and more, all pre-filled with job and planner details.</div>
+        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Documents available to generate</div>
+        <div className="text-xs text-gray-500 mb-3">After creating the job you'll be prompted to generate fee proposals, consents, planning reports, IR responses, public notices and more, all pre-filled with job and planner details.</div>
         <div className="flex flex-wrap gap-2 mb-6">
           {[...STAGE1_TEMPLATES, ...STAGE2_TEMPLATES, ...STAGE3_TEMPLATES, ...MISC_TEMPLATES].flatMap(g => g.items).map(t => (
             <span key={t.file} className="px-3 py-1 bg-emerald-50 text-emerald-700 text-xs rounded-full border border-emerald-200">{t.label}</span>

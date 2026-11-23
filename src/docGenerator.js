@@ -202,7 +202,7 @@ export const generateFeeProposal = async (job) => {
           spacing: { after: 60 },
         }),
         new Paragraph({
-          children: [new TextRun({ text: `Re: ${job.proposed_use || job.app_type || 'Development Application'} — ${job.address || ''}`, size: 22 })],
+          children: [new TextRun({ text: `Re: ${job.proposed_use || job.app_type || 'Development Application'} - ${job.address || ''}`, size: 22 })],
           spacing: { after: 400 },
         }),
 
@@ -359,7 +359,7 @@ export const generateIRResponse = async (job, irNumber = 1) => {
       properties: {},
       children: [
         new Paragraph({ children: [new TextRun({ text: 'INFORMATION REQUEST RESPONSE', bold: true, size: 48 })], alignment: AlignmentType.CENTER, spacing: { after: 200 } }),
-        new Paragraph({ children: [new TextRun({ text: `IR #${irNumber} — ${job.name || 'Planning Application'}`, bold: true, size: 28 })], alignment: AlignmentType.CENTER, spacing: { after: 400 } }),
+        new Paragraph({ children: [new TextRun({ text: `IR #${irNumber} - ${job.name || 'Planning Application'}`, bold: true, size: 28 })], alignment: AlignmentType.CENTER, spacing: { after: 400 } }),
         heading('Application Details'),
         boldPara('Application reference', job.code),
         boldPara('Site address', job.address),
@@ -393,7 +393,7 @@ export const generateEngagementLetter = async (job) => {
         new Paragraph({ children: [new TextRun({ text: `${job.client_first_name || ''} ${job.client_last_name || ''}`, size: 24, bold: true })], spacing: { after: 100 } }),
         new Paragraph({ children: [new TextRun({ text: job.address || '', size: 24 })], spacing: { after: 400 } }),
         new Paragraph({ children: [new TextRun({ text: `Dear ${job.client_first_name || 'Client'},`, size: 24 })], spacing: { after: 300 } }),
-        new Paragraph({ children: [new TextRun({ text: `Re: ${job.app_type || 'Planning Application'} — ${job.address || '[address]'}`, bold: true, size: 24 })], spacing: { after: 300 } }),
+        new Paragraph({ children: [new TextRun({ text: `Re: ${job.app_type || 'Planning Application'} - ${job.address || '[address]'}`, bold: true, size: 24 })], spacing: { after: 300 } }),
         para('Thank you for engaging our services in relation to the above matter. We are pleased to confirm our instructions to act on your behalf.'),
         heading('Scope of Services'),
         para(`Our services will include preparation and lodgement of the development application, liaison with ${job.council || '[council]'} throughout the assessment process, and preparation of planning report and supporting documentation.`),
@@ -429,7 +429,7 @@ export const generateInvoice = async (job) => {
         new Paragraph({ children: [new TextRun({ text: `${job.client_first_name || ''} ${job.client_last_name || ''}`, size: 24 })], spacing: { after: 100 } }),
         new Paragraph({ children: [new TextRun({ text: job.address || '', size: 24 })], spacing: { after: 400 } }),
         heading('Services'),
-        boldPara('Description', `${job.app_type || 'Planning'} services — ${job.name || ''}`),
+        boldPara('Description', `${job.app_type || 'Planning'} services - ${job.name || ''}`),
         boldPara('Hours', `${job.budget_hours || 0} hours @ $${job.planner_rate || 0}/hr`),
         boldPara('Subtotal', `$${subtotal.toLocaleString()}`),
         boldPara('GST (10%)', `$${gst.toLocaleString()}`),

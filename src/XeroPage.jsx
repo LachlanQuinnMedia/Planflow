@@ -24,7 +24,7 @@ function formatCurrency(amount) {
 }
 
 function formatDate(dateStr) {
-  if (!dateStr) return '—'
+  if (!dateStr) return '-'
   const match = dateStr.match(/\/Date\((\d+)/)
   if (match) {
     return new Date(parseInt(match[1])).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -47,44 +47,44 @@ function InvoiceDetailModal({ invoice, onClose }) {
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <div className="text-sm font-semibold">{invoice.InvoiceNumber || 'Invoice'}</div>
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[invoice.Status] || 'bg-gray-100 text-gray-500'}`}>{invoice.Status}</span>
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[invoice.Status] || 'bg-gray-100 text-gray-600'}`}>{invoice.Status}</span>
             </div>
-            <div className="text-xs text-gray-400 mt-0.5">{invoice.Contact?.Name}{invoice.Reference ? ` · Ref ${invoice.Reference}` : ''}</div>
+            <div className="text-xs text-gray-500 mt-0.5">{invoice.Contact?.Name}{invoice.Reference ? ` · Ref ${invoice.Reference}` : ''}</div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 ml-3 flex-shrink-0">✕</button>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-600 ml-3 flex-shrink-0">✕</button>
         </div>
 
         <div className="px-5 py-4 overflow-y-auto flex-1">
           <div className="grid grid-cols-3 gap-3 mb-4">
             <div className="bg-gray-50 rounded-lg px-3 py-2">
-              <div className="text-xs text-gray-400">Issued</div>
+              <div className="text-xs text-gray-500">Issued</div>
               <div className="text-xs font-medium">{formatDate(invoice.Date)}</div>
             </div>
             <div className="bg-gray-50 rounded-lg px-3 py-2">
-              <div className="text-xs text-gray-400">Due</div>
+              <div className="text-xs text-gray-500">Due</div>
               <div className="text-xs font-medium">{formatDate(invoice.DueDate)}</div>
             </div>
             <div className="bg-gray-50 rounded-lg px-3 py-2">
-              <div className="text-xs text-gray-400">Amount due</div>
+              <div className="text-xs text-gray-500">Amount due</div>
               <div className="text-xs font-medium">{formatCurrency(invoice.AmountDue)}</div>
             </div>
           </div>
 
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Line items</div>
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Line items</div>
           {!hasLines ? (
-            <div className="text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-3 mb-4">
-              Line item detail isn't included in this view — open in Xero to see the full breakdown.
+            <div className="text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-3 mb-4">
+              Line item detail isn't included in this view. Open in Xero to see the full breakdown.
             </div>
           ) : (
             <div className="border border-gray-100 rounded-lg overflow-hidden mb-4">
               <div className="grid grid-cols-[1fr_60px_90px_90px] gap-2 px-3 py-2 bg-gray-50 border-b border-gray-100">
-                {['Description', 'Qty', 'Unit', 'Amount'].map(h => <div key={h} className="text-xs text-gray-400">{h}</div>)}
+                {['Description', 'Qty', 'Unit', 'Amount'].map(h => <div key={h} className="text-xs text-gray-500">{h}</div>)}
               </div>
               {lines.map((l, i) => (
                 <div key={i} className="grid grid-cols-[1fr_60px_90px_90px] gap-2 px-3 py-2 border-b border-gray-50 last:border-0 text-xs">
-                  <div className="truncate">{l.Description || '—'}</div>
-                  <div className="text-gray-500">{l.Quantity ?? ''}</div>
-                  <div className="text-gray-500">{l.UnitAmount != null ? formatCurrency(l.UnitAmount) : ''}</div>
+                  <div className="truncate">{l.Description || '-'}</div>
+                  <div className="text-gray-600">{l.Quantity ?? ''}</div>
+                  <div className="text-gray-600">{l.UnitAmount != null ? formatCurrency(l.UnitAmount) : ''}</div>
                   <div className="font-medium">{formatCurrency(l.LineAmount)}</div>
                 </div>
               ))}
@@ -93,11 +93,11 @@ function InvoiceDetailModal({ invoice, onClose }) {
 
           <div className="space-y-1.5">
             <div className="flex justify-between text-xs">
-              <span className="text-gray-400">Subtotal (ex GST)</span>
+              <span className="text-gray-500">Subtotal (ex GST)</span>
               <span className="font-medium">{formatCurrency(invoice.SubTotal)}</span>
             </div>
             <div className="flex justify-between text-xs">
-              <span className="text-gray-400">GST</span>
+              <span className="text-gray-500">GST</span>
               <span className="font-medium">{formatCurrency(invoice.TotalTax)}</span>
             </div>
             <div className="flex justify-between text-sm font-semibold border-t border-gray-200 pt-2">
@@ -106,7 +106,7 @@ function InvoiceDetailModal({ invoice, onClose }) {
             </div>
             {invoice.AmountPaid > 0 && (
               <div className="flex justify-between text-xs">
-                <span className="text-gray-400">Paid</span>
+                <span className="text-gray-500">Paid</span>
                 <span className="font-medium">{formatCurrency(invoice.AmountPaid)}</span>
               </div>
             )}
@@ -117,7 +117,7 @@ function InvoiceDetailModal({ invoice, onClose }) {
           <button onClick={onClose} className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium">Close</button>
           <a href={xeroInvoiceUrl(invoice.InvoiceID)} target="_blank" rel="noopener noreferrer"
             className="flex-1 py-2 text-xs bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-center">
-            ↗ Open in Xero
+            Open in Xero
           </a>
         </div>
       </div>
@@ -229,7 +229,7 @@ export default function Xero({ currentUser }) {
   if (loading) {
     return (
       <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-        <div className="text-sm text-gray-400">Loading Xero connection...</div>
+        <div className="text-sm text-gray-500">Loading Xero connection...</div>
       </div>
     )
   }
@@ -242,7 +242,7 @@ export default function Xero({ currentUser }) {
             <div className="text-3xl font-bold text-blue-500">x</div>
           </div>
           <div className="text-lg font-semibold mb-2">Connect Xero</div>
-          <div className="text-sm text-gray-400 mb-6">
+          <div className="text-sm text-gray-500 mb-6">
             Connect your Xero account to push invoices directly from QPlan, sync contacts, and track payment status.
           </div>
           <div className="space-y-3 text-left mb-6">
@@ -276,12 +276,12 @@ export default function Xero({ currentUser }) {
           </div>
           <div>
             <div className="text-sm font-semibold">Connected to Xero</div>
-            <div className="text-xs text-gray-400">{tenantName}</div>
+            <div className="text-xs text-gray-500">{tenantName}</div>
           </div>
           <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">● Live</span>
         </div>
         <div className="flex gap-2">
-          <button onClick={fetchInvoices} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">↻ Sync</button>
+          <button onClick={fetchInvoices} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Sync</button>
           <button onClick={handleDisconnect} className="px-3 py-1.5 text-xs text-red-500 border border-red-100 rounded-lg hover:bg-red-50">Disconnect</button>
         </div>
       </div>
@@ -289,7 +289,7 @@ export default function Xero({ currentUser }) {
       <div className="flex gap-1 border-b border-gray-200 mb-4">
         {[{ id: 'invoices', label: 'Invoices' }, { id: 'push', label: 'Push Invoice' }, { id: 'contacts', label: 'Contacts' }].map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2 text-xs border-b-2 transition-colors ${activeTab === tab.id ? 'border-emerald-500 text-emerald-600 font-medium' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+            className={`px-4 py-2 text-xs border-b-2 transition-colors ${activeTab === tab.id ? 'border-emerald-500 text-emerald-600 font-medium' : 'border-transparent text-gray-600 hover:text-gray-700'}`}>
             {tab.label}
           </button>
         ))}
@@ -298,18 +298,18 @@ export default function Xero({ currentUser }) {
       {activeTab === 'invoices' && (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Xero Invoices</div>
-            <div className="text-xs text-gray-400">{invoices.length} invoices · click to view</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Xero Invoices</div>
+            <div className="text-xs text-gray-500">{invoices.length} invoices · click to view</div>
           </div>
           {invoicesLoading ? (
-            <div className="px-4 py-8 text-center text-sm text-gray-400">Loading invoices...</div>
+            <div className="px-4 py-8 text-center text-sm text-gray-500">Loading invoices...</div>
           ) : invoices.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-gray-400">No invoices found in Xero.</div>
+            <div className="px-4 py-8 text-center text-sm text-gray-500">No invoices found in Xero.</div>
           ) : (
             <>
               <div className="grid grid-cols-[1fr_120px_100px_100px_80px] gap-3 px-4 py-2 border-b border-gray-100 bg-gray-50">
                 {['Contact', 'Date', 'Due', 'Amount', 'Status'].map(h => (
-                  <div key={h} className="text-xs text-gray-400">{h}</div>
+                  <div key={h} className="text-xs text-gray-500">{h}</div>
                 ))}
               </div>
               {invoices.map(inv => (
@@ -318,12 +318,12 @@ export default function Xero({ currentUser }) {
                   className="grid grid-cols-[1fr_120px_100px_100px_80px] gap-3 px-4 py-3 border-b border-gray-100 last:border-0 items-center hover:bg-gray-50 cursor-pointer transition-colors">
                   <div className="min-w-0">
                     <div className="text-xs font-medium truncate">{inv.Contact?.Name}</div>
-                    <div className="text-xs text-gray-400">{inv.InvoiceNumber}{inv.Reference ? ` · ${inv.Reference}` : ''}</div>
+                    <div className="text-xs text-gray-500">{inv.InvoiceNumber}{inv.Reference ? ` · ${inv.Reference}` : ''}</div>
                   </div>
-                  <div className="text-xs text-gray-500">{formatDate(inv.Date)}</div>
-                  <div className="text-xs text-gray-500">{formatDate(inv.DueDate)}</div>
+                  <div className="text-xs text-gray-600">{formatDate(inv.Date)}</div>
+                  <div className="text-xs text-gray-600">{formatDate(inv.DueDate)}</div>
                   <div className="text-xs font-medium">{formatCurrency(inv.Total)}</div>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[inv.Status] || 'bg-gray-100 text-gray-500'}`}>{inv.Status}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[inv.Status] || 'bg-gray-100 text-gray-600'}`}>{inv.Status}</span>
                 </div>
               ))}
             </>
@@ -334,7 +334,7 @@ export default function Xero({ currentUser }) {
       {activeTab === 'push' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Select job to invoice</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Select job to invoice</div>
             <select value={selectedJob} onChange={e => handleJobSelect(e.target.value)}
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400 mb-4">
               <option value="">Select a job...</option>
@@ -343,29 +343,29 @@ export default function Xero({ currentUser }) {
             {selectedJobData && (
               <div className="space-y-2 mb-4">
                 <div className="flex justify-between text-xs">
-                  <span className="text-gray-400">Client</span>
+                  <span className="text-gray-500">Client</span>
                   <span className="font-medium">{clientName(selectedJobData)}</span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-gray-400">Email</span>
-                  <span className="font-medium">{selectedJobData.client_email || '—'}</span>
+                  <span className="text-gray-500">Email</span>
+                  <span className="font-medium">{selectedJobData.client_email || '-'}</span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-gray-400">Rate</span>
+                  <span className="text-gray-500">Rate</span>
                   <span className="font-medium">${selectedJobData.planner_rate}/hr</span>
                 </div>
               </div>
             )}
             {timeLogs.length > 0 && (
               <div className="border-t border-gray-100 pt-3">
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Time logs to invoice</div>
+                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Time logs to invoice</div>
                 {timeLogs.map((log, i) => {
                   const hrs = ((log.duration_seconds || 0) / 3600).toFixed(2)
                   const amt = (parseFloat(hrs) * (log.rate || 0)).toFixed(2)
                   return (
                     <div key={i} className="flex justify-between text-xs py-1.5 border-b border-gray-50 last:border-0">
                       <span className="text-gray-600 truncate flex-1 mr-2">{log.task}</span>
-                      <span className="text-gray-400 mr-2">{hrs}h</span>
+                      <span className="text-gray-500 mr-2">{hrs}h</span>
                       <span className="font-medium">${amt}</span>
                     </div>
                   )
@@ -379,34 +379,34 @@ export default function Xero({ currentUser }) {
           </div>
 
           <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Invoice preview</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Invoice preview</div>
             {!selectedJob ? (
-              <div className="text-xs text-gray-400 text-center py-8">Select a job to preview the invoice</div>
+              <div className="text-xs text-gray-500 text-center py-8">Select a job to preview the invoice</div>
             ) : (
               <div className="space-y-3">
                 <div className="bg-gray-50 rounded-lg p-3">
-                  <div className="text-xs text-gray-400 mb-1">Will be created in Xero as</div>
+                  <div className="text-xs text-gray-500 mb-1">Will be created in Xero as</div>
                   <div className="text-sm font-semibold">{clientName(selectedJobData)}</div>
-                  <div className="text-xs text-gray-400">{selectedJobData?.code} · Due in 14 days</div>
+                  <div className="text-xs text-gray-500">{selectedJobData?.code} · Due in 14 days</div>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-gray-400">Line items</span>
+                  <span className="text-gray-500">Line items</span>
                   <span className="font-medium">{timeLogs.length} time entries</span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-gray-400">Subtotal (ex GST)</span>
+                  <span className="text-gray-500">Subtotal (ex GST)</span>
                   <span className="font-medium">{formatCurrency(totalAmount)}</span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-gray-400">GST (10%)</span>
+                  <span className="text-gray-500">GST (10%)</span>
                   <span className="font-medium">{formatCurrency(totalAmount * 0.1)}</span>
                 </div>
                 <div className="flex justify-between text-sm font-semibold border-t border-gray-200 pt-2">
                   <span>Total (inc GST)</span>
                   <span className="text-emerald-600">{formatCurrency(totalAmount * 1.1)}</span>
                 </div>
-                <div className="text-xs text-gray-400 bg-blue-50 rounded-lg px-3 py-2">
-                  Invoice will be created as a <strong>Draft</strong> in Xero — you can review before sending.
+                <div className="text-xs text-gray-500 bg-blue-50 rounded-lg px-3 py-2">
+                  Invoice will be created as a <strong>Draft</strong> in Xero. You can review it before sending.
                 </div>
                 {pushSuccess && (
                   <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-xs text-emerald-700">
@@ -426,11 +426,11 @@ export default function Xero({ currentUser }) {
       {activeTab === 'contacts' && (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Xero Contacts</div>
-            <div className="text-xs text-gray-400">{contacts.length} contacts</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Xero Contacts</div>
+            <div className="text-xs text-gray-500">{contacts.length} contacts</div>
           </div>
           {contacts.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-gray-400">No contacts found in Xero.</div>
+            <div className="px-4 py-8 text-center text-sm text-gray-500">No contacts found in Xero.</div>
           ) : contacts.map(c => (
             <div key={c.ContactID} className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 last:border-0 hover:bg-gray-50">
               <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-medium text-blue-700 flex-shrink-0">
@@ -438,9 +438,9 @@ export default function Xero({ currentUser }) {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-medium">{c.Name}</div>
-                <div className="text-xs text-gray-400">{c.EmailAddress || '—'}</div>
+                <div className="text-xs text-gray-500">{c.EmailAddress || '-'}</div>
               </div>
-              <div className="text-xs text-gray-400">{c.Phones?.[0]?.PhoneNumber || ''}</div>
+              <div className="text-xs text-gray-500">{c.Phones?.[0]?.PhoneNumber || ''}</div>
             </div>
           ))}
         </div>

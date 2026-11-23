@@ -1,6 +1,6 @@
 // src/GenerateTemplateModal.jsx
 // In-job document picker. Planner ticks exactly the documents they need and hits
-// Generate — each downloads, auto-filled from this job + the planner's profile,
+// Generate - each downloads, auto-filled from this job + the planner's profile,
 // with everything else left as editable {placeholders} in the Word file.
 //
 // Usage in JobDetail:
@@ -17,7 +17,7 @@
 import { useState } from 'react';
 import { generateFromTemplate } from './templateFiller';
 
-// Stage 1 only for now — more categories get added as their templates arrive.
+// Stage 1 only for now - more categories get added as their templates arrive.
 const CATEGORIES = [
   {
     stage: 'Stage 1',
@@ -77,17 +77,17 @@ export default function GenerateTemplateModal({ job, planner, onClose }) {
         <div className="flex items-center justify-between border-b px-5 py-4">
           <div>
             <h2 className="text-lg font-semibold text-[#1B2A4A]">Generate docs</h2>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-600">
               {job?.code ? `${job.code} · ` : ''}Filled from this job &amp; {planner?.full_name || 'your profile'}
             </p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600" aria-label="Close">✕</button>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-600" aria-label="Close">✕</button>
         </div>
 
         <div className="space-y-5 overflow-y-auto px-5 py-4">
           {CATEGORIES.map((cat) => (
             <div key={cat.stage}>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">{cat.stage}</p>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">{cat.stage}</p>
               <div className="space-y-4">
                 {cat.groups.map((group) => (
                   <div key={group.name}>
@@ -118,7 +118,7 @@ export default function GenerateTemplateModal({ job, planner, onClose }) {
         </div>
 
         <div className="flex items-center justify-between border-t px-5 py-4">
-          <span className="text-xs text-gray-500">{selected.size} selected</span>
+          <span className="text-xs text-gray-600">{selected.size} selected</span>
           <div className="flex gap-2">
             <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100">
               Cancel

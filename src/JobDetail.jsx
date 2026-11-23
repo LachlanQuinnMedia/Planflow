@@ -4,6 +4,7 @@ import { generateFromTemplate } from './templateFiller'
 import OneDriveBrowser, { OneDriveFolderPicker } from './OneDriveBrowser'
 import { APP_TYPES, appTypeBadge, appTypeFull, buildJobName, clientName, contactName, isCompanyClient, jobTitle } from './jobMeta'
 import { addBusinessDays, deadlineStatus, skippedHolidays, beyondHolidayData, hasShowHoliday, stageDayRules } from './businessDays'
+import { IconPencil, IconFolder } from './icons'
 
 // Today's date as YYYY-MM-DD in Brisbane time (not UTC)
 function todayLocal() {
@@ -32,9 +33,9 @@ const COUNCILS = [
 ]
 
 export const DA_STAGES = [
-  { id: 'application', label: 'Application stage', description: 'Application lodged — confirmation notice issued', statutory_days: 5, hpc_stage: 'Stage 2', color: 'bg-blue-100 text-blue-700' },
+  { id: 'application', label: 'Application stage', description: 'Application lodged, confirmation notice issued', statutory_days: 5, hpc_stage: 'Stage 2', color: 'bg-blue-100 text-blue-700' },
   { id: 'referral', label: 'Referral stage', description: 'Referral to state government / Energex / other agencies', statutory_days: 10, hpc_stage: 'Stage 3', color: 'bg-purple-100 text-purple-700' },
-  { id: 'information', label: 'Information request stage', description: 'Council information request — response window', statutory_days: 10, hpc_stage: 'Stage 3', color: 'bg-amber-100 text-amber-700' },
+  { id: 'information', label: 'Information request stage', description: 'Council information request and response window', statutory_days: 10, hpc_stage: 'Stage 3', color: 'bg-amber-100 text-amber-700' },
   { id: 'notification', label: 'Public notification stage', description: 'Public notification & submissions period', statutory_days: 15, hpc_stage: 'Stage 3', color: 'bg-pink-100 text-pink-700' },
   { id: 'decision', label: 'Decision stage', description: 'Assessment and decision by Council', statutory_days: 20, hpc_stage: 'Stage 3', color: 'bg-emerald-100 text-emerald-700' },
 ]
@@ -42,7 +43,7 @@ export const DA_STAGES = [
 export const HPC_STAGES = [
   {
     id: 'stage1',
-    label: 'Stage 1 — Preliminary Planning Investigations',
+    label: 'Stage 1: Preliminary Planning Investigations',
     shortLabel: 'Stage 1',
     color: 'bg-blue-100 text-blue-700',
     defaultFee: 500,
@@ -61,7 +62,7 @@ export const HPC_STAGES = [
   },
   {
     id: 'stage2',
-    label: 'Stage 2 — Prepare and Lodge Development Application',
+    label: 'Stage 2: Prepare and Lodge Development Application',
     shortLabel: 'Stage 2',
     color: 'bg-purple-100 text-purple-700',
     defaultFee: 3000,
@@ -80,7 +81,7 @@ export const HPC_STAGES = [
   },
   {
     id: 'stage3',
-    label: 'Stage 3 — Manage and Coordinate Post Lodgement Services',
+    label: 'Stage 3: Manage and Coordinate Post Lodgement Services',
     shortLabel: 'Stage 3',
     color: 'bg-emerald-100 text-emerald-700',
     defaultFee: 2000,
@@ -134,14 +135,14 @@ const statusColors = {
 
 const STAGE1_TEMPLATES = [
   { group: 'Fee Proposals', items: [
-    { file: 'Fee_Proposal_Code.docx',         label: 'Fee Proposal — Code Assessable' },
-    { file: 'Fee_Proposal_Impact.docx',       label: 'Fee Proposal — Impact Assessable' },
-    { file: 'Fee_Proposal_Minor_Change.docx', label: 'Fee Proposal — Minor Change' },
-    { file: 'Fee_Proposal_RAA.docx',          label: 'Fee Proposal — Referral Agency Assessment' },
+    { file: 'Fee_Proposal_Code.docx',         label: 'Fee Proposal - Code Assessable' },
+    { file: 'Fee_Proposal_Impact.docx',       label: 'Fee Proposal - Impact Assessable' },
+    { file: 'Fee_Proposal_Minor_Change.docx', label: 'Fee Proposal - Minor Change' },
+    { file: 'Fee_Proposal_RAA.docx',          label: 'Fee Proposal - Referral Agency Assessment' },
   ]},
   { group: "Owner's Consent", items: [
-    { file: 'Consent_Individual.docx', label: "Owner's Consent — Individual" },
-    { file: 'Consent_Company.docx',    label: "Owner's Consent — Company" },
+    { file: 'Consent_Individual.docx', label: "Owner's Consent - Individual" },
+    { file: 'Consent_Company.docx',    label: "Owner's Consent - Company" },
   ]},
 ]
 
@@ -151,14 +152,14 @@ const STAGE2_TEMPLATES = [
   ]},
   { group: 'Planning Reports', items: [
     { file: 'Town_Planning_Assessment.docx',         label: 'Town Planning Assessment (generic)' },
-    { file: 'DA_Report_Brisbane.docx',               label: 'DA Report — Brisbane' },
-    { file: 'DA_Report_Brisbane_RiskSmart.docx',     label: 'DA Report — Brisbane RiskSmart' },
-    { file: 'DA_Report_Express_Code.docx',           label: 'DA Report — Express DA (Code)' },
-    { file: 'DA_Report_Express_Accepted.docx',       label: 'DA Report — Express DA (Accepted to Code)' },
-    { file: 'DA_Report_Gold_Coast.docx',             label: 'DA Report — Gold Coast' },
-    { file: 'DA_Report_Gold_Coast_RAA.docx',         label: 'DA Report — Gold Coast RAA' },
-    { file: 'DA_Report_Gold_Coast_Sch6_RAA.docx',    label: 'DA Report — Gold Coast Sch6 RAA' },
-    { file: 'DA_Report_OPW.docx',                    label: 'DA Report — Operational Works' },
+    { file: 'DA_Report_Brisbane.docx',               label: 'DA Report - Brisbane' },
+    { file: 'DA_Report_Brisbane_RiskSmart.docx',     label: 'DA Report - Brisbane RiskSmart' },
+    { file: 'DA_Report_Express_Code.docx',           label: 'DA Report - Express DA (Code)' },
+    { file: 'DA_Report_Express_Accepted.docx',       label: 'DA Report - Express DA (Accepted to Code)' },
+    { file: 'DA_Report_Gold_Coast.docx',             label: 'DA Report - Gold Coast' },
+    { file: 'DA_Report_Gold_Coast_RAA.docx',         label: 'DA Report - Gold Coast RAA' },
+    { file: 'DA_Report_Gold_Coast_Sch6_RAA.docx',    label: 'DA Report - Gold Coast Sch6 RAA' },
+    { file: 'DA_Report_OPW.docx',                    label: 'DA Report - Operational Works' },
   ]},
   { group: 'Referrals', items: [
     { file: 'Referral_Cover_Letter.docx',      label: 'Referral Cover Letter' },
@@ -169,7 +170,7 @@ const STAGE2_TEMPLATES = [
   ]},
   { group: 'Change Applications', items: [
     { file: 'Minor_Change_Application.docx',                 label: 'Minor Change Application' },
-    { file: 'Minor_Change_Application_Affected_Entity.docx', label: 'Minor Change — Affected Entity Notice' },
+    { file: 'Minor_Change_Application_Affected_Entity.docx', label: 'Minor Change - Affected Entity Notice' },
     { file: 'Other_Change_Application.docx',                 label: 'Other Change Application' },
   ]},
 ]
@@ -214,7 +215,7 @@ const MISC_TEMPLATES = [
 const ALL_DOCX_ITEMS = [...STAGE1_TEMPLATES, ...STAGE2_TEMPLATES, ...STAGE3_TEMPLATES, ...MISC_TEMPLATES].flatMap(g => g.items)
 
 // For .xlsx and .ai (and any other non-docx Storage template), just download the
-// raw file from the templates bucket. No placeholder filling — these are blank
+// raw file from the templates bucket. No placeholder filling - these are blank
 // tools the planner opens in Excel / Illustrator and fills manually.
 async function downloadRawTemplate(filename) {
   const { data, error } = await supabase.storage.from('templates').download(filename)
@@ -235,12 +236,12 @@ function daysUntil(dateStr) {
 }
 
 function formatDateShort(dateStr) {
-  if (!dateStr) return '—'
+  if (!dateStr) return '-'
   return new Date(dateStr).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 function formatDateTimeAEST(dateStr) {
-  if (!dateStr) return '—'
+  if (!dateStr) return '-'
   return new Date(dateStr).toLocaleString('en-AU', {
     timeZone: 'Australia/Brisbane',
     day: 'numeric', month: 'short', year: 'numeric',
@@ -249,7 +250,7 @@ function formatDateTimeAEST(dateStr) {
 }
 
 function formatAEST(isoStr) {
-  if (!isoStr) return '—'
+  if (!isoStr) return '-'
   return new Date(isoStr).toLocaleString('en-AU', {
     timeZone: 'Australia/Brisbane',
     day: 'numeric', month: 'short', year: 'numeric',
@@ -282,10 +283,10 @@ async function sendStageNotifications(job, stageId, stageLabel, status, companyI
     const daysLeft = status.business || 0
     const notifType = status.overdue ? 'overdue' : daysLeft <= 3 ? 'due_soon_3' : 'due_soon_7'
     const message = status.overdue
-      ? `⚠️ OVERDUE: ${job.code} - ${stageLabel} is overdue (end date passed).`
+      ? `OVERDUE: ${job.code} - ${stageLabel} is overdue (end date passed).`
       : status.dueToday
-        ? `⏰ ${job.code} - ${stageLabel} is due today.`
-        : `⏰ ${job.code} - ${stageLabel}: ${status.label.toLowerCase()}.`
+        ? `Due today: ${job.code} - ${stageLabel}.`
+        : `Due soon: ${job.code} - ${stageLabel}, ${status.label.toLowerCase()}.`
     const { data: existing } = await supabase.from('stage_notifications').select('id').eq('job_id', job.id).eq('stage_id', stageId).eq('notification_type', notifType).single()
     if (existing) return
     await supabase.from('stage_notifications').insert({ job_id: job.id, stage_id: stageId, notification_type: notifType })
@@ -349,7 +350,7 @@ function HPCStagesTab({ job, onHistoryAdd }) {
   const totalWithGST = totalFees + gst
 
   const hpcStatusColors = {
-    pending: 'bg-gray-100 text-gray-500',
+    pending: 'bg-gray-100 text-gray-600',
     active: 'bg-amber-100 text-amber-700',
     complete: 'bg-emerald-100 text-emerald-700',
   }
@@ -358,9 +359,9 @@ function HPCStagesTab({ job, onHistoryAdd }) {
     <div className="space-y-4">
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="text-xs text-gray-400 mb-1">Total fees (ex GST)</div>
+          <div className="text-xs text-gray-500 mb-1">Total fees (ex GST)</div>
           <div className="text-xl font-semibold">${totalFees.toLocaleString()}</div>
-          <div className="text-xs text-gray-400 mt-0.5">+ GST ${gst.toLocaleString()} = ${totalWithGST.toLocaleString()}</div>
+          <div className="text-xs text-gray-500 mt-0.5">+ GST ${gst.toLocaleString()} = ${totalWithGST.toLocaleString()}</div>
         </div>
         <div className="bg-emerald-50 rounded-xl border border-emerald-100 p-4">
           <div className="text-xs text-emerald-600 mb-1">Invoiced / complete</div>
@@ -368,15 +369,15 @@ function HPCStagesTab({ job, onHistoryAdd }) {
           <div className="text-xs text-emerald-500 mt-0.5">{HPC_STAGES.filter(s => stages[s.id]?.status === 'complete').length} of 3 stages complete</div>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="text-xs text-gray-400 mb-1">Remaining</div>
+          <div className="text-xs text-gray-500 mb-1">Remaining</div>
           <div className="text-xl font-semibold text-amber-600">${(totalFees - completedFees).toLocaleString()}</div>
-          <div className="text-xs text-gray-400 mt-0.5">Pending stages</div>
+          <div className="text-xs text-gray-500 mt-0.5">Pending stages</div>
         </div>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 p-4">
         <div className="flex items-center justify-between mb-3">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">HPC stage progress</div>
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">HPC stage progress</div>
           <button onClick={saveStages} disabled={saving} className="px-3 py-1 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50">
             {saving ? 'Saving...' : saved ? '✓ Saved' : 'Save stages'}
           </button>
@@ -396,8 +397,8 @@ function HPCStagesTab({ job, onHistoryAdd }) {
                   />
                 </div>
                 <div className="flex items-center justify-between mt-1">
-                  <span className="text-xs text-gray-400">{stage.shortLabel}</span>
-                  <span className="text-xs text-gray-400">{checkedCount}/{totalItems}</span>
+                  <span className="text-xs text-gray-500">{stage.shortLabel}</span>
+                  <span className="text-xs text-gray-500">{checkedCount}/{totalItems}</span>
                 </div>
               </div>
             )
@@ -417,12 +418,12 @@ function HPCStagesTab({ job, onHistoryAdd }) {
         return (
           <div key={stage.id} className={`bg-white rounded-xl border transition-all ${isActive ? 'border-amber-300 shadow-sm' : isComplete ? 'border-emerald-200' : 'border-gray-100'}`}>
             <div className="flex items-center gap-3 px-4 py-3 cursor-pointer" onClick={() => setExpandedStage(isExpanded ? null : stage.id)}>
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 ${isComplete ? 'bg-emerald-100 text-emerald-700' : isActive ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-400'}`}>
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 ${isComplete ? 'bg-emerald-100 text-emerald-700' : isActive ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'}`}>
                 {isComplete ? '✓' : index + 1}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-semibold text-gray-800">{stage.label}</div>
-                <div className="text-xs text-gray-400 truncate">{stage.description}</div>
+                <div className="text-xs text-gray-500 truncate">{stage.description}</div>
               </div>
               <div className="text-right flex-shrink-0 mr-2">
                 <div className="text-xs font-semibold">${parseFloat(data.fee || 0).toLocaleString()} + GST</div>
@@ -430,10 +431,10 @@ function HPCStagesTab({ job, onHistoryAdd }) {
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${hpcStatusColors[data.status]}`}>
                     {data.status === 'pending' ? 'Not started' : data.status === 'active' ? 'In progress' : 'Complete'}
                   </span>
-                  <span className="text-xs text-gray-400">{checkedCount}/{totalItems} tasks</span>
+                  <span className="text-xs text-gray-500">{checkedCount}/{totalItems} tasks</span>
                 </div>
               </div>
-              <div className="text-xs text-gray-300">{isExpanded ? '▲' : '▼'}</div>
+              <div className="text-xs text-gray-500">{isExpanded ? '▲' : '▼'}</div>
             </div>
 
             {isExpanded && (
@@ -441,8 +442,8 @@ function HPCStagesTab({ job, onHistoryAdd }) {
                 <div className="grid grid-cols-2 gap-4 mt-3">
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Scope of works</div>
-                      <span className="text-xs text-gray-400">{checkedCount} of {totalItems} complete</span>
+                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Scope of works</div>
+                      <span className="text-xs text-gray-500">{checkedCount} of {totalItems} complete</span>
                     </div>
                     <div className="space-y-1.5">
                       {stage.items.map((item, i) => {
@@ -470,16 +471,16 @@ function HPCStagesTab({ job, onHistoryAdd }) {
                   </div>
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-xs text-gray-500 mb-1">Stage fee (ex GST)</label>
+                      <label className="block text-xs text-gray-600 mb-1">Stage fee (ex GST)</label>
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-400">$</span>
+                        <span className="text-xs text-gray-500">$</span>
                         <input type="number" value={data.fee} onChange={e => updateStage(stage.id, { fee: e.target.value })}
                           className="flex-1 px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
-                        <span className="text-xs text-gray-400">+ GST</span>
+                        <span className="text-xs text-gray-500">+ GST</span>
                       </div>
                     </div>
                     <div>
-                      <label className="block text-xs text-gray-500 mb-1">Status</label>
+                      <label className="block text-xs text-gray-600 mb-1">Status</label>
                       <select value={data.status}
                         onChange={e => updateStage(stage.id, { status: e.target.value, completedDate: e.target.value === 'complete' ? todayLocal() : data.completedDate })}
                         className="w-full px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
@@ -490,7 +491,7 @@ function HPCStagesTab({ job, onHistoryAdd }) {
                     </div>
                     {data.completedDate && <div className="text-xs text-emerald-600">✓ Completed {formatDateShort(data.completedDate)}</div>}
                     <div>
-                      <label className="block text-xs text-gray-500 mb-1">Notes</label>
+                      <label className="block text-xs text-gray-600 mb-1">Notes</label>
                       <textarea value={data.notes} onChange={e => updateStage(stage.id, { notes: e.target.value })}
                         placeholder="Add notes for this stage..." rows={3}
                         className="w-full px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400 resize-none" />
@@ -507,7 +508,7 @@ function HPCStagesTab({ job, onHistoryAdd }) {
                     </div>
                     {checkedCount > 0 && (
                       <div>
-                        <div className="flex justify-between text-xs text-gray-400 mb-1">
+                        <div className="flex justify-between text-xs text-gray-500 mb-1">
                           <span>Tasks completed</span><span>{checkedCount}/{totalItems}</span>
                         </div>
                         <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -524,12 +525,12 @@ function HPCStagesTab({ job, onHistoryAdd }) {
       })}
 
       <div className="bg-white rounded-xl border border-gray-200 p-4">
-        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Fee summary</div>
+        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Fee summary</div>
         {HPC_STAGES.map(stage => (
           <div key={stage.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
             <div className="flex items-center gap-2">
-              <div className="text-xs text-gray-600">{stage.shortLabel} — {stage.label.split(' — ')[1]}</div>
-              <span className="text-xs text-gray-400">({(stages[stage.id]?.checkedItems || []).length}/{stage.items.length} tasks)</span>
+              <div className="text-xs text-gray-600">{stage.label}</div>
+              <span className="text-xs text-gray-500">({(stages[stage.id]?.checkedItems || []).length}/{stage.items.length} tasks)</span>
             </div>
             <div className="text-xs font-medium">${parseFloat(stages[stage.id]?.fee || 0).toLocaleString()} + GST</div>
           </div>
@@ -539,8 +540,8 @@ function HPCStagesTab({ job, onHistoryAdd }) {
           <div className="text-xs font-semibold">${totalFees.toLocaleString()}</div>
         </div>
         <div className="flex items-center justify-between py-1">
-          <div className="text-xs text-gray-400">GST (10%)</div>
-          <div className="text-xs text-gray-400">${gst.toLocaleString()}</div>
+          <div className="text-xs text-gray-500">GST (10%)</div>
+          <div className="text-xs text-gray-500">${gst.toLocaleString()}</div>
         </div>
         <div className="flex items-center justify-between py-2 border-t border-gray-200 mt-1">
           <div className="text-xs font-semibold text-emerald-700">Total (inc GST)</div>
@@ -633,16 +634,16 @@ function EditJobModal({ job, currentUser, onClose, onSaved }) {
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div>
             <div className="text-sm font-semibold">Edit job details</div>
-            <div className="text-xs text-gray-400 mt-0.5">{job.code} — changes are saved to the database and recorded in history.</div>
+            <div className="text-xs text-gray-500 mt-0.5">{job.code}. Changes are saved and recorded in history.</div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-600 text-lg">✕</button>
         </div>
         <div className="px-6 py-5 space-y-5 max-h-[75vh] overflow-y-auto">
           <div>
             <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Client details</div>
+              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Client details</div>
               <div className="flex items-center gap-2">
-                <label htmlFor="edit-client-type" className="text-xs text-gray-500">Client is</label>
+                <label htmlFor="edit-client-type" className="text-xs text-gray-600">Client is</label>
                 <select id="edit-client-type" value={clientType} onChange={e => setClientType(e.target.value)}
                   className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-emerald-400 font-medium">
                   <option value="individual">An individual</option>
@@ -652,52 +653,52 @@ function EditJobModal({ job, currentUser, onClose, onSaved }) {
             </div>
             <div className="grid grid-cols-2 gap-3">
               {isCompany && (
-                <div className="col-span-2"><label className="text-xs text-gray-500 mb-1 block">Company name</label>
+                <div className="col-span-2"><label className="text-xs text-gray-600 mb-1 block">Company name</label>
                   <input value={form.company} onChange={e => set('company', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
               )}
               {isCompany && <div className="col-span-2 text-xs font-medium text-gray-600 -mb-1">Contact person</div>}
-              <div><label className="text-xs text-gray-500 mb-1 block">{isCompany ? 'Contact first name' : 'First name'}</label>
+              <div><label className="text-xs text-gray-600 mb-1 block">{isCompany ? 'Contact first name' : 'First name'}</label>
                 <input value={form.firstName} onChange={e => set('firstName', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
-              <div><label className="text-xs text-gray-500 mb-1 block">{isCompany ? 'Contact last name' : 'Last name'}</label>
+              <div><label className="text-xs text-gray-600 mb-1 block">{isCompany ? 'Contact last name' : 'Last name'}</label>
                 <input value={form.lastName} onChange={e => set('lastName', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
-              <div><label className="text-xs text-gray-500 mb-1 block">{isCompany ? 'Contact email' : 'Email'}</label>
+              <div><label className="text-xs text-gray-600 mb-1 block">{isCompany ? 'Contact email' : 'Email'}</label>
                 <input value={form.email} onChange={e => set('email', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
-              <div><label className="text-xs text-gray-500 mb-1 block">{isCompany ? 'Contact phone' : 'Phone'}</label>
+              <div><label className="text-xs text-gray-600 mb-1 block">{isCompany ? 'Contact phone' : 'Phone'}</label>
                 <input value={form.phone} onChange={e => set('phone', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
             </div>
           </div>
           <div>
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Application details</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Application details</div>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="text-xs text-gray-500 mb-1 block">Application type</label>
+              <div><label className="text-xs text-gray-600 mb-1 block">Application type</label>
                 <select value={form.appType} onChange={e => set('appType', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
                   {APP_TYPES.map(t => <option key={t.code} value={t.code}>{t.code} · {t.label}</option>)}
                   {!APP_TYPES.some(t => t.code === form.appType) && <option value={form.appType}>{form.appType}</option>}
                 </select></div>
-              <div><label className="text-xs text-gray-500 mb-1 block">Assessment level</label>
+              <div><label className="text-xs text-gray-600 mb-1 block">Assessment level</label>
                 <select value={form.assessment} onChange={e => set('assessment', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
                   <option>Code Assessable</option><option>Impact Assessable</option><option>Accepted Development</option><option>Exempt</option>
                 </select></div>
-              <div className="col-span-2"><label className="text-xs text-gray-500 mb-1 block">Site address</label>
+              <div className="col-span-2"><label className="text-xs text-gray-600 mb-1 block">Site address</label>
                 <input value={form.address} onChange={e => set('address', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
-              <div><label className="text-xs text-gray-500 mb-1 block">Lot / RP reference</label>
+              <div><label className="text-xs text-gray-600 mb-1 block">Lot / RP reference</label>
                 <input value={form.lot} onChange={e => set('lot', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
-              <div><label className="text-xs text-gray-500 mb-1 block">Council / LGA</label>
+              <div><label className="text-xs text-gray-600 mb-1 block">Council / LGA</label>
                 <select value={form.council} onChange={e => set('council', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
                   {COUNCILS.map(c => <option key={c} value={c}>{c}</option>)}
                 </select></div>
-              <div><label className="text-xs text-gray-500 mb-1 block">Planning zone</label>
+              <div><label className="text-xs text-gray-600 mb-1 block">Planning zone</label>
                 <input value={form.zone} onChange={e => set('zone', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
-              <div><label className="text-xs text-gray-500 mb-1 block">Proposed use</label>
+              <div><label className="text-xs text-gray-600 mb-1 block">Proposed use</label>
                 <input value={form.proposedUse} onChange={e => set('proposedUse', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
-              <div className="col-span-2"><label className="text-xs text-gray-500 mb-1 block">Referral agencies</label>
+              <div className="col-span-2"><label className="text-xs text-gray-600 mb-1 block">Referral agencies</label>
                 <input value={form.referrals} onChange={e => set('referrals', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
             </div>
           </div>
           <div>
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Assign & budget</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Assign & budget</div>
             <div className="mb-3">
-              <label className="text-xs text-gray-500 mb-2 block">Assigned planners <span className="text-gray-400 font-normal">(first selected is lead)</span></label>
+              <label className="text-xs text-gray-600 mb-2 block">Assigned planners <span className="text-gray-500 font-normal">(first selected is lead)</span></label>
               <div className="flex flex-wrap gap-2">
                 {staffList.map(s => (
                   <button key={s.id} type="button" onClick={() => togglePlanner(s.displayName)}
@@ -708,17 +709,17 @@ function EditJobModal({ job, currentUser, onClose, onSaved }) {
                 ))}
               </div>
               {selectedPlanners.length > 0 && (
-                <div className="text-xs text-gray-400 mt-1.5">Lead: <span className="font-medium text-gray-600">{selectedPlanners[0]}</span>{selectedPlanners.length > 1 && ` · Also: ${selectedPlanners.slice(1).join(', ')}`}</div>
+                <div className="text-xs text-gray-500 mt-1.5">Lead: <span className="font-medium text-gray-600">{selectedPlanners[0]}</span>{selectedPlanners.length > 1 && ` · Also: ${selectedPlanners.slice(1).join(', ')}`}</div>
               )}
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="text-xs text-gray-500 mb-1 block">Planner rate ($/hr)</label>
+              <div><label className="text-xs text-gray-600 mb-1 block">Planner rate ($/hr)</label>
                 <input type="number" value={form.plannerRate} onChange={e => set('plannerRate', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
-              <div><label className="text-xs text-gray-500 mb-1 block">Budget (hours)</label>
+              <div><label className="text-xs text-gray-600 mb-1 block">Budget (hours)</label>
                 <input type="number" value={form.budget} onChange={e => set('budget', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
-              <div><label className="text-xs text-gray-500 mb-1 block">Lodgement date</label>
+              <div><label className="text-xs text-gray-600 mb-1 block">Lodgement date</label>
                 <input type="date" value={form.lodgement} onChange={e => set('lodgement', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
-              <div><label className="text-xs text-gray-500 mb-1 block">Decision due date</label>
+              <div><label className="text-xs text-gray-600 mb-1 block">Decision due date</label>
                 <input type="date" value={form.decisionDue} onChange={e => set('decisionDue', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
             </div>
           </div>
@@ -740,8 +741,8 @@ function DeleteTimeLogModal({ log, onConfirm, onCancel }) {
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
       <div className="bg-white rounded-xl border border-gray-200 p-6 w-full max-w-sm">
         <div className="text-sm font-semibold mb-1">Delete time entry</div>
-        <div className="text-xs text-gray-500 mb-1">Are you sure you want to delete this time entry?</div>
-        <div className="text-xs font-medium text-gray-800 mb-4">"{log.task}" — {formatDuration(log.duration_seconds || 0)}</div>
+        <div className="text-xs text-gray-600 mb-1">Are you sure you want to delete this time entry?</div>
+        <div className="text-xs font-medium text-gray-800 mb-4">"{log.task}" · {formatDuration(log.duration_seconds || 0)}</div>
         <div className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2 mb-4">This will permanently delete this time log entry. This cannot be undone.</div>
         <div className="flex gap-2">
           <button onClick={onCancel} className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 font-medium">No, keep it</button>
@@ -758,14 +759,14 @@ function StopClockModal({ stage, stageData, onSave, onClose }) {
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
       <div className="bg-white rounded-xl border border-gray-200 p-5 w-full max-w-md">
-        <div className="text-sm font-semibold mb-1">Stop the clock — {stage.label}</div>
-        <div className="text-xs text-gray-400 mb-4">Under Part 7(s32) of the DA Rules, the assessment period can be stopped by agreement with Council. The cumulative stopped period cannot exceed 130 business days.</div>
+        <div className="text-sm font-semibold mb-1">Stop the clock: {stage.label}</div>
+        <div className="text-xs text-gray-500 mb-4">Under Part 7(s32) of the DA Rules, the assessment period can be stopped by agreement with Council. The cumulative stopped period cannot exceed 130 business days.</div>
         <div className="mb-3">
-          <label className="block text-xs text-gray-500 mb-1">Duration to stop (business days)</label>
+          <label className="block text-xs text-gray-600 mb-1">Duration to stop (business days)</label>
           <input type="number" min={1} value={days} onChange={e => setDays(parseInt(e.target.value) || 0)} className="w-full px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
         </div>
         <div className="mb-4">
-          <label className="block text-xs text-gray-500 mb-1">Reason for stopping</label>
+          <label className="block text-xs text-gray-600 mb-1">Reason for stopping</label>
           <textarea value={reason} onChange={e => setReason(e.target.value)} placeholder="e.g. Awaiting client traffic report..." className="w-full px-3 py-1.5 text-xs border border-gray-200 rounded-lg resize-none h-20 focus:outline-none focus:border-emerald-400" />
         </div>
         <div className="flex gap-2">
@@ -851,9 +852,9 @@ function DAStageTracker({ job, currentUser, onHistoryAdd }) {
     <div className="space-y-3">
       <div className="bg-white rounded-xl border border-gray-200 p-4">
         <div className="flex items-center justify-between mb-3">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">DA stage progress</div>
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">DA stage progress</div>
           <div className="flex items-center gap-3">
-            <div className="text-xs text-gray-400">
+            <div className="text-xs text-gray-500">
               {job.lodgement_date ? `Lodged ${formatDateShort(job.lodgement_date)}` : 'Not yet lodged'}
               {job.decision_due_date ? ` · Decision due ${formatDateShort(job.decision_due_date)}` : ''}
             </div>
@@ -879,15 +880,15 @@ function DAStageTracker({ job, currentUser, onHistoryAdd }) {
             const data = stages[stage.id]
             return (
               <div key={stage.id} className="flex-1 text-center">
-                <div className={`text-xs mt-1 ${data.status === 'active' ? 'text-amber-600 font-medium' : data.status === 'complete' ? 'text-emerald-600' : 'text-gray-300'}`}>
+                <div className={`text-xs mt-1 ${data.status === 'active' ? 'text-amber-600 font-medium' : data.status === 'complete' ? 'text-emerald-600' : 'text-gray-500'}`}>
                   {data.status === 'complete' ? '✓' : data.status === 'active' ? '●' : '○'}
                 </div>
               </div>
             )
           })}
         </div>
-        <div className="text-xs text-gray-400 mt-3 pt-3 border-t border-gray-100">
-          Deadlines are counted in business days for <span className="font-medium text-gray-500">{council || 'this council'}</span>: weekends, Queensland public holidays{hasShowHoliday(council) ? ', the local show holiday' : ''} and 26 December to 1 January are skipped. Public notification skips 20 December to 5 January instead.
+        <div className="text-xs text-gray-500 mt-3 pt-3 border-t border-gray-100">
+          Deadlines are counted in business days for <span className="font-medium text-gray-600">{council || 'this council'}</span>: weekends, Queensland public holidays{hasShowHoliday(council) ? ', the local show holiday' : ''} and 26 December to 1 January are skipped. Public notification skips 20 December to 5 January instead.
           {!hasShowHoliday(council) && ' No show holiday is on file for this council, so adjust the end date by hand if one falls in a period.'}
         </div>
       </div>
@@ -911,54 +912,54 @@ function DAStageTracker({ job, currentUser, onHistoryAdd }) {
         return (
           <div key={stage.id} className={`bg-white rounded-xl border transition-all ${isActive ? 'border-amber-300 shadow-sm' : isComplete ? 'border-gray-200' : 'border-gray-100'}`}>
             <div className="flex items-center gap-3 px-4 py-3 cursor-pointer" onClick={() => setExpandedStage(isExpanded ? null : stage.id)}>
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 ${isComplete ? 'bg-emerald-100 text-emerald-700' : isActive ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-400'}`}>
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 ${isComplete ? 'bg-emerald-100 text-emerald-700' : isActive ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'}`}>
                 {isComplete ? '✓' : index + 1}
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <div className={`text-xs font-semibold ${isPending ? 'text-gray-400' : 'text-gray-800'}`}>{stage.label}</div>
+                  <div className={`text-xs font-semibold ${isPending ? 'text-gray-500' : 'text-gray-800'}`}>{stage.label}</div>
                   {data.isStopped && <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 font-medium">Clock stopped</span>}
                   {isOverdue && <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">Overdue</span>}
                   {isUrgent && !isOverdue && <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">Due soon</span>}
                 </div>
-                <div className="text-xs text-gray-400">{stage.description}</div>
+                <div className="text-xs text-gray-500">{stage.description}</div>
               </div>
               <div className="text-right flex-shrink-0">
                 {isActive && data.endDate && <div className={`text-xs font-semibold ${isOverdue ? 'text-red-600' : isUrgent ? 'text-amber-600' : 'text-gray-600'}`}>{status?.label}</div>}
                 {isComplete && <div className="text-xs text-emerald-600 font-medium">Complete</div>}
-                {isPending && <div className="text-xs text-gray-300">Not started</div>}
-                <div className="text-xs text-gray-400">{formatDateShort(data.endDate)}</div>
+                {isPending && <div className="text-xs text-gray-500">Not started</div>}
+                <div className="text-xs text-gray-500">{formatDateShort(data.endDate)}</div>
               </div>
-              <div className="text-xs text-gray-300">{isExpanded ? '▲' : '▼'}</div>
+              <div className="text-xs text-gray-500">{isExpanded ? '▲' : '▼'}</div>
             </div>
 
             {isExpanded && (
               <div className="px-4 pb-4 border-t border-gray-100">
                 <div className="grid grid-cols-2 gap-4 mt-3">
                   <div>
-                    <div className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-2">Dates</div>
+                    <div className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-2">Dates</div>
                     <div className="space-y-2">
                       <div className="flex justify-between">
-                        <span className="text-xs text-gray-400">Start date</span>
+                        <span className="text-xs text-gray-500">Start date</span>
                         <input type="date" value={data.startDate || ''} onChange={e => updateStage(stage.id, { startDate: e.target.value })} className="text-xs border border-gray-200 rounded px-2 py-0.5 focus:outline-none focus:border-emerald-400" />
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-xs text-gray-400">End date</span>
+                        <span className="text-xs text-gray-500">End date</span>
                         <input type="date" value={data.endDate || ''} onChange={e => updateStage(stage.id, { endDate: e.target.value, endDateManual: !!e.target.value })} className="text-xs border border-gray-200 rounded px-2 py-0.5 focus:outline-none focus:border-emerald-400" />
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-xs text-gray-400">Statutory period</span>
+                        <span className="text-xs text-gray-500">Statutory period</span>
                         <span className="text-xs font-medium">{stage.statutory_days} business days</span>
                       </div>
                       {data.stoppedDays > 0 && (
                         <div className="flex justify-between">
-                          <span className="text-xs text-gray-400">Clock stopped</span>
+                          <span className="text-xs text-gray-500">Clock stopped</span>
                           <span className="text-xs font-medium text-orange-600">{data.stoppedDays} business days</span>
                         </div>
                       )}
                     </div>
                     {data.startDate && (
-                      <div className="mt-3 text-xs text-gray-500 bg-gray-50 rounded-lg px-2.5 py-2 leading-relaxed">
+                      <div className="mt-3 text-xs text-gray-600 bg-gray-50 rounded-lg px-2.5 py-2 leading-relaxed">
                         {differs ? (
                           <>
                             End date was entered by hand. {period} business days after the start date is <span className="font-medium">{formatDateShort(calculated)}</span>.{' '}
@@ -982,7 +983,7 @@ function DAStageTracker({ job, currentUser, onHistoryAdd }) {
                     )}
                   </div>
                   <div>
-                    <div className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-2">Status & actions</div>
+                    <div className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-2">Status & actions</div>
                     <div className="space-y-2">
                       <select value={data.status} onChange={e => updateStage(stage.id, { status: e.target.value })} className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-emerald-400">
                         <option value="pending">Pending</option>
@@ -992,9 +993,9 @@ function DAStageTracker({ job, currentUser, onHistoryAdd }) {
                       {data.stopReason && <div className="text-xs text-orange-600 bg-orange-50 rounded-lg px-2 py-1.5">Stop reason: {data.stopReason}</div>}
                       <div className="flex gap-2 mt-1">
                         {!data.isStopped ? (
-                          <button onClick={() => setStopClockStage(stage)} className="flex-1 py-1.5 text-xs border border-amber-300 text-amber-600 rounded-lg hover:bg-amber-50">⏸ Stop clock</button>
+                          <button onClick={() => setStopClockStage(stage)} className="flex-1 py-1.5 text-xs border border-amber-300 text-amber-600 rounded-lg hover:bg-amber-50">Stop clock</button>
                         ) : (
-                          <button onClick={() => resumeClock(stage.id)} className="flex-1 py-1.5 text-xs border border-emerald-300 text-emerald-600 rounded-lg hover:bg-emerald-50">▶ Resume clock</button>
+                          <button onClick={() => resumeClock(stage.id)} className="flex-1 py-1.5 text-xs border border-emerald-300 text-emerald-600 rounded-lg hover:bg-emerald-50">Resume clock</button>
                         )}
                         {data.status === 'active' && <button onClick={() => updateStage(stage.id, { status: 'complete' })} className="flex-1 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">Mark complete</button>}
                         {data.status === 'pending' && <button onClick={() => updateStage(stage.id, { status: 'active', startDate: data.startDate || todayLocal() })} className="flex-1 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">Start stage</button>}
@@ -1003,7 +1004,7 @@ function DAStageTracker({ job, currentUser, onHistoryAdd }) {
                   </div>
                 </div>
                 <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
-                  <span className="text-xs text-gray-400">HPC internal stage: <span className="font-medium text-gray-600">{stage.hpc_stage}</span></span>
+                  <span className="text-xs text-gray-500">HPC internal stage: <span className="font-medium text-gray-600">{stage.hpc_stage}</span></span>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${stage.color}`}>{stage.label}</span>
                 </div>
               </div>
@@ -1054,14 +1055,14 @@ function AddTimeLogModal({ job, currentUser, onClose, onSaved }) {
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
       <div className="bg-white rounded-xl border border-gray-200 p-5 w-full max-w-md">
         <div className="text-sm font-semibold mb-1">Add time log manually</div>
-        <div className="text-xs text-gray-400 mb-4">Use this to add a time entry that wasn't captured by the timer.</div>
+        <div className="text-xs text-gray-500 mb-4">Use this to add a time entry that wasn't captured by the timer.</div>
         {error && <div className="bg-red-50 text-red-600 text-xs px-3 py-2 rounded-lg mb-3">{error}</div>}
         <div className="space-y-3">
-          <div><label className="block text-xs text-gray-500 mb-1">Task description</label>
+          <div><label className="block text-xs text-gray-600 mb-1">Task description</label>
             <input type="text" value={task} onChange={e => setTask(e.target.value)} placeholder="e.g. Planning report drafting" className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
-          <div><label className="block text-xs text-gray-500 mb-1">Duration (HH:MM:SS)</label>
+          <div><label className="block text-xs text-gray-600 mb-1">Duration (HH:MM:SS)</label>
             <input type="text" value={duration} onChange={e => setDuration(e.target.value)} placeholder="01:30:00" className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
-          <div><label className="block text-xs text-gray-500 mb-1">Rate ($/hr)</label>
+          <div><label className="block text-xs text-gray-600 mb-1">Rate ($/hr)</label>
             <input type="number" value={rate} onChange={e => setRate(e.target.value)} placeholder="185" className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
         </div>
         <div className="flex gap-2 mt-4">
@@ -1101,14 +1102,14 @@ function EditTimeLogModal({ log, onClose, onSaved }) {
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
       <div className="bg-white rounded-xl border border-gray-200 p-5 w-full max-w-md">
         <div className="text-sm font-semibold mb-1">Edit time log</div>
-        <div className="text-xs text-gray-400 mb-4">Changes will be recorded in the job history.</div>
+        <div className="text-xs text-gray-500 mb-4">Changes will be recorded in the job history.</div>
         {error && <div className="bg-red-50 text-red-600 text-xs px-3 py-2 rounded-lg mb-3">{error}</div>}
         <div className="space-y-3">
-          <div><label className="block text-xs text-gray-500 mb-1">Task description</label>
+          <div><label className="block text-xs text-gray-600 mb-1">Task description</label>
             <input type="text" value={task} onChange={e => setTask(e.target.value)} className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
-          <div><label className="block text-xs text-gray-500 mb-1">Duration (HH:MM:SS)</label>
+          <div><label className="block text-xs text-gray-600 mb-1">Duration (HH:MM:SS)</label>
             <input type="text" value={duration} onChange={e => setDuration(e.target.value)} className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
-          <div><label className="block text-xs text-gray-500 mb-1">Rate ($/hr)</label>
+          <div><label className="block text-xs text-gray-600 mb-1">Rate ($/hr)</label>
             <input type="number" value={rate} onChange={e => setRate(e.target.value)} className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
         </div>
         <div className="flex gap-2 mt-4">
@@ -1165,8 +1166,8 @@ function TimeBudgetTab({ job, currentUser, onHistoryAdd }) {
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 p-4">
-        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Budget</div>
-        <div className="flex justify-between text-xs text-gray-400 mb-1">
+        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Budget</div>
+        <div className="flex justify-between text-xs text-gray-500 mb-1">
           <span>{formatDuration(totalSeconds)} used</span>
           <span>{budgetHrs} hrs budget</span>
         </div>
@@ -1175,22 +1176,22 @@ function TimeBudgetTab({ job, currentUser, onHistoryAdd }) {
         </div>
         <div className="flex justify-between text-xs">
           <span className={`font-medium ${budgetPct > 90 ? 'text-red-600' : budgetPct > 75 ? 'text-amber-600' : 'text-emerald-600'}`}>{budgetPct}% used</span>
-          <span className="text-gray-400">${totalAmount.toLocaleString()} of ${(budgetHrs * rate).toLocaleString()}</span>
+          <span className="text-gray-500">${totalAmount.toLocaleString()} of ${(budgetHrs * rate).toLocaleString()}</span>
         </div>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 p-4">
         <div className="flex items-center justify-between mb-3">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Time log</div>
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Time log</div>
           <button onClick={() => setShowAddModal(true)} className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium">+ Add entry</button>
         </div>
         {loading ? (
-          <div className="text-xs text-gray-400 text-center py-4">Loading...</div>
+          <div className="text-xs text-gray-500 text-center py-4">Loading...</div>
         ) : timeLogs.length === 0 ? (
-          <div className="text-xs text-gray-400 text-center py-4">No time logged yet.</div>
+          <div className="text-xs text-gray-500 text-center py-4">No time logged yet.</div>
         ) : (
           <>
-            <div className="grid grid-cols-[1fr_80px_60px_80px_64px] gap-2 px-2 py-1 text-xs text-gray-400 font-medium border-b border-gray-100 mb-1">
+            <div className="grid grid-cols-[1fr_80px_60px_80px_64px] gap-2 px-2 py-1 text-xs text-gray-500 font-medium border-b border-gray-100 mb-1">
               <span>Task</span><span className="text-right">Duration</span><span className="text-right">Rate</span><span className="text-right">Amount</span><span></span>
             </div>
             {timeLogs.map((log, i) => {
@@ -1199,14 +1200,14 @@ function TimeBudgetTab({ job, currentUser, onHistoryAdd }) {
                 <div key={i} className="grid grid-cols-[1fr_80px_60px_80px_64px] gap-2 px-2 py-2 border-b border-gray-50 last:border-0 items-start">
                   <div>
                     <div className="text-xs font-medium">{log.task}</div>
-                    <div className="text-xs text-gray-400">{formatDateTimeAEST(log.created_at)} · {log.planner}</div>
+                    <div className="text-xs text-gray-500">{formatDateTimeAEST(log.created_at)} · {log.planner}</div>
                   </div>
                   <div className="text-xs text-right font-mono font-medium">{formatDuration(secs)}</div>
-                  <div className="text-xs text-right text-gray-400">${log.rate}/hr</div>
+                  <div className="text-xs text-right text-gray-500">${log.rate}/hr</div>
                   <div className="text-xs text-right font-medium">${calcAmount(secs, log.rate).toLocaleString()}</div>
                   <div className="flex gap-1 justify-end">
-                    <button onClick={() => setEditingLog(log)} className="px-1.5 py-1 text-xs text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors" title="Edit">✎</button>
-                    <button onClick={() => setDeletingLog(log)} className="px-1.5 py-1 text-xs text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors" title="Delete">✕</button>
+                    <button onClick={() => setEditingLog(log)} className="px-1.5 py-1 text-xs text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors" title="Edit" aria-label="Edit"><IconPencil size={13} /></button>
+                    <button onClick={() => setDeletingLog(log)} className="px-1.5 py-1 text-xs text-gray-500 hover:text-red-500 hover:bg-red-50 rounded transition-colors" title="Delete">✕</button>
                   </div>
                 </div>
               )
@@ -1322,7 +1323,7 @@ function DocumentsTab({ job, currentUser, onHistoryAdd, onJobUpdated }) {
   }
 
   const formatSize = (bytes) => {
-    if (!bytes) return '—'
+    if (!bytes) return '-'
     if (bytes < 1024) return `${bytes} B`
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
@@ -1345,14 +1346,14 @@ function DocumentsTab({ job, currentUser, onHistoryAdd, onJobUpdated }) {
       <div className="bg-white rounded-xl border border-gray-200 p-4">
         <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
           <div className="min-w-0">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Job folder · Microsoft 365</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Job folder · Microsoft 365</div>
             {linked ? (
-              <div className="text-xs text-gray-500 mt-0.5 truncate" title={job.onedrive_folder_path || ''}>
+              <div className="text-xs text-gray-600 mt-0.5 truncate" title={job.onedrive_folder_path || ''}>
                 {job.onedrive_folder_path || job.onedrive_folder_name}
-                {job.onedrive_linked_by ? <span className="text-gray-400"> · linked by {job.onedrive_linked_by}</span> : null}
+                {job.onedrive_linked_by ? <span className="text-gray-500"> · linked by {job.onedrive_linked_by}</span> : null}
               </div>
             ) : (
-              <div className="text-xs text-gray-400 mt-0.5">No OneDrive folder linked to this job yet.</div>
+              <div className="text-xs text-gray-500 mt-0.5">No OneDrive folder linked to this job yet.</div>
             )}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -1380,9 +1381,9 @@ function DocumentsTab({ job, currentUser, onHistoryAdd, onJobUpdated }) {
           />
         ) : (
           <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center">
-            <div className="text-2xl mb-2">📁</div>
+            <div className="mb-2 text-gray-500"><IconFolder size={28} /></div>
             <div className="text-xs font-medium text-gray-600">Point this job at its folder in OneDrive or SharePoint</div>
-            <div className="text-xs text-gray-400 mt-1 max-w-md mx-auto">
+            <div className="text-xs text-gray-500 mt-1 max-w-md mx-auto">
               Everyone on the team then sees the job's live documents here, with preview and Edit in Word. Files stay in Microsoft 365.
             </div>
           </div>
@@ -1392,8 +1393,8 @@ function DocumentsTab({ job, currentUser, onHistoryAdd, onJobUpdated }) {
       {/* QPlan storage: optional attachments not kept in OneDrive */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <button onClick={() => setShowAttachments(v => !v)} className="w-full flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50 text-left">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">QPlan attachments</div>
-          <div className="text-xs text-gray-400">{docs.length} file{docs.length !== 1 ? 's' : ''} {linked ? (attachmentsOpen ? '▾' : '▸') : ''}</div>
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">QPlan attachments</div>
+          <div className="text-xs text-gray-500">{docs.length} file{docs.length !== 1 ? 's' : ''} {linked ? (attachmentsOpen ? '▾' : '▸') : ''}</div>
         </button>
         {attachmentsOpen && (
           <div className="p-4 space-y-3">
@@ -1403,11 +1404,11 @@ function DocumentsTab({ job, currentUser, onHistoryAdd, onJobUpdated }) {
               className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors ${dragOver ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200 hover:border-emerald-300 hover:bg-gray-50'}`}>
               <input ref={fileRef} type="file" multiple className="hidden" onChange={e => handleUpload(e.target.files)} />
               {uploading ? <div className="text-xs text-emerald-600 font-medium">Uploading...</div> : (
-                <div className="text-xs text-gray-500">Drop files here or click to upload an attachment stored in QPlan (not OneDrive)</div>
+                <div className="text-xs text-gray-600">Drop files here or click to upload an attachment stored in QPlan (not OneDrive)</div>
               )}
             </div>
-            {loading ? <div className="py-4 text-xs text-gray-400 text-center">Loading...</div>
-              : docs.length === 0 ? <div className="py-4 text-xs text-gray-400 text-center">No QPlan attachments on this job.</div>
+            {loading ? <div className="py-4 text-xs text-gray-500 text-center">Loading...</div>
+              : docs.length === 0 ? <div className="py-4 text-xs text-gray-500 text-center">No QPlan attachments on this job.</div>
               : docs.map(doc => {
                 const icon = getFileIcon(doc.file_type)
                 return (
@@ -1415,7 +1416,7 @@ function DocumentsTab({ job, currentUser, onHistoryAdd, onJobUpdated }) {
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-semibold flex-shrink-0 ${icon.color}`}>{icon.label}</div>
                     <div className="flex-1 min-w-0">
                       <div className="text-xs font-medium truncate">{doc.name}</div>
-                      <div className="text-xs text-gray-400">{formatSize(doc.file_size)} · {doc.uploaded_by} · {new Date(doc.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+                      <div className="text-xs text-gray-500">{formatSize(doc.file_size)} · {doc.uploaded_by} · {new Date(doc.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
                     </div>
                     <div className="flex gap-2 flex-shrink-0">
                       <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="px-2 py-1 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Open</a>
@@ -1500,13 +1501,13 @@ function ShareSummaryModal({ job, currentUser, onClose, onJobUpdated, onHistoryA
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div className="min-w-0">
             <div className="text-sm font-semibold">Share job summary</div>
-            <div className="text-xs text-gray-400 mt-0.5 truncate">{jobTitle(job)}</div>
+            <div className="text-xs text-gray-500 mt-0.5 truncate">{jobTitle(job)}</div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 px-2">✕</button>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-600 px-2">✕</button>
         </div>
 
         <div className="px-5 py-4 space-y-4">
-          <div className="text-xs text-gray-500 leading-relaxed">
+          <div className="text-xs text-gray-600 leading-relaxed">
             A summary page for this job: client, site, application details, the team, stage progress and key dates. Anyone you send the link to can open it. They do not need a QPlan login and cannot change anything. The page always shows the job as it is now.
           </div>
 
@@ -1528,7 +1529,7 @@ function ShareSummaryModal({ job, currentUser, onClose, onJobUpdated, onHistoryA
                 <div className="flex items-center gap-3 mt-2">
                   <a href={link} target="_blank" rel="noopener noreferrer" className="text-xs text-emerald-600 hover:underline">Open the summary</a>
                   {job.share_created_by && (
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-gray-500">
                       Created by {job.share_created_by}{job.share_created_at ? ` on ${formatDateShort(job.share_created_at)}` : ''}
                     </span>
                   )}
@@ -1540,12 +1541,12 @@ function ShareSummaryModal({ job, currentUser, onClose, onJobUpdated, onHistoryA
                 <label className="flex items-start gap-2 text-xs text-gray-600 cursor-pointer">
                   <input type="checkbox" className="mt-0.5" checked={includeBudget}
                     onChange={e => toggle('share_include_budget', e.target.checked)} />
-                  <span>Hours and budget <span className="text-gray-400">(hours logged against the budget, and HPC stage fees)</span></span>
+                  <span>Hours and budget <span className="text-gray-500">(hours logged against the budget, and HPC stage fees)</span></span>
                 </label>
                 <label className="flex items-start gap-2 text-xs text-gray-600 cursor-pointer">
                   <input type="checkbox" className="mt-0.5" checked={includeNotes}
                     onChange={e => toggle('share_include_notes', e.target.checked)} />
-                  <span>Job notes <span className="text-gray-400">(everything on the IR &amp; Notes tab)</span></span>
+                  <span>Job notes <span className="text-gray-500">(everything on the IR &amp; Notes tab)</span></span>
                 </label>
               </div>
             </>
@@ -1649,7 +1650,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
 
   if (!job) return (
     <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
-      <p className="text-sm text-gray-400">No job selected. <button onClick={() => onNavigate('jobs')} className="text-emerald-600 underline">Go back to jobs</button></p>
+      <p className="text-sm text-gray-500">No job selected. <button onClick={() => onNavigate('jobs')} className="text-emerald-600 underline">Go back to jobs</button></p>
     </div>
   )
 
@@ -1781,7 +1782,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
         <button onClick={() => onNavigate('jobs')} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">← Back</button>
         <div className="flex-1 min-w-0">
           <div className="text-base font-semibold truncate" title={jobTitle(jobData)}>{jobTitle(jobData)}</div>
-          <div className="text-xs text-gray-400 truncate">{[jobData.lot_reference, jobData.council, appTypeFull(jobData.app_type)].filter(Boolean).join(' · ')}</div>
+          <div className="text-xs text-gray-500 truncate">{[jobData.lot_reference, jobData.council, appTypeFull(jobData.app_type)].filter(Boolean).join(' · ')}</div>
         </div>
         <span title={appTypeFull(jobData.app_type)} className={`text-xs px-2 py-1 rounded-full font-medium ${appTypeBadge(jobData.app_type)}`}>{jobData.app_type}</span>
         <div className="relative">
@@ -1798,12 +1799,12 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
             <option>Complete</option>
           </select>
         </div>
-        <button onClick={() => setShowEditJob(true)} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">✎ Edit</button>
+        <button onClick={() => setShowEditJob(true)} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Edit job</button>
         <button onClick={() => setShowShare(true)} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50" title="Copy a link to a read-only summary of this job">
-          🔗 Share summary{jobData.share_token ? ' ●' : ''}
+          Share summary{jobData.share_token ? ' ●' : ''}
         </button>
         <button onClick={() => setShowGenerate(true)} disabled={generating} className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50">
-          {generating ? 'Generating...' : '⬡ Generate docs'}
+          {generating ? 'Generating...' : 'Generate docs'}
         </button>
       </div>
 
@@ -1811,11 +1812,11 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl border border-gray-200 p-5 w-full max-w-md max-h-[85vh] overflow-y-auto">
             <div className="text-sm font-semibold mb-1">Generate documents</div>
-            <div className="text-xs text-gray-400 mb-4">
-              {jobData.code} — filled from this job{currentPlanner?.full_name ? ` & ${currentPlanner.full_name}` : ''}. Anything not on file is left as an editable placeholder.
+            <div className="text-xs text-gray-500 mb-4">
+              {jobData.code}. Filled from this job{currentPlanner?.full_name ? ` & ${currentPlanner.full_name}` : ''}. Anything not on file is left as an editable placeholder.
             </div>
 
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Stage 1</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Stage 1</div>
             {STAGE1_TEMPLATES.map(group => (
               <div key={group.group} className="mb-3">
                 <div className="text-xs font-medium text-gray-600 mb-1">{group.group}</div>
@@ -1823,7 +1824,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
               </div>
             ))}
 
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-4">Stage 2</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-4">Stage 2</div>
             {STAGE2_TEMPLATES.map(group => (
               <div key={group.group} className="mb-3">
                 <div className="text-xs font-medium text-gray-600 mb-1">{group.group}</div>
@@ -1831,7 +1832,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
               </div>
             ))}
 
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-4">Stage 3</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-4">Stage 3</div>
             {STAGE3_TEMPLATES.map(group => (
               <div key={group.group} className="mb-3">
                 <div className="text-xs font-medium text-gray-600 mb-1">{group.group}</div>
@@ -1839,7 +1840,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
               </div>
             ))}
 
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-4">Miscellaneous</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-4">Miscellaneous</div>
             {MISC_TEMPLATES.map(group => (
               <div key={group.group} className="mb-3">
                 {group.items.map(renderTemplateRow)}
@@ -1857,7 +1858,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
       <div className="flex gap-1 border-b border-gray-200 mb-4 overflow-x-auto">
         {TABS.map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2 text-xs border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id ? 'border-emerald-500 text-emerald-600 font-medium' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+            className={`px-4 py-2 text-xs border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id ? 'border-emerald-500 text-emerald-600 font-medium' : 'border-transparent text-gray-600 hover:text-gray-700'}`}>
             {tab.label}
           </button>
         ))}
@@ -1867,7 +1868,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
         <div>
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Client details</div>
+              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Client details</div>
               {[
                 ['Client', clientName(jobData)],
                 ...(isCompanyClient(jobData) ? [['Contact', contactName(jobData)]] : []),
@@ -1876,34 +1877,34 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
                 ['Council', jobData.council], ['Zone', jobData.zone],
               ].map(([k, v]) => (
                 <div key={k} className="flex py-1.5 border-b border-gray-50 last:border-0">
-                  <div className="text-xs text-gray-400 w-24 flex-shrink-0">{k}</div>
-                  <div className="text-xs">{v || '—'}</div>
+                  <div className="text-xs text-gray-500 w-24 flex-shrink-0">{k}</div>
+                  <div className="text-xs">{v || '-'}</div>
                 </div>
               ))}
             </div>
             <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Application details</div>
+              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Application details</div>
               {[
                 ['Type', appTypeFull(jobData.app_type)],
                 ['Proposed use', jobData.proposed_use],
                 ['Assessment', jobData.assessment_level],
-                ['Planners', plannersList.join(', ') || '—'],
-                ['Rate', jobData.planner_rate ? `$${jobData.planner_rate}/hr` : '—'],
-                ['Budget', budgetHrs ? `${budgetHrs} hrs ($${totalBudget.toLocaleString()})` : '—'],
+                ['Planners', plannersList.join(', ') || '-'],
+                ['Rate', jobData.planner_rate ? `$${jobData.planner_rate}/hr` : '-'],
+                ['Budget', budgetHrs ? `${budgetHrs} hrs ($${totalBudget.toLocaleString()})` : '-'],
                 ['Lodgement', formatDateShort(jobData.lodgement_date)],
                 ['Decision due', formatDateShort(jobData.decision_due_date)],
                 ['Referrals', jobData.referral_agencies],
               ].map(([k, v]) => (
                 <div key={k} className="flex py-1.5 border-b border-gray-50 last:border-0">
-                  <div className="text-xs text-gray-400 w-24 flex-shrink-0">{k}</div>
-                  <div className="text-xs">{v || '—'}</div>
+                  <div className="text-xs text-gray-500 w-24 flex-shrink-0">{k}</div>
+                  <div className="text-xs">{v || '-'}</div>
                 </div>
               ))}
             </div>
           </div>
           <div className="bg-white rounded-xl border border-gray-200 p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Key dates</div>
+              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Key dates</div>
               <button onClick={toggleEditDates} disabled={datesSaving} className={`text-xs hover:underline disabled:opacity-50 ${editingDates ? 'px-2 py-0.5 bg-emerald-600 text-white rounded-lg hover:no-underline hover:bg-emerald-700' : 'text-emerald-600'}`}>
                 {datesSaving ? 'Saving...' : editingDates ? 'Save dates' : 'Edit dates'}
               </button>
@@ -1918,11 +1919,11 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
                 { label: 'Statutory decision date', key: 'decision' },
               ].map(d => (
                 <div key={d.label} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                  <div className="text-xs text-gray-400">{d.label}</div>
+                  <div className="text-xs text-gray-500">{d.label}</div>
                   {editingDates ? (
                     <input type="date" value={dates[d.key] || ''} onChange={e => setDates(prev => ({ ...prev, [d.key]: e.target.value }))} className="text-xs border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-emerald-400" />
                   ) : (
-                    <div className={`text-xs font-medium ${dates[d.key] ? 'text-gray-700' : 'text-gray-300'}`}>{dates[d.key] ? formatDateShort(dates[d.key]) : 'Not set'}</div>
+                    <div className={`text-xs font-medium ${dates[d.key] ? 'text-gray-700' : 'text-gray-500'}`}>{dates[d.key] ? formatDateShort(dates[d.key]) : 'Not set'}</div>
                   )}
                 </div>
               ))}
@@ -1939,7 +1940,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
       {activeTab === 'ir & notes' && (
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-center justify-between mb-3">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Job notes</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Job notes</div>
             <button onClick={saveNotes} disabled={notesSaving} className="px-3 py-1 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50">
               {notesSaving ? 'Saving...' : notesSaved ? '✓ Saved' : 'Save notes'}
             </button>
@@ -1947,13 +1948,13 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
           <textarea value={notes} onChange={e => { setNotes(e.target.value); setNotesSaved(false) }}
             placeholder="Add notes about this job..."
             className="w-full h-48 px-3 py-2 text-xs border border-gray-200 rounded-lg resize-none focus:outline-none focus:border-emerald-400" />
-          <div className="text-xs text-gray-400 mt-2">Notes are saved to the database and persist between sessions.</div>
+          <div className="text-xs text-gray-500 mt-2">Notes are saved to the database and persist between sessions.</div>
         </div>
       )}
 
       {activeTab === 'history' && (
         <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Activity history</div>
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Activity history</div>
           <div className="space-y-3">
             {history.map((h, i) => (
               <div key={i} className="flex gap-3">
@@ -1969,7 +1970,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
                 }`} />
                 <div>
                   <div className="text-xs font-medium">{h.text}</div>
-                  <div className="text-xs text-gray-400">{formatAEST(h.time)}</div>
+                  <div className="text-xs text-gray-500">{formatAEST(h.time)}</div>
                 </div>
               </div>
             ))}
