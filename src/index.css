@@ -192,3 +192,27 @@ html[data-theme="dark"] body {
   :where([data-theme="dark"]) .bg-\[\#1B2A4A\] { background-color: #2c426e; }
   :where([data-theme="dark"]) .hover\:bg-\[\#16223c\]:hover { background-color: #36508a; }
 }
+
+/* ------------------------------------------------------------------
+   Small screens
+   ------------------------------------------------------------------ */
+
+/* Table-like rows keep their columns. On a narrow screen the card scrolls sideways
+   instead of squashing the columns into each other. */
+:where(*):has(> .qp-row) {
+  overflow-x: auto;
+}
+
+/* iPhones zoom the whole page when a text box uses small type. 16px stops that. */
+@media (pointer: coarse) and (max-width: 1023px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* Keep clear of the notch, rounded corners and the home bar when installed as an app */
+.qp-safe-top { padding-top: env(safe-area-inset-top, 0px); }
+.qp-safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.qp-safe-x { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }

@@ -231,7 +231,7 @@ function EditProfileModal({ staffUser, profile, currentUser, takenColors = {}, o
 
           <div>
             <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Personal info</div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-gray-600 mb-1 block">Full name</label>
                 <input value={form.full_name} onChange={e => set('full_name', e.target.value)}
@@ -292,7 +292,7 @@ function EditProfileModal({ staffUser, profile, currentUser, takenColors = {}, o
           <div>
             <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Document sign-off</div>
             <div className="text-xs text-gray-500 mb-3">How your name appears on letters, reports and quotes. Fill this in once and it autofills every document.</div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-gray-600 mb-1 block">Sign-off name</label>
                 <input value={form.sign_off_name} onChange={e => set('sign_off_name', e.target.value)}
@@ -495,7 +495,7 @@ export default function Planners({ currentUser }) {
       </div>
 
       {/* Active planners */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {activeStaff.map(staff => (
           <PlannerCard key={staff.id} staff={staff} isInactive={false} />
         ))}
@@ -505,7 +505,7 @@ export default function Planners({ currentUser }) {
       {isDirector && inactiveStaff.length > 0 && (
         <div className="mt-6">
           <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Inactive accounts</div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {inactiveStaff.map(staff => (
               <PlannerCard key={staff.id} staff={staff} isInactive={true} />
             ))}
@@ -575,7 +575,7 @@ export default function Planners({ currentUser }) {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {[
                 ['Specialisation', profile?.specialisation || '-'],
                 ['Email', profile?.email || '-'],

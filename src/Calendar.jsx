@@ -306,7 +306,7 @@ function EditMeetingModal({ booking, onClose, onSave, staffList, jobs }) {
             <input value={title} onChange={e => setTitle(e.target.value)}
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Date</label>
               <input type="date" value={date} onChange={e => setDate(e.target.value)}
@@ -567,7 +567,7 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
               placeholder={type === 'client' ? 'e.g. Initial consultation' : 'e.g. Weekly team review'}
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Date</label>
               <input type="date" value={date} onChange={e => setDate(e.target.value)}

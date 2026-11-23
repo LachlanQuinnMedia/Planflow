@@ -120,7 +120,7 @@ export default function TimeBudget({ currentUser }) {
           ) : (
             <div className="bg-white rounded-xl border border-gray-200 p-4">
               <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Budget status, all jobs</div>
-              <div className="grid grid-cols-[70px_1fr_70px_60px_60px_60px] gap-3 pb-2 mb-1 border-b border-gray-200">
+              <div className="qp-row min-w-[560px] grid grid-cols-[70px_1fr_70px_60px_60px_60px] gap-3 pb-2 mb-1 border-b border-gray-200">
                 {['Job', 'Name', 'Planner', 'Budget', 'Used', '%'].map(h => (
                   <div key={h} className="text-xs text-gray-500">{h}</div>
                 ))}
@@ -132,7 +132,7 @@ export default function TimeBudget({ currentUser }) {
                 const over = pct > 100
                 const warn = pct > 75
                 return (
-                  <div key={j.id} className="grid grid-cols-[70px_1fr_70px_60px_60px_60px] gap-3 items-center py-2 border-b border-gray-100 last:border-0">
+                  <div key={j.id} className="qp-row min-w-[560px] grid grid-cols-[70px_1fr_70px_60px_60px_60px] gap-3 items-center py-2 border-b border-gray-100 last:border-0">
                     <div className="text-xs font-medium text-emerald-600">{j.code}</div>
                     <div>
                       <div className="text-xs font-medium truncate">{jobListName(j)}</div>
@@ -154,7 +154,7 @@ export default function TimeBudget({ currentUser }) {
 
       {activeTab === 'time log' && (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="grid grid-cols-[80px_90px_80px_1fr_60px_70px] gap-3 px-4 py-2 bg-gray-50 border-b border-gray-100">
+          <div className="qp-row min-w-[650px] grid grid-cols-[80px_90px_80px_1fr_60px_70px] gap-3 px-4 py-2 bg-gray-50 border-b border-gray-100">
             {['Date', 'Planner', 'Job', 'Task', 'Hours', 'Cost'].map(h => (
               <div key={h} className="text-xs text-gray-500">{h}</div>
             ))}
@@ -165,7 +165,7 @@ export default function TimeBudget({ currentUser }) {
             <div className="px-4 py-8 text-center text-sm text-gray-500">No time logged yet. Use the Log Time tab or the timer in the sidebar.</div>
           ) : (
             logs.map((l) => (
-              <div key={l.id} className="grid grid-cols-[80px_90px_80px_1fr_60px_70px] gap-3 px-4 py-2.5 border-b border-gray-100 last:border-0 hover:bg-gray-50">
+              <div key={l.id} className="qp-row min-w-[650px] grid grid-cols-[80px_90px_80px_1fr_60px_70px] gap-3 px-4 py-2.5 border-b border-gray-100 last:border-0 hover:bg-gray-50">
                 <div className="text-xs text-gray-500">{l.log_date}</div>
                 <div className="text-xs font-medium truncate">{l.planner || '-'}</div>
                 <div className="text-xs text-emerald-600 font-medium">{l.job_code}</div>
@@ -176,7 +176,7 @@ export default function TimeBudget({ currentUser }) {
             ))
           )}
           {logs.length > 0 && (
-            <div className="grid grid-cols-[80px_90px_80px_1fr_60px_70px] gap-3 px-4 py-2.5 bg-gray-50 border-t border-gray-200">
+            <div className="qp-row min-w-[650px] grid grid-cols-[80px_90px_80px_1fr_60px_70px] gap-3 px-4 py-2.5 bg-gray-50 border-t border-gray-200">
               <div className="text-xs font-semibold col-span-4">Total</div>
               <div className="text-xs font-semibold">{totalHrs.toFixed(1)}h</div>
               <div className="text-xs font-semibold text-emerald-600">${totalCost.toFixed(0)}</div>
@@ -189,7 +189,7 @@ export default function TimeBudget({ currentUser }) {
         <div className="max-w-lg">
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">Log time entry</div>
-            <div className="grid grid-cols-2 gap-3 mb-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
               <div>
                 <label className="text-xs text-gray-600 mb-1 block">Job</label>
                 <select value={logJob} onChange={e => setLogJob(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
@@ -209,7 +209,7 @@ export default function TimeBudget({ currentUser }) {
                 </select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3 mb-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
               <div>
                 <label className="text-xs text-gray-600 mb-1 block">Task category</label>
                 <select value={logTask} onChange={e => setLogTask(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
@@ -228,7 +228,7 @@ export default function TimeBudget({ currentUser }) {
                 <input type="number" min="0" step="0.25" value={logHrs} onChange={e => setLogHrs(e.target.value)} placeholder="2.5" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
               <div>
                 <label className="text-xs text-gray-600 mb-1 block">Notes (optional)</label>
                 <input value={logNote} onChange={e => setLogNote(e.target.value)} placeholder="e.g. IR #1 response, car parking" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" />

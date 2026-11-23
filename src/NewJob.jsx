@@ -524,13 +524,13 @@ export default function NewJob({ onNavigate, currentUser }) {
           </div>
         )}
         {isCompany && <div className="text-xs font-medium text-gray-600 mb-2">Contact person</div>}
-        <div className="grid grid-cols-2 gap-3 mb-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
           <div><label className="text-xs text-gray-600 mb-1 block">{isCompany ? 'Contact first name' : 'First name'}</label>
             <input value={form.firstName} onChange={e => update('firstName', e.target.value)} placeholder="First name" className={inputClass} /></div>
           <div><label className="text-xs text-gray-600 mb-1 block">{isCompany ? 'Contact last name' : 'Last name'}</label>
             <input value={form.lastName} onChange={e => update('lastName', e.target.value)} placeholder="Last name" className={inputClass} /></div>
         </div>
-        <div className="grid grid-cols-2 gap-3 mb-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
           <div><label className="text-xs text-gray-600 mb-1 block">{isCompany ? 'Contact email' : 'Email'}</label>
             <input value={form.email} onChange={e => update('email', e.target.value)} placeholder="client@email.com.au" className={inputClass} /></div>
           <div><label className="text-xs text-gray-600 mb-1 block">{isCompany ? 'Contact phone' : 'Phone'}</label>
@@ -539,7 +539,7 @@ export default function NewJob({ onNavigate, currentUser }) {
 
         <div className="border-t border-gray-100 mb-5" />
         <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Application details</div>
-        <div className="grid grid-cols-2 gap-3 mb-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
           <div><label className="text-xs text-gray-600 mb-1 block">Application type</label>
             <select value={form.appType} onChange={e => update('appType', e.target.value)} className={inputClass}>
               {APP_TYPES.map(t => <option key={t.code} value={t.code}>{t.code} · {t.label}</option>)}
@@ -551,13 +551,13 @@ export default function NewJob({ onNavigate, currentUser }) {
             </select>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3 mb-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
           <div><label className="text-xs text-gray-600 mb-1 block">Site address</label>
             <input value={form.address} onChange={e => update('address', e.target.value)} placeholder="12 Marine Parade, Southport QLD 4215" className={inputClass} /></div>
           <div><label className="text-xs text-gray-600 mb-1 block">Lot / RP reference</label>
             <input value={form.lot} onChange={e => update('lot', e.target.value)} placeholder="Lot 7 SP123456" className={inputClass} /></div>
         </div>
-        <div className="grid grid-cols-2 gap-3 mb-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
           <div><label className="text-xs text-gray-600 mb-1 block">Council / LGA</label>
             <select value={form.council} onChange={e => update('council', e.target.value)} className={inputClass}>
               {COUNCILS.map(c => <option key={c} value={c}>{c}</option>)}
@@ -566,7 +566,7 @@ export default function NewJob({ onNavigate, currentUser }) {
           <div><label className="text-xs text-gray-600 mb-1 block">Planning zone</label>
             <input value={form.zone} onChange={e => update('zone', e.target.value)} placeholder="Medium Density Residential" className={inputClass} /></div>
         </div>
-        <div className="grid grid-cols-2 gap-3 mb-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
           <div><label className="text-xs text-gray-600 mb-1 block">Proposed use</label>
             <input value={form.proposedUse} onChange={e => update('proposedUse', e.target.value)} placeholder="Mixed-use: retail GF + 12 units" className={inputClass} /></div>
           <div><label className="text-xs text-gray-600 mb-1 block">Referral agencies</label>
@@ -575,7 +575,7 @@ export default function NewJob({ onNavigate, currentUser }) {
 
         <div className="mb-5">
           <label className="text-xs text-gray-600 mb-2 block">Job complexity</label>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {COMPLEXITY_OPTIONS.map(opt => {
               const isSelected = form.complexity === opt.value
               return (
@@ -623,7 +623,7 @@ export default function NewJob({ onNavigate, currentUser }) {
           )}
         </div>
 
-        <div className="grid grid-cols-3 gap-3 mb-5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
           <div><label className="text-xs text-gray-600 mb-1 block">Budget (hours)</label>
             <input type="number" value={form.budget} onChange={e => update('budget', e.target.value)} placeholder="60" className={inputClass} /></div>
           <div><label className="text-xs text-gray-600 mb-1 block">Lodgement date</label>

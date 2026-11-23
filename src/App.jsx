@@ -22,6 +22,8 @@ import qplanLogo from './assets/plan_logo.PNG'
 import { timerLabel } from './jobMeta'
 import { IconPlay, IconStop, IconSun, IconMoon, IconAuto } from './icons'
 import { getThemeChoice, setThemeChoice, watchSystemTheme } from './theme'
+import { InstallAppButton } from './install'
+import Landing from './Landing'
 
 // Light / Dark / Auto. Auto follows the device. Remembered on this device.
 function ThemeSwitch() {
@@ -396,7 +398,18 @@ function NotificationPanel({ notifications, lastSeenAt, onClose, onApprove, onRe
 }
 
 export default function App() {
-  const [authPage, setAuthPage] = useState('login')
+  // Someone new sees the front page. Anyone who has used QPlan on this device, opened /login,
+  // or is coming back from a Microsoft or Xero sign-in goes straight to the login screen.
+  const [authPage, setAuthPage] = useState(() => {
+    try {
+      const known = localStorage.getItem('qplan_known_user') || localStorage.getItem('pf_remember_username') || localStorage.getItem('qplanLastSeenNotifications')
+      const returning = /[?&](code|state|admin_consent|error)=/.test(window.location.search)
+      const standalone = typeof window.matchMedia === 'function' && window.matchMedia('(display-mode: standalone)').matches
+      return known || returning || standalone || window.location.pathname === '/login' ? 'login' : 'landing'
+    } catch {
+      return 'login'
+    }
+  })
   const [currentUser, setCurrentUser] = useState(null)
   const [activePage, setActivePage] = useState('dashboard')
   const [selectedJob, setSelectedJob] = useState(null)
@@ -682,6 +695,7 @@ export default function App() {
   }
 
   const handleLogin = (user) => {
+    try { localStorage.setItem('qplan_known_user', '1') } catch { /* storage unavailable */ }
     setCurrentUser({
       id: user.id,
       username: user.username,
@@ -737,9 +751,10 @@ export default function App() {
   if (!authReady) return <div className="min-h-screen bg-gray-50" />
 
   if (!currentUser) {
+    if (authPage === 'landing') return <Landing onLogin={() => setAuthPage('login')} />
     if (authPage === 'register') return <Register onBack={() => setAuthPage('login')} onSuccess={() => setAuthPage('login')} />
     if (authPage === 'forgot') return <ForgotPassword onBack={() => setAuthPage('login')} />
-    return <Login onLogin={handleLogin} onRegister={() => setAuthPage('register')} onForgotPassword={() => setAuthPage('forgot')} />
+    return <Login onLogin={handleLogin} onRegister={() => setAuthPage('register')} onForgotPassword={() => setAuthPage('forgot')} onAbout={() => setAuthPage('landing')} />
   }
 
   const visibleNavItems = navItems.filter(item => !item.directorOnly || isDirector)
@@ -772,16 +787,16 @@ export default function App() {
   const initials = currentUser.username.slice(0, 2).toUpperCase()
 
   return (
-    <div className="flex h-screen bg-gray-100 dark:bg-[var(--qp-page)] font-sans overflow-hidden">
+    <div className="flex h-dvh bg-gray-100 dark:bg-[var(--qp-page)] font-sans overflow-hidden qp-safe-x qp-safe-bottom">
       {sidebarOpen && (
-        <div className="fixed inset-0 bg-black/30 z-30 md:hidden" onClick={() => setSidebarOpen(false)} />
+        <div className="fixed inset-0 bg-black/30 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
       <div className={`
-        fixed md:relative z-40 h-full w-52 bg-white border-r border-gray-200 flex flex-col flex-shrink-0
+        fixed lg:relative z-40 h-full w-52 bg-white border-r border-gray-200 flex flex-col flex-shrink-0
         transition-transform duration-200 ease-in-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        md:translate-x-0
+        lg:translate-x-0
       `}>
         <div className="flex items-center px-3 py-2 border-b border-gray-200 gap-2">
           <img src={qplanLogo} alt="QPlan" className="w-7 h-7 object-contain flex-shrink-0" />
@@ -817,6 +832,7 @@ export default function App() {
 
         <div className="p-3 border-t border-gray-200 space-y-2">
           <ThemeSwitch />
+          <InstallAppButton />
           {isDirector && (
             <div className="relative">
               <button
@@ -863,7 +879,7 @@ export default function App() {
         <div className="h-12 bg-white border-b border-gray-200 flex items-center px-4 gap-3 flex-shrink-0">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="md:hidden p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 flex-shrink-0"
+            className="lg:hidden p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 flex-shrink-0"
             aria-label="Open menu"
           >
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">

@@ -351,10 +351,10 @@ export default function Documents({ currentUser }) {
           </div>
 
           {/* Filters */}
-          <div className="flex gap-2 mb-4">
+          <div className="flex gap-2 mb-4 flex-wrap">
             <input type="text" placeholder="Search by name, job code, uploader..."
               value={search} onChange={e => setSearch(e.target.value)}
-              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-emerald-400" />
+              className="flex-1 min-w-[180px] px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-emerald-400" />
             <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
               className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white">
               <option value="All">All types</option>
@@ -367,7 +367,7 @@ export default function Documents({ currentUser }) {
             </select>
           </div>
 
-          <div className={`grid gap-4 ${selectedDoc ? 'grid-cols-2' : 'grid-cols-1'}`}>
+          <div className={`grid gap-4 ${selectedDoc ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
               <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50">
                 <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">All documents</div>

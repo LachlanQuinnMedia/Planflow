@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { loginUser, saveSession } from './auth'
 import qplanLogo from './assets/plan_logo.PNG'
 
-export default function Login({ onLogin, onRegister, onForgotPassword }) {
+export default function Login({ onLogin, onRegister, onForgotPassword, onAbout }) {
   const [username, setUsername] = useState(localStorage.getItem('pf_remember_username') || '')
   const [password, setPassword] = useState('')
   const [companyCode, setCompanyCode] = useState(localStorage.getItem('pf_remember_company') || '')
@@ -138,7 +138,8 @@ export default function Login({ onLogin, onRegister, onForgotPassword }) {
         </div>
 
         <div className="text-center mt-4 text-xs text-gray-500">
-          QPlan · Less process. More progress.
+          QPlan · Less Process More Progress
+          {onAbout && <> · <button onClick={onAbout} className="text-emerald-600 hover:underline">About QPlan</button></>}
         </div>
       </div>
     </div>

@@ -193,7 +193,7 @@ export default function Workload({ currentUser }) {
   return (
     <div>
       {/* Summary stats */}
-      <div className="grid grid-cols-4 gap-3 mb-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
         <div className="bg-gray-50 rounded-lg p-3">
           <div className="text-xs text-gray-500 mb-1">Total planners</div>
           <div className="text-xl font-semibold">{plannerData.length}</div>
@@ -235,7 +235,7 @@ export default function Workload({ currentUser }) {
         >
           Raw hours
         </button>
-        <div className="flex items-center gap-3 ml-4">
+        <div className="flex items-center gap-x-3 gap-y-1 sm:ml-4 flex-wrap">
           {Object.entries(COMPLEXITY).map(([key, c]) => (
             <div key={key} className="flex items-center gap-1">
               <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${c.color}`}>{c.label}</span>
@@ -245,7 +245,7 @@ export default function Workload({ currentUser }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Team list */}
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Team: {weekLabel}</div>
@@ -367,7 +367,7 @@ export default function Workload({ currentUser }) {
             {/* All planners grid */}
             <div className="bg-white rounded-xl border border-gray-200 p-4">
               <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">All planners</div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {plannerData.map(p => {
                   const capacityPct = view === 'weighted' ? p.weightedPct : p.rawPct
                   return (

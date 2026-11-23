@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QPlan is offline</title>
+<style>
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #f3f4f6; color: #1f2937; padding: 24px; box-sizing: border-box; }
+  .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; padding: 28px; max-width: 360px; text-align: center; }
+  h1 { font-size: 18px; margin: 0 0 8px; }
+  p { font-size: 14px; line-height: 1.5; color: #4b5563; margin: 0 0 18px; }
+  button { background: #059669; color: #fff; border: 0; border-radius: 10px; padding: 10px 18px; font-size: 14px; font-weight: 600; }
+  @media (prefers-color-scheme: dark) { body { background: #0a0f0d; color: #f1f5f3; } .card { background: #151d1a; border-color: #2a3531; } p { color: #b4c1bb; } }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>You're offline</h1>
+    <p>QPlan needs an internet connection. Nothing has been lost. Check your connection and try again.</p>
+    <button onclick="location.reload()">Try again</button>
+  </div>
+</body>
+</html>

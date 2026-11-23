@@ -528,13 +528,13 @@ function DirectorView({ onNavigate, allJobs, viewingAs }) {
       {/* Active jobs table */}
       <div className="hidden md:block bg-white rounded-xl border border-gray-200 p-4 mb-4">
         <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">All active jobs by planner</div>
-        <div className="grid grid-cols-[80px_1fr_90px_55px_65px_70px_80px] gap-2 pb-2 mb-1 border-b border-gray-200">
+        <div className="qp-row min-w-[690px] grid grid-cols-[80px_1fr_90px_55px_65px_70px_80px] gap-2 pb-2 mb-1 border-b border-gray-200">
           {['Job', 'Name', 'Planner', 'Type', 'Status', 'Budget', 'Decision'].map(h => (
             <div key={h} className="text-xs text-gray-500">{h}</div>
           ))}
         </div>
         {activeJobs.map(job => (
-          <div key={job.id} onClick={() => onNavigate('jobdetail', job)} className="grid grid-cols-[80px_1fr_90px_55px_65px_70px_80px] gap-2 py-2 border-b border-gray-100 last:border-0 items-center cursor-pointer hover:bg-gray-50 rounded-lg px-1">
+          <div key={job.id} onClick={() => onNavigate('jobdetail', job)} className="qp-row min-w-[690px] grid grid-cols-[80px_1fr_90px_55px_65px_70px_80px] gap-2 py-2 border-b border-gray-100 last:border-0 items-center cursor-pointer hover:bg-gray-50 rounded-lg px-1">
             <div className="text-xs font-medium text-emerald-600">{job.code}</div>
             <div className="text-xs font-medium truncate">{jobListName(job)}</div>
             <div className="text-xs text-gray-600 truncate">{job.planner || '-'}</div>

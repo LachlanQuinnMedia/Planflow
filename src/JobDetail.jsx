@@ -439,7 +439,7 @@ function HPCStagesTab({ job, onHistoryAdd }) {
 
             {isExpanded && (
               <div className="px-4 pb-4 border-t border-gray-100">
-                <div className="grid grid-cols-2 gap-4 mt-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Scope of works</div>
@@ -651,7 +651,7 @@ function EditJobModal({ job, currentUser, onClose, onSaved }) {
                 </select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {isCompany && (
                 <div className="col-span-2"><label className="text-xs text-gray-600 mb-1 block">Company name</label>
                   <input value={form.company} onChange={e => set('company', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
@@ -669,7 +669,7 @@ function EditJobModal({ job, currentUser, onClose, onSaved }) {
           </div>
           <div>
             <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Application details</div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div><label className="text-xs text-gray-600 mb-1 block">Application type</label>
                 <select value={form.appType} onChange={e => set('appType', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
                   {APP_TYPES.map(t => <option key={t.code} value={t.code}>{t.code} · {t.label}</option>)}
@@ -712,7 +712,7 @@ function EditJobModal({ job, currentUser, onClose, onSaved }) {
                 <div className="text-xs text-gray-500 mt-1.5">Lead: <span className="font-medium text-gray-600">{selectedPlanners[0]}</span>{selectedPlanners.length > 1 && ` · Also: ${selectedPlanners.slice(1).join(', ')}`}</div>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div><label className="text-xs text-gray-600 mb-1 block">Planner rate ($/hr)</label>
                 <input type="number" value={form.plannerRate} onChange={e => set('plannerRate', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
               <div><label className="text-xs text-gray-600 mb-1 block">Budget (hours)</label>
@@ -935,7 +935,7 @@ function DAStageTracker({ job, currentUser, onHistoryAdd }) {
 
             {isExpanded && (
               <div className="px-4 pb-4 border-t border-gray-100">
-                <div className="grid grid-cols-2 gap-4 mt-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
                   <div>
                     <div className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-2">Dates</div>
                     <div className="space-y-2">
@@ -1191,13 +1191,13 @@ function TimeBudgetTab({ job, currentUser, onHistoryAdd }) {
           <div className="text-xs text-gray-500 text-center py-4">No time logged yet.</div>
         ) : (
           <>
-            <div className="grid grid-cols-[1fr_80px_60px_80px_64px] gap-2 px-2 py-1 text-xs text-gray-500 font-medium border-b border-gray-100 mb-1">
+            <div className="qp-row min-w-[480px] grid grid-cols-[1fr_80px_60px_80px_64px] gap-2 px-2 py-1 text-xs text-gray-500 font-medium border-b border-gray-100 mb-1">
               <span>Task</span><span className="text-right">Duration</span><span className="text-right">Rate</span><span className="text-right">Amount</span><span></span>
             </div>
             {timeLogs.map((log, i) => {
               const secs = log.duration_seconds || Math.round((log.hours || 0) * 3600)
               return (
-                <div key={i} className="grid grid-cols-[1fr_80px_60px_80px_64px] gap-2 px-2 py-2 border-b border-gray-50 last:border-0 items-start">
+                <div key={i} className="qp-row min-w-[480px] grid grid-cols-[1fr_80px_60px_80px_64px] gap-2 px-2 py-2 border-b border-gray-50 last:border-0 items-start">
                   <div>
                     <div className="text-xs font-medium">{log.task}</div>
                     <div className="text-xs text-gray-500">{formatDateTimeAEST(log.created_at)} · {log.planner}</div>
@@ -1212,7 +1212,7 @@ function TimeBudgetTab({ job, currentUser, onHistoryAdd }) {
                 </div>
               )
             })}
-            <div className="grid grid-cols-[1fr_80px_60px_80px_64px] gap-2 px-2 py-2 border-t border-gray-200 mt-1">
+            <div className="qp-row min-w-[480px] grid grid-cols-[1fr_80px_60px_80px_64px] gap-2 px-2 py-2 border-t border-gray-200 mt-1">
               <div className="text-xs font-semibold">Total</div>
               <div className="text-xs text-right font-mono font-semibold">{formatDuration(totalSeconds)}</div>
               <div /><div className="text-xs text-right font-semibold text-emerald-600">${totalAmount.toLocaleString()}</div><div />
@@ -1780,8 +1780,8 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
 
       <div className="flex items-center gap-3 mb-4 flex-wrap">
         <button onClick={() => onNavigate('jobs')} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">← Back</button>
-        <div className="flex-1 min-w-0">
-          <div className="text-base font-semibold truncate" title={jobTitle(jobData)}>{jobTitle(jobData)}</div>
+        <div className="basis-full lg:basis-0 flex-1 min-w-0 order-first lg:order-none">
+          <div className="text-base font-semibold lg:truncate" title={jobTitle(jobData)}>{jobTitle(jobData)}</div>
           <div className="text-xs text-gray-500 truncate">{[jobData.lot_reference, jobData.council, appTypeFull(jobData.app_type)].filter(Boolean).join(' · ')}</div>
         </div>
         <span title={appTypeFull(jobData.app_type)} className={`text-xs px-2 py-1 rounded-full font-medium ${appTypeBadge(jobData.app_type)}`}>{jobData.app_type}</span>
@@ -1866,7 +1866,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
 
       {activeTab === 'overview' && (
         <div>
-          <div className="grid grid-cols-2 gap-4 mb-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
             <div className="bg-white rounded-xl border border-gray-200 p-4">
               <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Client details</div>
               {[
@@ -1909,7 +1909,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
                 {datesSaving ? 'Saving...' : editingDates ? 'Save dates' : 'Edit dates'}
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-x-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
               {[
                 { label: 'Confirmation notice', key: 'confirmation' },
                 { label: 'IR response due', key: 'irResponse' },

@@ -19,6 +19,9 @@ export function getThemeChoice() {
 export function applyTheme(choice = getThemeChoice()) {
   const dark = choice === 'dark' || (choice === 'auto' && systemDark())
   document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+  // The phone's status bar and the installed app's title bar follow the theme
+  const bar = document.querySelector('meta[name="theme-color"]')
+  if (bar) bar.setAttribute('content', dark ? '#151d1a' : '#ffffff')
 }
 
 export function setThemeChoice(choice) {

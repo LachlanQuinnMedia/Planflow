@@ -334,7 +334,7 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
             className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-emerald-400"
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <div className="flex flex-col gap-1 flex-1 sm:flex-none">
             <label className="text-xs text-gray-500 font-medium px-1">Type</label>
             <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white">
@@ -361,7 +361,7 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
       </div>
 
       {/* Mobile card view */}
-      <div className="md:hidden space-y-2">
+      <div className="lg:hidden space-y-2">
         {loading ? (
           <div className="bg-white rounded-xl border border-gray-200 px-4 py-8 text-center text-sm text-gray-500">Loading jobs...</div>
         ) : sorted.length === 0 ? (
@@ -420,8 +420,8 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
       </div>
 
       {/* Desktop table view */}
-      <div className="hidden md:block bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="grid grid-cols-[70px_1fr_90px_55px_65px_70px_100px_110px_50px] gap-3 px-4 py-2 border-b border-gray-100 bg-gray-50">
+      <div className="hidden lg:block bg-white rounded-xl border border-gray-200 overflow-x-auto">
+        <div className="qp-row min-w-[960px] grid grid-cols-[70px_1fr_90px_55px_65px_70px_100px_110px_50px] gap-3 px-4 py-2 border-b border-gray-100 bg-gray-50">
           <div className="text-xs text-gray-500">Job #</div>
           <div className="text-xs text-gray-500">Name / address</div>
           <div className="text-xs text-gray-500">Client</div>
@@ -446,7 +446,7 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
             return (
               <div
                 key={job.id}
-                className={`grid grid-cols-[70px_1fr_90px_55px_65px_70px_100px_110px_50px] gap-3 px-4 py-3 border-b border-gray-100 last:border-0 items-center ${
+                className={`qp-row min-w-[960px] grid grid-cols-[70px_1fr_90px_55px_65px_70px_100px_110px_50px] gap-3 px-4 py-3 border-b border-gray-100 last:border-0 items-center ${
                   overdue ? 'bg-red-50 border-l-4 border-l-red-400' : dueSoon ? 'bg-amber-50 border-l-4 border-l-amber-400' : 'hover:bg-gray-50'
                 }`}
               >

@@ -391,12 +391,12 @@ export default function Templates({ currentUser }) {
         />
       )}
 
-      <div className="flex items-start justify-between mb-4 gap-3">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-start justify-between mb-4 gap-3">
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 flex-1">
           <div className="text-xs font-medium text-emerald-700 mb-0.5">Generate documents</div>
           <div className="text-xs text-emerald-600">Tick the templates you want, then click <span className="font-medium">Generate</span> at the top. A modal lets you pick a job to auto-fill, or skip the job and just fill your planner details. Excel and Illustrator files download blank.</div>
         </div>
-        <div className="flex flex-col gap-2 flex-shrink-0">
+        <div className="flex flex-row sm:flex-col gap-2 flex-shrink-0 [&>button]:flex-1">
           <button
             onClick={() => setShowGenerate(true)}
             disabled={selected.size === 0}
@@ -419,7 +419,7 @@ export default function Templates({ currentUser }) {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {STAGE_CATEGORIES.map(cat => {
           const totalItems = cat.groups.reduce((n, g) => n + g.items.length, 0)
           const selectedCount = cat.groups.reduce(

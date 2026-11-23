@@ -185,7 +185,7 @@ function DirectorBookings({ currentUser }) {
 
   return (
     <div>
-      <div className="flex items-center gap-3 mb-4 bg-white rounded-xl border border-gray-200 p-3">
+      <div className="flex items-center gap-3 mb-4 bg-white rounded-xl border border-gray-200 p-3 flex-wrap">
         <div className="text-xs font-medium text-gray-600">Viewing:</div>
         <select value={viewingAs} onChange={e => setViewingAs(e.target.value)}
           className="px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
