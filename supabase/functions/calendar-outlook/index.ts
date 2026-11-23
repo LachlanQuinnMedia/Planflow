@@ -1,30 +1,46 @@
+// supabase/functions/calendar-outlook/index.ts
+// Each person's own Outlook calendar. Actions: callback, sync_booking, status, team_status, disconnect.
+//
+// Microsoft replaces the refresh token every time it is used. The new one is saved each
+// time, so the connection stays alive instead of dropping. If Microsoft refuses the refresh
+// (password changed, access removed), the row is flagged needs_reconnect and QPlan asks that
+// person to reconnect.
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const OUTLOOK_CLIENT_ID = Deno.env.get('OUTLOOK_CLIENT_ID')
 const OUTLOOK_CLIENT_SECRET = Deno.env.get('OUTLOOK_CLIENT_SECRET')
 const REDIRECT_URI = 'https://planflow-beige.vercel.app'
+const TOKEN_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/token'
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
 const SUPABASE_SERVICE_KEY = Deno.env.get('SERVICE_ROLE_KEY')
 
-serve(async (req) => {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  }
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
 
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  })
+}
+
+serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
     const url = new URL(req.url)
     const action = url.searchParams.get('action')
-    const body = req.method === 'POST' ? await req.json() : {}
+    const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {}
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_KEY!)
 
     if (action === 'callback') {
       const { code, company_id, username } = body
+      if (!code || !company_id || !username) return json({ success: false, error: 'Missing code, company or user' }, 400)
 
-      const tokenRes = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
+      const tokenRes = await fetch(TOKEN_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
@@ -38,29 +54,31 @@ serve(async (req) => {
 
       const tokens = await tokenRes.json()
       if (!tokens.access_token) {
-        return new Response(JSON.stringify({ success: false, error: 'No access token', detail: tokens }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
+        return json({ success: false, error: tokens.error_description || 'Microsoft did not return a sign-in token' })
       }
 
-      const userRes = await fetch('https://graph.microsoft.com/v1.0/me', {
-        headers: { Authorization: `Bearer ${tokens.access_token}` }
-      })
-      const userInfo = await userRes.json()
+      let email: string | null = null
+      try {
+        const userRes = await fetch('https://graph.microsoft.com/v1.0/me', {
+          headers: { Authorization: `Bearer ${tokens.access_token}` },
+        })
+        const userInfo = await userRes.json()
+        email = userInfo.mail || userInfo.userPrincipalName || null
+      } catch { /* email is optional */ }
 
-      await supabase.from('calendar_connections').upsert({
+      const { error } = await supabase.from('calendar_connections').upsert({
         company_id,
         username,
         provider: 'outlook',
         access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token,
-        email: userInfo.mail || userInfo.userPrincipalName,
-        expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
+        refresh_token: tokens.refresh_token || '',
+        email,
+        expires_at: new Date(Date.now() + (tokens.expires_in || 3600) * 1000).toISOString(),
+        needs_reconnect: false,
       }, { onConflict: 'company_id,username,provider' })
+      if (error) return json({ success: false, error: `Could not save the connection: ${error.message}` }, 500)
 
-      return new Response(JSON.stringify({ success: true, email: userInfo.mail || userInfo.userPrincipalName }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
+      return json({ success: true, email })
     }
 
     if (action === 'sync_booking') {
@@ -72,15 +90,15 @@ serve(async (req) => {
         .eq('company_id', company_id)
         .eq('username', username)
         .eq('provider', 'outlook')
-        .single()
+        .maybeSingle()
 
-      if (!conn) return new Response(JSON.stringify({ success: false, error: 'Not connected' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
+      if (!conn) return json({ success: false, error: 'Not connected' })
+      if (conn.needs_reconnect) return json({ success: false, error: 'reconnect', message: 'Reconnect your calendar in Settings > Microsoft 365.' })
 
       let accessToken = conn.access_token
-      if (new Date(conn.expires_at) < new Date()) {
-        const refreshRes = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
+      // Refresh a few minutes early so a token never expires mid-request
+      if (new Date(conn.expires_at).getTime() - Date.now() < 5 * 60 * 1000) {
+        const refreshRes = await fetch(TOKEN_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: new URLSearchParams({
@@ -91,10 +109,17 @@ serve(async (req) => {
           }),
         })
         const refreshed = await refreshRes.json()
+        if (!refreshed.access_token) {
+          await supabase.from('calendar_connections').update({ needs_reconnect: true }).eq('id', conn.id)
+          return json({ success: false, error: 'reconnect', message: 'Microsoft signed this calendar out. Reconnect it in Settings > Microsoft 365.' })
+        }
         accessToken = refreshed.access_token
         await supabase.from('calendar_connections').update({
           access_token: accessToken,
-          expires_at: new Date(Date.now() + refreshed.expires_in * 1000).toISOString(),
+          // Microsoft issues a new refresh token each time. Keep it, or the next refresh fails.
+          refresh_token: refreshed.refresh_token || conn.refresh_token,
+          expires_at: new Date(Date.now() + (refreshed.expires_in || 3600) * 1000).toISOString(),
+          needs_reconnect: false,
         }).eq('id', conn.id)
       }
 
@@ -118,30 +143,39 @@ serve(async (req) => {
       })
 
       const createdEvent = await eventRes.json()
+      if (createdEvent?.error) return json({ success: false, error: createdEvent.error.message })
 
       await supabase.from('bookings').update({
         external_id: createdEvent.id,
         external_source: 'outlook',
       }).eq('id', booking.id)
 
-      return new Response(JSON.stringify({ success: true, event_id: createdEvent.id }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
+      return json({ success: true, event_id: createdEvent.id })
     }
 
     if (action === 'status') {
       const { company_id, username } = body
       const { data } = await supabase
         .from('calendar_connections')
-        .select('email, provider')
+        .select('email, provider, needs_reconnect')
         .eq('company_id', company_id)
         .eq('username', username)
         .eq('provider', 'outlook')
-        .single()
+        .maybeSingle()
 
-      return new Response(JSON.stringify({ connected: !!data, email: data?.email }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
+      return json({ connected: !!data, email: data?.email || null, needs_reconnect: !!data?.needs_reconnect })
+    }
+
+    // Who at the firm has connected their Outlook calendar (no tokens returned)
+    if (action === 'team_status') {
+      const { company_id } = body
+      if (!company_id) return json({ connections: [] })
+      const { data } = await supabase
+        .from('calendar_connections')
+        .select('username, email, needs_reconnect')
+        .eq('company_id', company_id)
+        .eq('provider', 'outlook')
+      return json({ connections: data || [] })
     }
 
     if (action === 'disconnect') {
@@ -152,19 +186,11 @@ serve(async (req) => {
         .eq('username', username)
         .eq('provider', 'outlook')
 
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
+      return json({ success: true })
     }
 
-    return new Response(JSON.stringify({ error: 'Unknown action' }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
-
+    return json({ error: 'Unknown action' })
   } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    })
+    return json({ error: (e as Error).message }, 500)
   }
 })

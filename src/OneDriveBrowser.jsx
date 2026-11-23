@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
+import { connectFirmDrive } from './microsoft'
 
 const SUPABASE_URL = 'https://sltaaiumviyzgdsdkkbe.supabase.co'
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdGFhaXVtdml5emdkc2Rra2JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MTYyNTMsImV4cCI6MjA5MDQ5MjI1M30.xqWqvx8vdofj119nXDpasQ8xVD67YJU0RrjTrxycTGo'
 
 // Microsoft scopes requested at connect time. Sites.Read.All lets QPlan list SharePoint
 // document libraries as well as OneDrive. Must match SCOPES in supabase/functions/ms-graph.
-const MS_SCOPES = 'Files.ReadWrite.All Sites.Read.All offline_access User.Read'
+// Scopes live in src/microsoft.js (MS_FILE_SCOPES)
 
 export async function callGraph(action, payload) {
   const res = await fetch(`${SUPABASE_URL}/functions/v1/ms-graph?action=${action}`, {
@@ -128,19 +129,7 @@ function DocumentModal({ file, companyId, onClose }) {
 
 function ConnectPrompt({ currentUser, compact }) {
   const isDirector = currentUser?.role === 'director'
-  const handleConnect = () => {
-    const clientId = import.meta.env.VITE_OUTLOOK_CLIENT_ID
-    if (!clientId) { alert('Microsoft 365 not configured yet.'); return }
-    const params = new URLSearchParams({
-      client_id: clientId,
-      redirect_uri: 'https://planflow-beige.vercel.app',
-      response_type: 'code',
-      scope: MS_SCOPES,
-      prompt: 'select_account',
-      state: btoa(JSON.stringify({ provider: 'msgraph', company_id: currentUser.company_id, username: currentUser.username })),
-    })
-    window.location.href = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params}`
-  }
+  const handleConnect = () => connectFirmDrive(currentUser, 'microsoft')
   return (
     <div className={`bg-white rounded-xl border border-gray-200 text-center ${compact ? 'p-4' : 'p-6'}`}>
       <div className="w-12 h-12 bg-blue-700 rounded-xl flex items-center justify-center text-white text-lg font-bold mx-auto mb-3">M</div>
@@ -153,7 +142,7 @@ function ConnectPrompt({ currentUser, compact }) {
           Connect Microsoft 365
         </button>
       ) : (
-        <div className="text-xs text-gray-400">Ask a director to connect Microsoft 365 from the Documents page.</div>
+        <div className="text-xs text-gray-400">Ask a director to connect Microsoft 365 from Settings &gt; Microsoft 365.</div>
       )}
     </div>
   )

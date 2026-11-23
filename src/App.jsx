@@ -17,6 +17,7 @@ import Documents from './Documents'
 import TimeBudget from './TimeBudget'
 import Planners from './Planners'
 import Xero from './XeroPage'
+import Microsoft365 from './Microsoft365'
 import qplanLogo from './assets/plan_logo.PNG'
 import { timerLabel } from './jobMeta'
 
@@ -35,13 +36,14 @@ const navItems = [
   { id: 'xero', label: 'Xero', section: 'tools' },
   { id: 'templates', label: 'Templates', section: 'settings' },
   { id: 'planners', label: 'Planners', section: 'settings' },
+  { id: 'microsoft', label: 'Microsoft 365', section: 'settings' },
 ]
 
 const pageTitles = {
   dashboard: 'Dashboard', jobs: 'All Jobs', newjob: 'New Job',
   docs: 'Documents', time: 'Time & Budget', calendly: 'Bookings',
   calendar: 'Calendar', workload: 'Team Workloads', xero: 'Xero',
-  templates: 'Templates', planners: 'Planners', jobdetail: 'Job Detail',
+  templates: 'Templates', planners: 'Planners', jobdetail: 'Job Detail', microsoft: 'Microsoft 365',
 }
 
 function formatTimer(seconds) {
@@ -387,6 +389,7 @@ export default function App() {
   const [historyIndex, setHistoryIndex] = useState(0)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [pendingCalendarConnect, setPendingCalendarConnect] = useState(false)
+  const [msNotice, setMsNotice] = useState(null)
 
   useEffect(() => {
     const session = loadSession()
@@ -400,6 +403,44 @@ export default function App() {
     const params = new URLSearchParams(window.location.search)
     const code = params.get('code')
     const state = params.get('state')
+
+    // Microsoft 365 admin approval (Settings > Microsoft 365, step 1). Microsoft sends the admin
+    // back with admin_consent=True, or with an error. This works even if the admin is not logged in to QPlan.
+    if (params.get('admin_consent') || (params.get('error') && state && !code)) {
+      window.history.replaceState({}, '', '/')
+      let st = {}
+      try { st = JSON.parse(atob(state || '')) } catch { st = {} }
+      if (st.provider === 'msadmin' && st.company_id) {
+        const ok = String(params.get('admin_consent')).toLowerCase() === 'true'
+        const loggedIn = !!(session && session.id)
+        // Logged in: show the result on the Microsoft 365 page. Not logged in (often the firm's
+        // admin): say so now, and keep it for the Microsoft 365 page after login.
+        const finish = (notice) => {
+          if (loggedIn) { setMsNotice(notice); return }
+          sessionStorage.setItem('ms_notice', JSON.stringify(notice))
+          alert(notice.text)
+        }
+        if (ok) {
+          supabase.from('companies').update({
+            ms_tenant_id: params.get('tenant') || null,
+            ms_admin_consent_at: new Date().toISOString(),
+            ms_admin_consent_by: st.username || null,
+          }).eq('id', st.company_id).then(({ error }) => {
+            finish(error
+              ? { ok: false, text: 'Microsoft approved QPlan, but QPlan could not record it: ' + error.message }
+              : { ok: true, text: 'Done. QPlan is approved for the whole firm. Nobody will be asked for Microsoft permissions again.' })
+            if (loggedIn) setActivePage('microsoft')
+          })
+        } else {
+          const desc = params.get('error_description') || params.get('error') || 'Unknown error'
+          finish({ ok: false, text: 'Microsoft did not approve QPlan. ' + (/AADSTS90094|admin/i.test(desc)
+            ? 'This needs to be done by a Microsoft 365 Global Administrator. Copy the link and send it to your admin.'
+            : desc) })
+          if (loggedIn) setActivePage('microsoft')
+        }
+      }
+      return
+    }
 
     if (!code) return
 
@@ -451,9 +492,11 @@ export default function App() {
         }),
       }).then(res => res.json()).then(data => {
         if (data.success) {
-          setActivePage('docs')
+          setMsNotice({ ok: true, text: `Microsoft 365 connected (${data.email || 'signed in'}).` })
+          setActivePage(callback.returnTo || 'docs')
         } else {
           alert('Microsoft 365 connection failed: ' + (data.error || 'Unknown error'))
+          if (callback.returnTo) setActivePage(callback.returnTo)
         }
       })
       return
@@ -470,11 +513,29 @@ export default function App() {
         }),
       }).then(res => res.json()).then(data => {
         if (data.success) {
-          setActivePage('calendar')
-          setPendingCalendarConnect(true)
+          if (callback.returnTo) {
+            setMsNotice({ ok: true, text: `Your calendar is connected${data.email ? ` (${data.email})` : ''}.` })
+            setActivePage(callback.returnTo)
+          } else {
+            setActivePage('calendar')
+            setPendingCalendarConnect(true)
+          }
+        } else {
+          alert('Calendar connection failed: ' + (data.error || 'Unknown error'))
+          if (callback.returnTo) setActivePage(callback.returnTo)
         }
       })
     }
+  }, [currentUser])
+
+  // Result of a Microsoft 365 admin approval, shown on the Microsoft 365 page
+  useEffect(() => {
+    if (!currentUser) return
+    const stored = sessionStorage.getItem('ms_notice')
+    if (!stored) return
+    sessionStorage.removeItem('ms_notice')
+    try { setMsNotice(JSON.parse(stored)) } catch { /* ignore */ }
+    setActivePage('microsoft')
   }, [currentUser])
 
   // Job list for the timer and sidebar count. Refreshes on every page change so new jobs appear straight away.
@@ -672,6 +733,7 @@ export default function App() {
       case 'docs': return <Documents currentUser={currentUser} />
       case 'time': return <TimeBudget currentUser={currentUser} />
       case 'planners': return <Planners currentUser={currentUser} />
+      case 'microsoft': return <Microsoft365 currentUser={currentUser} notice={msNotice} onNoticeShown={() => setMsNotice(null)} />
       default: return <div className="bg-white rounded-xl border border-gray-200 p-6"><p className="text-sm text-gray-400">This page is coming soon.</p></div>
     }
   }

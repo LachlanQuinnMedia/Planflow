@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
 import { jobTitle } from './jobMeta'
 import { holidayName } from './businessDays'
+import { connectMyCalendar } from './microsoft'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
@@ -176,19 +177,7 @@ function ConnectCalendarModal({ onClose, currentUser, onConnectionChange }) {
     window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params}`
   }
 
-  const handleConnectOutlook = () => {
-    const clientId = import.meta.env.VITE_OUTLOOK_CLIENT_ID
-    if (!clientId) { alert('Outlook not configured yet.'); return }
-    const params = new URLSearchParams({
-      client_id: clientId,
-      redirect_uri: 'https://planflow-beige.vercel.app',
-      response_type: 'code',
-      scope: 'Calendars.ReadWrite offline_access',
-      prompt: 'select_account',
-      state: btoa(JSON.stringify({ provider: 'outlook', company_id: currentUser.company_id, username: currentUser.username })),
-    })
-    window.location.href = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params}`
-  }
+  const handleConnectOutlook = () => connectMyCalendar(currentUser, null)
 
   const handleConnectCalendly = () => {
     const clientId = import.meta.env.VITE_CALENDLY_CLIENT_ID
@@ -543,12 +532,14 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
     if (newBooking) {
       for (const provider of ['google', 'outlook']) {
         try {
-          await fetch(`${SUPABASE_URL}/functions/v1/calendar-${provider}?action=sync_booking`, {
+          const syncRes = await fetch(`${SUPABASE_URL}/functions/v1/calendar-${provider}?action=sync_booking`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ANON_KEY}` },
             body: JSON.stringify({ company_id: currentUser.company_id, username: currentUser.username, booking: newBooking }),
           })
-        } catch (e) { /* external calendar sync is optional */ }
+          const sync = await syncRes.json().catch(() => ({}))
+          if (sync?.error === 'reconnect') alert(`The meeting is saved in QPlan, but it could not be added to your ${provider === 'outlook' ? 'Outlook' : provider} calendar. ${sync.message || 'Reconnect your calendar in Settings > Microsoft 365.'}`)
+        } catch { /* external calendar sync is optional */ }
       }
     }
 
