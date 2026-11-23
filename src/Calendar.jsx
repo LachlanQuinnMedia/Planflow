@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase, SUPABASE_URL, fnHeaders } from './supabase'
+import { supabase, SUPABASE_URL, fnHeaders, callFunction } from './supabase'
 import { jobTitle } from './jobMeta'
 import { holidayName } from './businessDays'
 import { connectMyCalendar } from './microsoft'
@@ -12,6 +12,33 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
 const typeColors = {
   client: 'bg-emerald-100 border-emerald-300 text-emerald-800',
   internal: 'bg-purple-100 border-purple-300 text-purple-800',
+  outlook: 'bg-blue-100 border-blue-300 text-blue-800',
+}
+
+// Turn this person's Outlook events into the same shape as a QPlan meeting, so the week grid can
+// draw them. They are read live from Outlook and are not saved in QPlan.
+function outlookToItems(events, weekDates, skipIds) {
+  const days = new Set(weekDates.map(toLocalISODate))
+  const items = []
+  for (const e of events || []) {
+    if (!e.start || skipIds.has(e.id)) continue // meetings QPlan put into Outlook are already shown
+    const base = { id: `outlook-${e.id}`, type: 'outlook', outlook: true, title: e.subject, client_name: null, notes: e.location || '', webLink: e.webLink }
+    if (e.allDay) {
+      // An all-day event runs from its start day up to, but not including, its end day
+      const day = new Date(`${e.start.slice(0, 10)}T00:00:00`)
+      const last = new Date(`${(e.end || e.start).slice(0, 10)}T00:00:00`)
+      let guard = 0
+      do {
+        const iso = toLocalISODate(day)
+        if (days.has(iso)) items.push({ ...base, id: `${base.id}-${iso}`, date: iso, start_time: '07:00', duration_minutes: 30, title: `All day: ${e.subject}`, allDay: true })
+        day.setDate(day.getDate() + 1)
+      } while (day < last && ++guard < 14)
+      continue
+    }
+    const minutes = Math.max(15, Math.round((Date.parse(`${e.end}Z`) - Date.parse(`${e.start}Z`)) / 60000) || 30)
+    items.push({ ...base, date: e.start.slice(0, 10), start_time: e.start.slice(11, 16), duration_minutes: minutes })
+  }
+  return items
 }
 
 // Format a JS Date as YYYY-MM-DD using LOCAL date parts (no timezone shift).
@@ -670,6 +697,8 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
   const [selectedBooking, setSelectedBooking] = useState(null)
   const [editingBooking, setEditingBooking] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [outlookEvents, setOutlookEvents] = useState([])
+  const [outlookNote, setOutlookNote] = useState('') // '', 'reconnect' or an error message
   const isDirector = currentUser.role === 'director'
 
   const weekDates = getWeekDates(currentWeek)
@@ -685,7 +714,22 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
     fetchBookings()
     fetchStaff()
     fetchJobs()
+    fetchOutlook()
   }, [currentWeek, viewingAs])
+
+  // Your own Outlook calendar, shown alongside QPlan meetings. Only ever your own:
+  // when a director looks at someone else's week, their Outlook is not read.
+  const fetchOutlook = async () => {
+    const mine = (viewingAs || '').toLowerCase() === (currentUser.username || '').toLowerCase()
+    if (!mine) { setOutlookEvents([]); setOutlookNote(''); return }
+    try {
+      const res = await callFunction('calendar-outlook', 'events', { start: toLocalISODate(weekDates[0]), end: toLocalISODate(weekDates[6]) })
+      setOutlookEvents(res.success ? (res.events || []) : [])
+      setOutlookNote(res.success ? '' : (res.error || 'Could not read Outlook'))
+    } catch {
+      setOutlookEvents([]); setOutlookNote('Could not read Outlook')
+    }
+  }
 
   const fetchBookings = async () => {
     setLoading(true)
@@ -722,9 +766,11 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
   const goForward = () => { const d = new Date(currentWeek); d.setDate(d.getDate() + 7); setCurrentWeek(d) }
   const goToday = () => setCurrentWeek(new Date())
 
+  const outlookItems = outlookToItems(outlookEvents, weekDates, new Set(bookings.map(b => b.external_id).filter(Boolean)))
+
   const getBookingsForDayAndHour = (date, hour) => {
     const dateStr = toLocalISODate(date)
-    return bookings.filter(b => {
+    return [...bookings, ...outlookItems].filter(b => {
       if (b.date !== dateStr) return false
       return parseInt(b.start_time?.split(':')[0] || '0') === hour
     })
@@ -787,6 +833,12 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
               <div className="w-3 h-3 rounded-sm bg-purple-400 flex-shrink-0" />
               <span className="text-xs text-gray-600">Staff meeting</span>
             </div>
+            {(outlookEvents.length > 0 || outlookNote) && (
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-sm bg-blue-400 flex-shrink-0" />
+                <span className="text-xs text-gray-600">Outlook</span>
+              </div>
+            )}
           </div>
           {isDirector && (
             <select value={viewingAs} onChange={e => setViewingAs(e.target.value)}
@@ -849,10 +901,11 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
 
                         return (
                           <div key={bi}
-                            onClick={e => { e.stopPropagation(); setSelectedBooking(b) }}
+                            onClick={e => { e.stopPropagation(); if (b.outlook) { if (b.webLink) window.open(b.webLink, '_blank', 'noopener') } else setSelectedBooking(b) }}
+                            title={b.outlook ? `${b.title}${b.notes ? ` · ${b.notes}` : ''} (from Outlook, click to open)` : undefined}
                             className={`absolute left-0.5 right-0.5 rounded-md border overflow-hidden z-10 cursor-pointer ${typeColors[b.type] || 'bg-gray-100 border-gray-200 text-gray-700'}`}
                             style={{ top: `${topOffset}px`, height: `${minHeight}px` }}>
-                            <div className={`absolute left-0 top-0 bottom-0 w-1 ${b.type === 'client' ? 'bg-emerald-500' : 'bg-purple-500'}`} />
+                            <div className={`absolute left-0 top-0 bottom-0 w-1 ${b.type === 'client' ? 'bg-emerald-500' : b.outlook ? 'bg-blue-500' : 'bg-purple-500'}`} />
                             <div className="pl-2 pr-1 pt-0.5 pb-0.5 h-full flex flex-col justify-start overflow-hidden">
                               <div className="text-xs font-semibold truncate leading-tight">{primaryLabel}</div>
                               {secondaryLabel && minHeight > 34 && (
@@ -880,6 +933,21 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
         <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
           This week: {viewingAs}
         </div>
+        {outlookNote === 'reconnect' && (
+          <div className="mb-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800">
+            Outlook has signed this calendar out, so your Outlook meetings are not showing. Reconnect it in Settings &gt; Microsoft 365.
+          </div>
+        )}
+        {outlookNote && outlookNote !== 'reconnect' && (
+          <div className="mb-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800">
+            Your Outlook meetings could not be loaded: {outlookNote}
+          </div>
+        )}
+        {outlookItems.length > 0 && (
+          <div className="mb-3 text-xs text-gray-600">
+            {outlookItems.length} from your Outlook calendar this week, shown in blue. Click one to open it in Outlook.
+          </div>
+        )}
         {loading ? (
           <div className="text-xs text-gray-500 text-center py-4">Loading...</div>
         ) : bookings.length === 0 ? (

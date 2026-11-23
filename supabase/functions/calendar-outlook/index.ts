@@ -1,5 +1,5 @@
 // supabase/functions/calendar-outlook/index.ts
-// Each person's own Outlook calendar. Actions: callback, sync_booking, status, team_status, disconnect.
+// Each person's own Outlook calendar. Actions: callback, sync_booking, events, status, team_status, disconnect.
 //
 // Microsoft replaces the refresh token every time it is used. The new one is saved each
 // time, so the connection stays alive instead of dropping. If Microsoft refuses the refresh
@@ -143,14 +143,20 @@ serve(async (req) => {
         }).eq('id', conn.id)
       }
 
-      const startDate = new Date(`${booking.date}T${booking.start_time}:00`)
-      const endDate = new Date(startDate.getTime() + booking.duration_minutes * 60000)
+      // Times are sent as Brisbane wall-clock times. The start time can arrive as "09:00" or "09:00:00".
+      const hhmm = String(booking.start_time || '09:00').slice(0, 5)
+      const [y, mo, d] = String(booking.date).split('-').map(Number)
+      const [h, mi] = hhmm.split(':').map(Number)
+      const minutes = Number(booking.duration_minutes) || 60
+      const wall = (ms: number) => new Date(ms).toISOString().slice(0, 19)
+      const startMs = Date.UTC(y, mo - 1, d, h, mi)
+      if (Number.isNaN(startMs)) return json({ success: false, error: 'The meeting has no valid date or time' })
 
       const event = {
-        subject: booking.client_name ? `${booking.client_name} — ${booking.title}` : booking.title,
+        subject: booking.client_name ? `${booking.client_name} - ${booking.title}` : booking.title,
         body: { contentType: 'text', content: booking.notes || '' },
-        start: { dateTime: startDate.toISOString(), timeZone: 'Australia/Brisbane' },
-        end: { dateTime: endDate.toISOString(), timeZone: 'Australia/Brisbane' },
+        start: { dateTime: wall(startMs), timeZone: 'Australia/Brisbane' },
+        end: { dateTime: wall(startMs + minutes * 60000), timeZone: 'Australia/Brisbane' },
       }
 
       const eventRes = await fetch('https://graph.microsoft.com/v1.0/me/events', {
@@ -171,6 +177,71 @@ serve(async (req) => {
       }).eq('id', booking.id).eq('company_id', company_id)
 
       return json({ success: true, event_id: createdEvent.id })
+    }
+
+    // This person's own Outlook events for a range of days, read live from Microsoft.
+    // Nothing is copied into QPlan's database.
+    if (action === 'events') {
+      const { company_id, username } = body
+      const start = String(body.start || ''), end = String(body.end || '')
+      const isDay = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v)
+      if (!isDay(start) || !isDay(end)) return json({ success: false, error: 'Missing dates' }, 400)
+
+      const { data: conn } = await supabase
+        .from('calendar_connections').select('*')
+        .eq('company_id', company_id).eq('username', username).eq('provider', 'outlook').maybeSingle()
+      if (!conn) return json({ success: true, connected: false, events: [] })
+      if (conn.needs_reconnect) return json({ success: false, connected: true, error: 'reconnect', events: [] })
+
+      let accessToken = conn.access_token
+      if (new Date(conn.expires_at).getTime() - Date.now() < 5 * 60 * 1000) {
+        const refreshRes = await fetch(TOKEN_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            client_id: OUTLOOK_CLIENT_ID!, client_secret: OUTLOOK_CLIENT_SECRET!,
+            refresh_token: conn.refresh_token, grant_type: 'refresh_token',
+          }),
+        })
+        const refreshed = await refreshRes.json()
+        if (!refreshed.access_token) {
+          await supabase.from('calendar_connections').update({ needs_reconnect: true }).eq('id', conn.id)
+          return json({ success: false, connected: true, error: 'reconnect', events: [] })
+        }
+        accessToken = refreshed.access_token
+        await supabase.from('calendar_connections').update({
+          access_token: accessToken,
+          refresh_token: refreshed.refresh_token || conn.refresh_token,
+          expires_at: new Date(Date.now() + (refreshed.expires_in || 3600) * 1000).toISOString(),
+          needs_reconnect: false,
+        }).eq('id', conn.id)
+      }
+
+      // Brisbane has no daylight saving, so +10:00 is right all year
+      const query = new URLSearchParams({
+        startDateTime: `${start}T00:00:00+10:00`,
+        endDateTime: `${end}T23:59:59+10:00`,
+        $select: 'id,subject,start,end,isAllDay,isCancelled,location,webLink,showAs',
+        $orderby: 'start/dateTime',
+        $top: '200',
+      })
+      const res = await fetch(`https://graph.microsoft.com/v1.0/me/calendarView?${query}`, {
+        headers: { Authorization: `Bearer ${accessToken}`, Prefer: 'outlook.timezone="E. Australia Standard Time"' },
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || data.error) return json({ success: false, connected: true, error: data.error?.message || `Microsoft returned ${res.status}`, events: [] })
+
+      const events = (data.value || []).filter((e: any) => !e.isCancelled).map((e: any) => ({
+        id: e.id,
+        subject: e.subject || '(No title)',
+        start: String(e.start?.dateTime || '').slice(0, 19),
+        end: String(e.end?.dateTime || '').slice(0, 19),
+        allDay: !!e.isAllDay,
+        location: e.location?.displayName || '',
+        webLink: e.webLink || null,
+        showAs: e.showAs || null,
+      }))
+      return json({ success: true, connected: true, events })
     }
 
     if (action === 'status') {
