@@ -274,3 +274,43 @@ html[data-theme="dark"] body {
   scrollbar-width: thin;
   scrollbar-color: var(--color-gray-300) transparent;
 }
+
+/* ------------------------------------------------------------------
+   First-time tutorial (src/Tour.jsx)
+   ------------------------------------------------------------------ */
+.qp-tour-card { animation: qp-tour-in 0.26s ease-out both; }
+@keyframes qp-tour-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+/* The arrow that points at the thing being explained. It nudges towards it. */
+.qp-tour-arrow { transform: rotate(45deg); border-radius: 2px; }
+.qp-tour-arrow-bottom { animation: qp-tour-nudge-up 1.4s ease-in-out infinite; }
+.qp-tour-arrow-top { animation: qp-tour-nudge-down 1.4s ease-in-out infinite; }
+.qp-tour-arrow-right { animation: qp-tour-nudge-left 1.4s ease-in-out infinite; }
+.qp-tour-arrow-left { animation: qp-tour-nudge-right 1.4s ease-in-out infinite; }
+@keyframes qp-tour-nudge-up { 0%, 100% { transform: translateY(0) rotate(45deg); } 50% { transform: translateY(-4px) rotate(45deg); } }
+@keyframes qp-tour-nudge-down { 0%, 100% { transform: translateY(0) rotate(45deg); } 50% { transform: translateY(4px) rotate(45deg); } }
+@keyframes qp-tour-nudge-left { 0%, 100% { transform: translateX(0) rotate(45deg); } 50% { transform: translateX(-4px) rotate(45deg); } }
+@keyframes qp-tour-nudge-right { 0%, 100% { transform: translateX(0) rotate(45deg); } 50% { transform: translateX(4px) rotate(45deg); } }
+/* The outline around the thing being explained */
+.qp-tour-ring { animation: qp-tour-ring 1.8s ease-in-out infinite; }
+@keyframes qp-tour-ring { 0%, 100% { stroke-opacity: 1; } 50% { stroke-opacity: 0.45; } }
+/* The menu item to click next */
+.qp-tour-hot {
+  border: 2px solid #34d399;
+  background: transparent;
+  animation: qp-tour-hot 1.5s ease-out infinite;
+}
+@keyframes qp-tour-hot {
+  0% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7); }
+  70%, 100% { box-shadow: 0 0 0 10px rgba(52, 211, 153, 0); }
+}
+.qp-tour-tag { animation: qp-tour-tag 1s ease-in-out infinite; }
+@keyframes qp-tour-tag { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-5px); } }
+.qp-tour-dot { animation: qp-tour-dot 1.2s ease-in-out infinite; }
+@keyframes qp-tour-dot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }
+@media (prefers-reduced-motion: reduce) {
+  .qp-tour-card, .qp-tour-ring, .qp-tour-hot, .qp-tour-tag, .qp-tour-dot,
+  .qp-tour-arrow-bottom, .qp-tour-arrow-top, .qp-tour-arrow-right, .qp-tour-arrow-left { animation: none; }
+}

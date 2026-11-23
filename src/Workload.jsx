@@ -193,7 +193,7 @@ export default function Workload({ currentUser }) {
   return (
     <div>
       {/* Summary stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+      <div data-tour="workload-stats" className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
         <div className="bg-gray-50 rounded-lg p-3">
           <div className="text-xs text-gray-500 mb-1">Total planners</div>
           <div className="text-xl font-semibold">{plannerData.length}</div>

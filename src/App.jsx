@@ -24,6 +24,8 @@ import { IconPlay, IconStop, IconSun, IconMoon, IconAuto, IconRefresh, IconChevr
 import { getThemeChoice, setThemeChoice, watchSystemTheme } from './theme'
 import { InstallAppButton } from './install'
 import Landing from './Landing'
+import Tour from './Tour'
+import { tourSeen } from './tourState'
 
 // Light / Dark / Auto. Auto follows the device. Remembered on this device.
 function ThemeSwitch() {
@@ -325,7 +327,7 @@ function GlobalTimer({ jobs, currentUser, activeJob, onRunningChange }) {
   const busy = saving || starting
 
   return (
-    <div className={`px-3 border-t border-gray-100 ${collapsed ? 'py-2' : 'py-3'}`}>
+    <div data-tour="timer" className={`px-3 border-t border-gray-100 ${collapsed ? 'py-2' : 'py-3'}`}>
       {/* Rendered on the page body: the sidebar slides with a transform, which would trap a fixed dialog inside it */}
       {switchPrompt && isRunning && createPortal(
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
@@ -495,6 +497,7 @@ export default function App() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [refreshing, setRefreshing] = useState(false)
   const [timerRunning, setTimerRunning] = useState(false)
+  const [tourOpen, setTourOpen] = useState(false)
   const [isMaster, setIsMaster] = useState(false) // the QPlan master account, not a planner at the firm
   const [jobCount, setJobCount] = useState(0)
   const [jobs, setJobs] = useState([])
@@ -647,6 +650,7 @@ export default function App() {
       if (event !== 'SIGNED_OUT') return
       localStorage.removeItem('pf_session')
       sessionStorage.removeItem('pf_session')
+      setTourOpen(false)
       setCurrentUser(null)
     })
     return () => data.subscription.unsubscribe()
@@ -662,6 +666,15 @@ export default function App() {
     try { setMsNotice(JSON.parse(stored)) } catch { /* ignore */ }
     setActivePage('microsoft')
   }, [currentUser])
+
+  // First time this person uses QPlan on this device: show the tutorial once the screen has settled
+  useEffect(() => {
+    if (!currentUser?.id || tourSeen(currentUser.id)) return
+    // Not on the way back from a Microsoft, Google, Calendly or Xero sign-in. That screen comes first.
+    if (sessionStorage.getItem('oauth_callback') || sessionStorage.getItem('ms_notice')) return
+    const t = setTimeout(() => setTourOpen(true), 900)
+    return () => clearTimeout(t)
+  }, [currentUser?.id])
 
   // Remember the page for the next refresh. Also stamped when the app goes to the background,
   // so a phone that closes the app behind the scenes reopens it in the same place.
@@ -827,6 +840,7 @@ export default function App() {
     clearSession()
     try { localStorage.removeItem(LAST_PAGE_KEY) } catch { /* storage unavailable */ }
     setIsMaster(false)
+    setTourOpen(false)
     setCurrentUser(null)
     setSelectedJob(null)
     setRestoreJobId(null)
@@ -957,10 +971,10 @@ export default function App() {
 
         <div className="flex-1 overflow-y-auto py-2">
           {['main', 'tools', 'settings'].map(section => (
-            <div key={section} className="px-2 mb-2">
+            <div key={section} data-tour={`nav-section-${section}`} className="px-2 mb-2">
               <div className="text-xs text-gray-500 uppercase tracking-wider px-2 py-1">{section}</div>
               {visibleNavItems.filter(i => i.section === section).map(item => (
-                <button key={item.id} onClick={() => handleNavigate(item.id)}
+                <button key={item.id} data-tour={`nav-${item.id}`} onClick={() => handleNavigate(item.id)}
                   className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-sm mb-0.5 transition-colors ${activePage === item.id ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-800'}`}>
                   {item.label}
                   {item.id === 'jobs' && jobCount > 0 && (
@@ -1037,6 +1051,10 @@ export default function App() {
           {isDirector && currentUser.companyName && (
             <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-lg hidden sm:block">{currentUser.companyName}</span>
           )}
+          <button onClick={() => setTourOpen(true)} title="Show the tutorial" aria-label="Show the tutorial" data-tour="help-button"
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 flex-shrink-0 text-sm font-semibold">
+            ?
+          </button>
           {activePage !== 'newjob' && (
             <button onClick={handleRefresh} disabled={refreshing} title="Refresh this page" aria-label="Refresh this page"
               className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 flex-shrink-0 disabled:opacity-60">
@@ -1047,9 +1065,14 @@ export default function App() {
         </div>
 
         <div key={refreshKey} className="flex-1 overflow-y-auto p-4 md:p-5">
-          {renderPage()}
+          <div data-tour="page">{renderPage()}</div>
         </div>
       </div>
+      {tourOpen && (
+        <Tour currentUser={currentUser} isDirector={isDirector} activePage={activePage}
+          onNavigate={handleNavigate} setSidebarOpen={setSidebarOpen}
+          onClose={() => { setTourOpen(false); setSidebarOpen(false); if (activePage !== 'dashboard') handleNavigate('dashboard') }} />
+      )}
     </div>
   )
 }

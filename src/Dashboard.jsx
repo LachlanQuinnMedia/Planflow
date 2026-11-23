@@ -167,7 +167,7 @@ function StatStrip({ myJobs, planner, onNavigate }) {
   const nearBudget = !overBudget && weekStats.hours > weeklyBudget * 0.85
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+    <div data-tour="dash-stats" className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
       {/* Active jobs */}
       <button
         onClick={() => onNavigate('jobs')}
@@ -503,7 +503,7 @@ function DirectorView({ onNavigate, allJobs, viewingAs }) {
         <div className="text-xs text-gray-500 mt-0.5">{activeJobs.length} active jobs · {allPlanners.length} planners · {urgentAll.length} dates due this week</div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-4">
+      <div data-tour="dash-stats" className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-4">
         <div className="bg-gray-50 rounded-lg p-3"><div className="text-xs text-gray-500 mb-1">Active jobs</div><div className="text-xl font-semibold">{activeJobs.length}</div></div>
         <div className="bg-gray-50 rounded-lg p-3"><div className="text-xs text-gray-500 mb-1">Total jobs</div><div className="text-xl font-semibold">{allJobs.length}</div></div>
         <div className="bg-emerald-50 rounded-lg p-3"><div className="text-xs text-emerald-600 mb-1">Planners</div><div className="text-xl font-semibold text-emerald-600">{allPlanners.length}</div></div>
@@ -594,10 +594,9 @@ function DirectorView({ onNavigate, allJobs, viewingAs }) {
 }
 
 export default function Dashboard({ onNavigate, currentUser }) {
+  // No switch to choose a view: directors get the firm-wide view, everyone else gets their own.
   const isDirector = currentUser?.role === 'director'
-  const [view, setView] = useState('planner')
-  const [viewingAs, setViewingAs] = useState(currentUser?.username || '')
-  const [staffList, setStaffList] = useState([])
+  const me = currentUser?.username || ''
   const [allJobs, setAllJobs] = useState([])
   const [loadingJobs, setLoadingJobs] = useState(true)
 
@@ -614,64 +613,10 @@ export default function Dashboard({ onNavigate, currentUser }) {
     fetchJobs()
   }, [])
 
-  useEffect(() => {
-    if (!isDirector || !currentUser?.company_id) return
-    const fetchStaff = async () => {
-      const { data } = await supabase
-        .from('app_users')
-        .select('username, role')
-        .eq('company_id', currentUser.company_id)
-        .eq('is_approved', true).not('is_platform_admin', 'is', true)
-        .order('username', { ascending: true })
-      if (data) setStaffList(data)
-    }
-    fetchStaff()
-  }, [isDirector, currentUser])
-
-  return (
-    <div>
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4 bg-white rounded-xl border border-gray-200 p-3">
-        {isDirector ? (
-          <>
-            <div className="text-xs font-medium text-gray-600">View as:</div>
-            <select
-              value={viewingAs}
-              onChange={e => setViewingAs(e.target.value)}
-              className="px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400"
-            >
-              {currentUser?.username && !staffList.some(s => s.username === currentUser.username) && (
-                <option value={currentUser.username}>{currentUser.username} (you)</option>
-              )}
-              {staffList.map(s => (
-                <option key={s.username} value={s.username}>
-                  {s.username} {s.role === 'director' ? '(Director)' : ''}
-                </option>
-              ))}
-            </select>
-            <div className="flex gap-1 sm:ml-auto">
-              <button
-                onClick={() => setView('planner')}
-                className={`flex-1 sm:flex-none px-3 py-1.5 text-xs rounded-lg transition-colors ${view === 'planner' ? 'bg-emerald-600 text-white' : 'border border-gray-200 hover:bg-gray-50'}`}
-              >My view</button>
-              <button
-                onClick={() => setView('director')}
-                className={`flex-1 sm:flex-none px-3 py-1.5 text-xs rounded-lg transition-colors ${view === 'director' ? 'bg-emerald-600 text-white' : 'border border-gray-200 hover:bg-gray-50'}`}
-              >Director view</button>
-            </div>
-          </>
-        ) : (
-          <div className="text-xs font-medium text-gray-600">
-            Viewing as: <span className="font-semibold text-gray-700">{currentUser?.username}</span>
-          </div>
-        )}
-      </div>
-
-      {loadingJobs ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-xs text-gray-500">Loading dashboard...</div>
-      ) : view === 'planner'
-        ? <PlannerView planner={viewingAs} onNavigate={onNavigate} allJobs={allJobs} />
-        : <DirectorView onNavigate={onNavigate} allJobs={allJobs} viewingAs={viewingAs} />
-      }
-    </div>
-  )
+  if (loadingJobs) {
+    return <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-xs text-gray-500">Loading dashboard...</div>
+  }
+  return isDirector
+    ? <DirectorView onNavigate={onNavigate} allJobs={allJobs} viewingAs={me} />
+    : <PlannerView planner={me} onNavigate={onNavigate} allJobs={allJobs} />
 }

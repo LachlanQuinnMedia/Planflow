@@ -931,7 +931,7 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
           onSave={() => { fetchBookings(); setEditingBooking(null) }} staffList={staffList} jobs={jobs} />
       )}
 
-      <div ref={topRef}>
+      <div ref={topRef} data-tour="calendar-tools">
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <button onClick={goBack} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 text-lg">‹</button>
@@ -1018,7 +1018,7 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
           })}
         </div>
 
-        <div ref={gridRef} data-testid="calendar-grid">
+        <div ref={gridRef} data-testid="calendar-grid" data-tour="calendar-grid">
           <div className="relative">
             {hours.map(hour => (
               <div key={hour} className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-gray-50 last:border-0" style={{ height: `${slotH}px` }}>

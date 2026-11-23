@@ -324,7 +324,7 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row gap-2 mb-4 sm:items-end">
+      <div data-tour="jobs-search" className="flex flex-col sm:flex-row gap-2 mb-4 sm:items-end">
         <div className="flex-1">
           <input
             type="text"
@@ -361,7 +361,7 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
       </div>
 
       {/* Mobile card view */}
-      <div className="lg:hidden space-y-2">
+      <div data-tour="jobs-list" className="lg:hidden space-y-2">
         {loading ? (
           <div className="bg-white rounded-xl border border-gray-200 px-4 py-8 text-center text-sm text-gray-500">Loading jobs...</div>
         ) : sorted.length === 0 ? (
@@ -420,7 +420,7 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
       </div>
 
       {/* Desktop table view */}
-      <div className="hidden lg:block bg-white rounded-xl border border-gray-200 overflow-x-auto">
+      <div data-tour="jobs-list" className="hidden lg:block bg-white rounded-xl border border-gray-200 overflow-x-auto">
         <div className="qp-row min-w-[960px] grid grid-cols-[70px_1fr_90px_55px_65px_70px_100px_110px_50px] gap-3 px-4 py-2 border-b border-gray-100 bg-gray-50">
           <div className="text-xs text-gray-500">Job #</div>
           <div className="text-xs text-gray-500">Name / address</div>

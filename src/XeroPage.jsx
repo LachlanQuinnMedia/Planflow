@@ -237,7 +237,7 @@ export default function Xero({ currentUser }) {
   if (!connected) {
     return (
       <div className="max-w-lg mx-auto">
-        <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
+        <div data-tour="xero-main" className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
           <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <div className="text-3xl font-bold text-blue-500">x</div>
           </div>
@@ -269,7 +269,7 @@ export default function Xero({ currentUser }) {
     <div>
       {selectedInvoice && <InvoiceDetailModal invoice={selectedInvoice} onClose={() => setSelectedInvoice(null)} />}
 
-      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4 flex items-center justify-between">
+      <div data-tour="xero-main" className="bg-white rounded-xl border border-gray-200 p-4 mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
             <span className="text-white text-sm font-bold">x</span>

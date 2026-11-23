@@ -289,7 +289,7 @@ export default function Documents({ currentUser }) {
   return (
     <div>
       {/* Source tabs */}
-      <div className="flex gap-2 mb-4">
+      <div data-tour="docs-source" className="flex gap-2 mb-4">
         <button onClick={() => setSource('qplan')}
           className={`px-4 py-2 text-xs rounded-lg font-medium transition-colors ${source === 'qplan' ? 'bg-emerald-600 text-white' : 'border border-gray-200 text-gray-600 hover:bg-gray-50 bg-white'}`}>
           QPlan storage
@@ -321,6 +321,7 @@ export default function Documents({ currentUser }) {
 
           {/* Upload zone */}
           <div
+            data-tour="docs-upload"
             onDragOver={e => { e.preventDefault(); setDragOver(true) }}
             onDragLeave={() => setDragOver(false)}
             onDrop={e => { e.preventDefault(); setDragOver(false); handleUpload(e.dataTransfer.files) }}

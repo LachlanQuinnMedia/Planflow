@@ -567,7 +567,7 @@ export default function NewJob({ onNavigate, currentUser }) {
           subtitle={'Browse to the folder that holds all job folders, then click "Use this folder". This is set once for the whole firm.'} />
       )}
 
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div data-tour="newjob-form" className="bg-white rounded-xl border border-gray-200 p-6">
         <h2 className="text-sm font-semibold mb-5">Create new job</h2>
         {error && <div className="bg-red-50 text-red-600 text-xs px-3 py-2 rounded-lg mb-4">{error}</div>}
 
