@@ -19,7 +19,7 @@ export default function Login({ onLogin, onRegister, onForgotPassword }) {
     }
     setLoading(true)
     setError('')
-    const { user, error: loginError } = await loginUser({ username, password, companyCode })
+    const { user, error: loginError } = await loginUser({ username, password, companyCode, stayLoggedIn })
     if (loginError) {
       setError(loginError)
       setLoading(false)

@@ -36,19 +36,19 @@ function requireClientId() {
 
 // Step 1. The firm's Microsoft 365 admin approves QPlan for everyone at the firm.
 // The link works for whoever opens it, so it can be copied and sent to the admin.
-export function adminConsentUrl(currentUser) {
+export function adminConsentUrl(currentUser, nonce) {
   const params = new URLSearchParams({
     client_id: MS_CLIENT_ID,
     scope: 'https://graph.microsoft.com/.default',
     redirect_uri: MS_REDIRECT_URI,
-    state: encodeState({ provider: 'msadmin', company_id: currentUser.company_id, username: currentUser.username || '' }),
+    state: encodeState({ provider: 'msadmin', company_id: currentUser.company_id, username: currentUser.username || '', nonce: nonce || '' }),
   })
   return `https://login.microsoftonline.com/organizations/v2.0/adminconsent?${params}`
 }
 
-export function startAdminConsent(currentUser) {
+export function startAdminConsent(currentUser, nonce) {
   if (!requireClientId()) return
-  window.location.href = adminConsentUrl(currentUser)
+  window.location.href = adminConsentUrl(currentUser, nonce)
 }
 
 // Step 2. Connect the firm's OneDrive / SharePoint

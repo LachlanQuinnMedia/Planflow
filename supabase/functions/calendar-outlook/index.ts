@@ -27,6 +27,20 @@ function json(body: unknown, status = 200) {
   })
 }
 
+// Who is calling. Worked out from their QPlan sign-in, never from what the browser sends.
+// Returns null unless the caller is an approved, active QPlan user.
+async function getCaller(req: Request, supabase: any) {
+  const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim()
+  if (!token) return null
+  const { data, error } = await supabase.auth.getUser(token)
+  if (error || !data?.user) return null
+  const { data: u } = await supabase.from('app_users')
+    .select('id, username, role, company_id, is_approved, is_active')
+    .eq('id', data.user.id).maybeSingle()
+  if (!u || !u.is_approved || u.is_active === false) return null
+  return u
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
@@ -35,6 +49,12 @@ serve(async (req) => {
     const action = url.searchParams.get('action')
     const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {}
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_KEY!)
+
+    const caller = await getCaller(req, supabase)
+    if (!caller) return json({ success: false, connected: false, error: 'Please sign in to QPlan again.' }, 401)
+    // The company and the person always come from the sign-in, never from the request
+    body.company_id = caller.company_id
+    body.username = caller.username
 
     if (action === 'callback') {
       const { code, company_id, username } = body
@@ -168,6 +188,7 @@ serve(async (req) => {
 
     // Who at the firm has connected their Outlook calendar (no tokens returned)
     if (action === 'team_status') {
+      if (caller.role !== 'director') return json({ connections: [] }, 403)
       const { company_id } = body
       if (!company_id) return json({ connections: [] })
       const { data } = await supabase

@@ -73,6 +73,20 @@ async function xeroApi(auth: { access_token: string; tenant_id: string }, path: 
   return { ok: res.ok, status: res.status, data }
 }
 
+// Who is calling. Worked out from their QPlan sign-in, never from what the browser sends.
+// Returns null unless the caller is an approved, active QPlan user.
+async function getCaller(req: Request, supabase: any) {
+  const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim()
+  if (!token) return null
+  const { data, error } = await supabase.auth.getUser(token)
+  if (error || !data?.user) return null
+  const { data: u } = await supabase.from('app_users')
+    .select('id, username, role, company_id, is_approved, is_active')
+    .eq('id', data.user.id).maybeSingle()
+  if (!u || !u.is_approved || u.is_active === false) return null
+  return u
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -84,7 +98,10 @@ serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
     let body: any = {}
     try { body = await req.json() } catch { /* no body */ }
-    const { company_id } = body
+    const caller = await getCaller(req, supabase)
+    if (!caller) return json({ success: false, error: 'Please sign in to QPlan again.' }, 401)
+    // The company always comes from the signed-in person, never from the request
+    const company_id = caller.company_id
 
     if (action === 'callback') {
       const { code } = body
@@ -130,26 +147,10 @@ serve(async (req) => {
       return json({ success: true, tenant_name: tenant?.tenantName })
     }
 
-    if (action === 'refresh') {
-      const { data: tokenData } = await supabase
-        .from('xero_tokens').select('*').eq('company_id', company_id).maybeSingle()
-      if (!tokenData) return json({ error: 'No token found' }, 404)
-
-      const tokens = await refreshWithXero(tokenData.refresh_token)
-      await supabase.from('xero_tokens').update({
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token,
-        token_expiry: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
-        updated_at: new Date().toISOString(),
-      }).eq('company_id', company_id)
-
-      return json({ access_token: tokens.access_token })
-    }
-
-    if (action === 'get_token') {
-      const auth = await getValidToken(supabase, company_id)
-      if (!auth) return json({ error: 'Not connected' }, 404)
-      return json(auth)
+    // Is Xero connected? Only the organisation name is returned. Tokens never leave the server.
+    if (action === 'status') {
+      const { data } = await supabase.from('xero_tokens').select('tenant_name').eq('company_id', company_id).maybeSingle()
+      return json({ success: true, connected: !!data, tenant_name: data?.tenant_name || null })
     }
 
     if (action === 'disconnect') {

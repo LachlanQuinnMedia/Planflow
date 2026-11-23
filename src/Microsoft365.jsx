@@ -4,20 +4,13 @@
 //   Step 2  Connect the firm's OneDrive or SharePoint (director, once) and pick the jobs folder
 //   Step 3  Connect my Outlook calendar (each person, once)
 import { useState, useEffect } from 'react'
-import { supabase } from './supabase'
+import { supabase, callFunction } from './supabase'
 import { callGraph, OneDriveFolderPicker } from './OneDriveBrowser'
 import { adminConsentUrl, startAdminConsent, connectFirmDrive, connectMyCalendar, isPersonalMicrosoftEmail } from './microsoft'
 
-const SUPABASE_URL = 'https://sltaaiumviyzgdsdkkbe.supabase.co'
-const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdGFhaXVtdml5emdkc2Rra2JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MTYyNTMsImV4cCI6MjA5MDQ5MjI1M30.xqWqvx8vdofj119nXDpasQ8xVD67YJU0RrjTrxycTGo'
 
 async function callCalendar(action, payload) {
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/calendar-outlook?action=${action}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ANON_KEY}` },
-    body: JSON.stringify(payload),
-  })
-  return res.json()
+  return callFunction('calendar-outlook', action, payload)
 }
 
 function formatDate(ts) {
@@ -79,11 +72,19 @@ export default function Microsoft365({ currentUser, notice, onNoticeShown }) {
     setLoading(true)
     const companyId = currentUser.company_id
     const [companyRes, driveRes, calRes] = await Promise.all([
-      supabase.from('companies').select('name, ms_tenant_id, ms_admin_consent_at, ms_admin_consent_by').eq('id', companyId).maybeSingle(),
+      supabase.from('companies').select('name, ms_tenant_id, ms_admin_consent_at, ms_admin_consent_by, ms_consent_nonce').eq('id', companyId).maybeSingle(),
       callGraph('status', { company_id: companyId }).catch(() => ({ connected: false })),
       callCalendar('status', { company_id: companyId, username: currentUser.username }).catch(() => ({ connected: false })),
     ])
-    setCompany(companyRes.data || null)
+    let companyRow = companyRes.data || null
+    // The approval link carries a one-off code, so the result can be recorded even when the
+    // Microsoft admin who opens it has no QPlan login. A director creates the code once.
+    if (isDirector && companyRow && !companyRow.ms_consent_nonce) {
+      const nonce = (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, '')
+      const { error } = await supabase.from('companies').update({ ms_consent_nonce: nonce }).eq('id', companyId)
+      if (!error) companyRow = { ...companyRow, ms_consent_nonce: nonce }
+    }
+    setCompany(companyRow)
     setDrive(driveRes || { connected: false })
     setMyCalendar(calRes || { connected: false })
     if (isDirector) {
@@ -106,11 +107,11 @@ export default function Microsoft365({ currentUser, notice, onNoticeShown }) {
 
   const copyAdminLink = async () => {
     try {
-      await navigator.clipboard.writeText(adminConsentUrl(currentUser))
+      await navigator.clipboard.writeText(adminConsentUrl(currentUser, company?.ms_consent_nonce))
       setCopied(true)
       setTimeout(() => setCopied(false), 2500)
     } catch {
-      window.prompt('Copy this link and send it to your Microsoft 365 admin:', adminConsentUrl(currentUser))
+      window.prompt('Copy this link and send it to your Microsoft 365 admin:', adminConsentUrl(currentUser, company?.ms_consent_nonce))
     }
   }
 
@@ -186,7 +187,7 @@ export default function Microsoft365({ currentUser, notice, onNoticeShown }) {
         {approved ? (
           <div className="text-xs text-gray-600">
             Approved {formatDate(company.ms_admin_consent_at)}{company.ms_admin_consent_by ? ` by ${company.ms_admin_consent_by}` : ''}. Nobody at {firmName} will be asked for Microsoft permissions again.
-            {isDirector && <> <button onClick={() => startAdminConsent(currentUser)} className="text-blue-700 hover:underline ml-1">Approve again</button></>}
+            {isDirector && <> <button onClick={() => startAdminConsent(currentUser, company?.ms_consent_nonce)} className="text-blue-700 hover:underline ml-1">Approve again</button></>}
           </div>
         ) : isDirector ? (
           <>
@@ -195,7 +196,7 @@ export default function Microsoft365({ currentUser, notice, onNoticeShown }) {
               The admin signs in with their work account and clicks <span className="font-medium">Accept</span>.
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button onClick={() => startAdminConsent(currentUser)}>I'm the admin: approve now</Button>
+              <Button onClick={() => startAdminConsent(currentUser, company?.ms_consent_nonce)}>I'm the admin: approve now</Button>
               <Button tone="outline" onClick={copyAdminLink}>{copied ? '✓ Link copied' : 'Copy link to send to our admin'}</Button>
             </div>
           </>

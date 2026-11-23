@@ -1,7 +1,32 @@
 // supabase/functions/send-email/index.ts
-// Sends templated emails via Resend. The API key lives ONLY here as a secret,
-// never in the browser. Only known templates can be sent, so the anon key
-// can't be abused to send arbitrary email from your account.
+// Sends templated emails via Resend. The API key lives ONLY here as a secret, never in the browser.
+// Only known templates can be sent. The caller must be QPlan's own server, or a signed-in
+// QPlan user emailing someone at their own firm.
+
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
+const SERVICE_KEY = Deno.env.get('SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const supabase = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false, autoRefreshToken: false } })
+
+// True if this request may send to this address
+async function allowed(req: Request, to: string) {
+  const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim()
+  if (!token) return false
+  if (token === SERVICE_KEY) return true
+  const { data, error } = await supabase.auth.getUser(token)
+  if (error || !data?.user) return false
+  const { data: u } = await supabase.from('app_users')
+    .select('company_id, is_approved, is_active').eq('id', data.user.id).maybeSingle()
+  if (!u || !u.is_approved || u.is_active === false) return false
+  const [{ data: profiles }, { data: company }] = await Promise.all([
+    supabase.from('planner_profiles').select('email').eq('company_id', u.company_id),
+    supabase.from('companies').select('director_emails').eq('id', u.company_id).maybeSingle(),
+  ])
+  const firm = [...(profiles || []).map((p: any) => p.email), ...((company?.director_emails as string[]) || [])]
+    .filter(Boolean).map((e: string) => e.toLowerCase().trim())
+  return firm.includes(to.toLowerCase().trim())
+}
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!
 const APP_URL = 'https://planflow-beige.vercel.app'
@@ -94,6 +119,7 @@ Deno.serve(async (req) => {
     const { template, to, params } = await req.json()
 
     if (!to || typeof to !== 'string') return json({ success: false, error: 'Missing recipient' }, 400)
+    if (!(await allowed(req, to))) return json({ success: false, error: 'Not allowed' }, 403)
     const build = templates[template]
     if (!build) return json({ success: false, error: 'Unknown template' }, 400)
 

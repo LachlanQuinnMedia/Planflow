@@ -1,21 +1,15 @@
 import { useState, useEffect } from 'react'
+import { callFunction } from './supabase'
 import { connectFirmDrive } from './microsoft'
 import { IconFolder } from './icons'
 
-const SUPABASE_URL = 'https://sltaaiumviyzgdsdkkbe.supabase.co'
-const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdGFhaXVtdml5emdkc2Rra2JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MTYyNTMsImV4cCI6MjA5MDQ5MjI1M30.xqWqvx8vdofj119nXDpasQ8xVD67YJU0RrjTrxycTGo'
 
 // Microsoft scopes requested at connect time. Sites.Read.All lets QPlan list SharePoint
 // document libraries as well as OneDrive. Must match SCOPES in supabase/functions/ms-graph.
 // Scopes live in src/microsoft.js (MS_FILE_SCOPES)
 
 export async function callGraph(action, payload) {
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/ms-graph?action=${action}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ANON_KEY}` },
-    body: JSON.stringify(payload),
-  })
-  return res.json()
+  return callFunction('ms-graph', action, payload)
 }
 
 // Drive list is the same for everyone in the company, so fetch it once per page load

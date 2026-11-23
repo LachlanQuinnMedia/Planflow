@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { supabase } from './supabase'
-import { loadSession, clearSession } from './auth'
+import { supabase, callFunction } from './supabase'
+import { loadSession, clearSession, hasLiveSignIn } from './auth'
 import Login from './Login'
 import Register from './Register'
 import ForgotPassword from './ForgotPassword'
@@ -21,9 +21,6 @@ import Microsoft365 from './Microsoft365'
 import qplanLogo from './assets/plan_logo.PNG'
 import { timerLabel } from './jobMeta'
 import { IconPlay, IconStop } from './icons'
-
-const SUPABASE_URL = 'https://sltaaiumviyzgdsdkkbe.supabase.co'
-const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdGFhaXVtdml5emdkc2Rra2JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MTYyNTMsImV4cCI6MjA5MDQ5MjI1M30.xqWqvx8vdofj119nXDpasQ8xVD67YJU0RrjTrxycTGo'
 
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', section: 'main' },
@@ -391,14 +388,22 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [pendingCalendarConnect, setPendingCalendarConnect] = useState(false)
   const [msNotice, setMsNotice] = useState(null)
+  const [authReady, setAuthReady] = useState(false)
 
   useEffect(() => {
-    const session = loadSession()
-    // Only trust a session that has the fields the app relies on
-    if (session && session.id && session.username && session.company_id) {
-      setCurrentUser(session)
-    } else if (session) {
-      clearSession()
+    const saved = loadSession()
+    // Only trust a saved profile that has the fields the app relies on
+    const session = saved && saved.id && saved.username && saved.company_id ? saved : null
+    if (saved && !session) clearSession()
+    if (session) {
+      // ...and only if this browser also holds a live sign-in for that person
+      hasLiveSignIn(session.id).then(live => {
+        if (live) setCurrentUser(session)
+        else clearSession()
+        setAuthReady(true)
+      })
+    } else {
+      setAuthReady(true)
     }
 
     const params = new URLSearchParams(window.location.search)
@@ -422,14 +427,16 @@ export default function App() {
           alert(notice.text)
         }
         if (ok) {
-          supabase.from('companies').update({
-            ms_tenant_id: params.get('tenant') || null,
-            ms_admin_consent_at: new Date().toISOString(),
-            ms_admin_consent_by: st.username || null,
-          }).eq('id', st.company_id).then(({ error }) => {
-            finish(error
-              ? { ok: false, text: 'Microsoft approved QPlan, but QPlan could not record it: ' + error.message }
-              : { ok: true, text: 'Done. QPlan is approved for the whole firm. Nobody will be asked for Microsoft permissions again.' })
+          // Recorded with the one-off code the approval link carries, so it works for an admin who has no QPlan login
+          supabase.rpc('record_ms_admin_consent', {
+            p_company_id: st.company_id,
+            p_nonce: st.nonce || '',
+            p_tenant: params.get('tenant') || '',
+            p_by: st.username || '',
+          }).then(({ data, error }) => {
+            finish(!error && data === true
+              ? { ok: true, text: 'Done. QPlan is approved for the whole firm. Nobody will be asked for Microsoft permissions again.' }
+              : { ok: false, text: 'Microsoft approved QPlan, but QPlan could not record it. In QPlan, open Settings > Microsoft 365, copy a fresh link and open that one.' })
             if (loggedIn) setActivePage('microsoft')
           })
         } else {
@@ -483,15 +490,7 @@ export default function App() {
 
     // Microsoft 365 / OneDrive connection (Files scopes)
     if (callback.type === 'calendar' && callback.provider === 'msgraph') {
-      fetch(`${SUPABASE_URL}/functions/v1/ms-graph?action=callback`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ANON_KEY}` },
-        body: JSON.stringify({
-          code: callback.code,
-          company_id: callback.company_id,
-          username: callback.username,
-        }),
-      }).then(res => res.json()).then(data => {
+      callFunction('ms-graph', 'callback', { code: callback.code }).then(data => {
         if (data.success) {
           setMsNotice({ ok: true, text: `Microsoft 365 connected (${data.email || 'signed in'}).` })
           setActivePage(callback.returnTo || 'docs')
@@ -504,15 +503,7 @@ export default function App() {
     }
 
     if (callback.type === 'calendar') {
-      fetch(`${SUPABASE_URL}/functions/v1/calendar-${callback.provider}?action=callback`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ANON_KEY}` },
-        body: JSON.stringify({
-          code: callback.code,
-          company_id: callback.company_id,
-          username: callback.username,
-        }),
-      }).then(res => res.json()).then(data => {
+      callFunction(`calendar-${callback.provider}`, 'callback', { code: callback.code }).then(data => {
         if (data.success) {
           if (callback.returnTo) {
             setMsNotice({ ok: true, text: `Your calendar is connected${data.email ? ` (${data.email})` : ''}.` })
@@ -528,6 +519,17 @@ export default function App() {
       })
     }
   }, [currentUser])
+
+  // If the sign-in ends (it expired, or was signed out elsewhere in this browser), go back to the login screen
+  useEffect(() => {
+    const { data } = supabase.auth.onAuthStateChange((event) => {
+      if (event !== 'SIGNED_OUT') return
+      localStorage.removeItem('pf_session')
+      sessionStorage.removeItem('pf_session')
+      setCurrentUser(null)
+    })
+    return () => data.subscription.unsubscribe()
+  }, [])
 
   // Result of a Microsoft 365 admin approval, shown on the Microsoft 365 page
   useEffect(() => {
@@ -661,7 +663,7 @@ export default function App() {
       role: user.role,
       company_id: user.company_id,
       company_code: user.company_code,
-      companyName: user.companies?.name || '',
+      companyName: user.companyName || user.companies?.name || '',
     })
   }
 
@@ -705,6 +707,9 @@ export default function App() {
   const canGoBack = historyIndex > 0
   const canGoForward = historyIndex < history.length - 1
   const isDirector = currentUser?.role === 'director'
+
+  // Wait for the sign-in check before showing anything, so nobody sees a flash of the wrong screen
+  if (!authReady) return <div className="min-h-screen bg-gray-50" />
 
   if (!currentUser) {
     if (authPage === 'register') return <Register onBack={() => setAuthPage('login')} onSuccess={() => setAuthPage('login')} />

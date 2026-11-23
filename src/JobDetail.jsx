@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { supabase } from './supabase'
+import { supabase, openDocument } from './supabase'
 import { generateFromTemplate } from './templateFiller'
 import OneDriveBrowser, { OneDriveFolderPicker } from './OneDriveBrowser'
 import { APP_TYPES, appTypeBadge, appTypeFull, buildJobName, clientName, contactName, isCompanyClient, jobTitle } from './jobMeta'
@@ -1290,13 +1290,13 @@ function DocumentsTab({ job, currentUser, onHistoryAdd, onJobUpdated }) {
     setUploading(true)
     const failed = []
     for (const file of Array.from(files)) {
-      const path = `${job.id}/${Date.now()}_${safeFileName(file.name)}`
+      // Files live under the company's own folder, which is what the storage rules check
+      const path = `${currentUser.company_id}/${job.id}/${Date.now()}_${safeFileName(file.name)}`
       const { error: uploadError } = await supabase.storage.from('documents').upload(path, file, { upsert: false })
       if (uploadError) { failed.push(`${file.name}: ${uploadError.message}`); continue }
-      const { data: urlData } = supabase.storage.from('documents').getPublicUrl(path)
       await supabase.from('documents').insert({
         company_id: currentUser?.company_id, job_id: job.id, job_code: job.code,
-        name: file.name, file_path: path, file_url: urlData.publicUrl,
+        name: file.name, file_path: path, file_url: null,
         file_type: file.name.split('.').pop().toLowerCase(),
         file_size: file.size, uploaded_by: currentUser?.username || 'Unknown',
       })
@@ -1419,8 +1419,8 @@ function DocumentsTab({ job, currentUser, onHistoryAdd, onJobUpdated }) {
                       <div className="text-xs text-gray-500">{formatSize(doc.file_size)} · {doc.uploaded_by} · {new Date(doc.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
                     </div>
                     <div className="flex gap-2 flex-shrink-0">
-                      <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="px-2 py-1 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Open</a>
-                      <a href={doc.file_url} download={doc.name} className="px-2 py-1 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">↓</a>
+                      <button onClick={() => openDocument(doc)} className="px-2 py-1 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Open</button>
+                      <button onClick={() => openDocument(doc, { download: true })} className="px-2 py-1 text-xs border border-gray-200 rounded-lg hover:bg-gray-50" title="Download">↓</button>
                       <button onClick={() => handleDelete(doc)} className="px-2 py-1 text-xs text-red-400 border border-red-100 rounded-lg hover:bg-red-50" title="Delete">✕</button>
                     </div>
                   </div>

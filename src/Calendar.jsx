@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from './supabase'
+import { supabase, SUPABASE_URL, fnHeaders } from './supabase'
 import { jobTitle } from './jobMeta'
 import { holidayName } from './businessDays'
 import { connectMyCalendar } from './microsoft'
@@ -8,8 +8,6 @@ import { IconCalendar, IconPeople, IconFolder, IconLink } from './icons'
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
-const SUPABASE_URL = 'https://sltaaiumviyzgdsdkkbe.supabase.co'
-const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdGFhaXVtdml5emdkc2Rra2JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MTYyNTMsImV4cCI6MjA5MDQ5MjI1M30.xqWqvx8vdofj119nXDpasQ8xVD67YJU0RrjTrxycTGo'
 
 const typeColors = {
   client: 'bg-emerald-100 border-emerald-300 text-emerald-800',
@@ -152,7 +150,7 @@ function ConnectCalendarModal({ onClose, currentUser, onConnectionChange }) {
       try {
         const res = await fetch(`${SUPABASE_URL}/functions/v1/calendar-${provider}?action=status`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ANON_KEY}` },
+          headers: await fnHeaders(),
           body: JSON.stringify({ company_id: currentUser.company_id, username: currentUser.username }),
         })
         const data = await res.json()
@@ -196,7 +194,7 @@ function ConnectCalendarModal({ onClose, currentUser, onConnectionChange }) {
     if (!window.confirm(`Disconnect ${provider}?`)) return
     await fetch(`${SUPABASE_URL}/functions/v1/calendar-${provider}?action=disconnect`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ANON_KEY}` },
+      headers: await fnHeaders(),
       body: JSON.stringify({ company_id: currentUser.company_id, username: currentUser.username }),
     })
     checkConnections()
@@ -535,7 +533,7 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
         try {
           const syncRes = await fetch(`${SUPABASE_URL}/functions/v1/calendar-${provider}?action=sync_booking`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ANON_KEY}` },
+            headers: await fnHeaders(),
             body: JSON.stringify({ company_id: currentUser.company_id, username: currentUser.username, booking: newBooking }),
           })
           const sync = await syncRes.json().catch(() => ({}))

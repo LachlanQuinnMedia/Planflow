@@ -1,9 +1,7 @@
-import { supabase } from './supabase'
+import { callFunction } from './supabase'
 
 const XERO_CLIENT_ID = import.meta.env.VITE_XERO_CLIENT_ID
 const REDIRECT_URI = 'https://planflow-beige.vercel.app/xero/callback'
-const EDGE_FUNCTION_URL = 'https://sltaaiumviyzgdsdkkbe.supabase.co/functions/v1/xero-auth'
-const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdGFhaXVtdml5emdkc2Rra2JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MTYyNTMsImV4cCI6MjA5MDQ5MjI1M30.xqWqvx8vdofj119nXDpasQ8xVD67YJU0RrjTrxycTGo'
 
 const XERO_SCOPES = [
   'openid',
@@ -12,18 +10,9 @@ const XERO_SCOPES = [
   'accounting.contacts'
 ].join(' ')
 
+// Every Xero call runs on the server as the signed-in person. Xero's own keys never reach the browser.
 async function callFn(action, payload) {
-  const res = await fetch(`${EDGE_FUNCTION_URL}?action=${action}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${ANON_KEY}`,
-      'apikey': ANON_KEY,
-    },
-    body: JSON.stringify(payload || {}),
-  })
-  const data = await res.json().catch(() => ({}))
-  return { ok: res.ok, status: res.status, ...data }
+  return callFunction('xero-auth', action, payload)
 }
 
 export function getXeroAuthUrl(companyId) {
@@ -47,21 +36,13 @@ export async function handleXeroCallback(code, companyId) {
   return data
 }
 
-export async function getXeroToken(companyId) {
-  return callFn('get_token', { company_id: companyId })
-}
-
 export async function disconnectXero(companyId) {
   return callFn('disconnect', { company_id: companyId })
 }
 
-export async function isXeroConnected(companyId) {
-  const { data } = await supabase
-    .from('xero_tokens')
-    .select('id, tenant_name')
-    .eq('company_id', companyId)
-    .maybeSingle()
-  return data ? { connected: true, tenantName: data.tenant_name } : { connected: false }
+export async function isXeroConnected() {
+  const data = await callFn('status')
+  return data.connected ? { connected: true, tenantName: data.tenant_name } : { connected: false }
 }
 
 export async function getXeroContacts(companyId) {

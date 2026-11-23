@@ -7,6 +7,20 @@ const REDIRECT_URI = 'https://planflow-beige.vercel.app'
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
 const SUPABASE_SERVICE_KEY = Deno.env.get('SERVICE_ROLE_KEY')
 
+// Who is calling. Worked out from their QPlan sign-in, never from what the browser sends.
+// Returns null unless the caller is an approved, active QPlan user.
+async function getCaller(req: Request, supabase: any) {
+  const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim()
+  if (!token) return null
+  const { data, error } = await supabase.auth.getUser(token)
+  if (error || !data?.user) return null
+  const { data: u } = await supabase.from('app_users')
+    .select('id, username, role, company_id, is_approved, is_active')
+    .eq('id', data.user.id).maybeSingle()
+  if (!u || !u.is_approved || u.is_active === false) return null
+  return u
+}
+
 serve(async (req) => {
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -20,9 +34,18 @@ serve(async (req) => {
     const action = url.searchParams.get('action')
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_KEY!)
 
+    // Everything except Calendly's own webhook needs a signed-in QPlan user
+    let caller: any = null
+    if (action !== 'webhook') {
+      caller = await getCaller(req, supabase)
+      if (!caller) return new Response(JSON.stringify({ success: false, connected: false, error: 'Please sign in to QPlan again.' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
     if (action === 'callback') {
       const body = await req.json()
-      const { code, company_id, username } = body
+      const { code } = body
+      const company_id = caller.company_id
+      const username = caller.username
 
       console.log('Calendly callback received for:', username)
 
@@ -109,6 +132,11 @@ serve(async (req) => {
       const username = url.searchParams.get('username')
       console.log('Webhook received for:', company_id, username)
 
+      // Only accept bookings for a person who has actually connected Calendly
+      const { data: conn } = await supabase.from('calendar_connections').select('id')
+        .eq('company_id', company_id).eq('username', username).eq('provider', 'calendly').maybeSingle()
+      if (!conn) return new Response('not found', { status: 404, headers: corsHeaders })
+
       const rawBody = await req.text()
       console.log('Webhook payload:', rawBody)
       const payload = JSON.parse(rawBody)
@@ -145,6 +173,7 @@ serve(async (req) => {
           .delete()
           .eq('external_id', payload.payload?.uri)
           .eq('external_source', 'calendly')
+          .eq('company_id', company_id)
       }
 
       return new Response('ok', { headers: corsHeaders })
@@ -152,7 +181,8 @@ serve(async (req) => {
 
     if (action === 'status') {
       const body = await req.json()
-      const { company_id, username } = body
+      const company_id = caller.company_id
+      const username = caller.username
       const { data } = await supabase
         .from('calendar_connections')
         .select('email, provider')
@@ -168,7 +198,8 @@ serve(async (req) => {
 
     if (action === 'disconnect') {
       const body = await req.json()
-      const { company_id, username } = body
+      const company_id = caller.company_id
+      const username = caller.username
       await supabase.from('calendar_connections')
         .delete()
         .eq('company_id', company_id)

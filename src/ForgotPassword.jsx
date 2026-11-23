@@ -10,7 +10,6 @@ export default function ForgotPassword({ onBack }) {
   const [answer, setAnswer] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [userId, setUserId] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -29,9 +28,8 @@ export default function ForgotPassword({ onBack }) {
     if (!answer.trim()) { setError('Please enter your answer.'); return }
     setLoading(true)
     setError('')
-    const { user, error: err } = await verifySecurityAnswer({ username, companyCode, answer })
+    const { error: err } = await verifySecurityAnswer({ username, companyCode, answer })
     if (err) { setError(err); setLoading(false); return }
-    setUserId(user.id)
     setStep(3)
     setLoading(false)
   }
@@ -42,7 +40,7 @@ export default function ForgotPassword({ onBack }) {
     if (newPassword !== confirmPassword) { setError('Passwords do not match.'); return }
     setLoading(true)
     setError('')
-    const { error: err } = await resetPassword({ userId, newPassword })
+    const { error: err } = await resetPassword({ username, companyCode, answer, newPassword })
     if (err) { setError(err); setLoading(false); return }
     setStep(4)
     setLoading(false)

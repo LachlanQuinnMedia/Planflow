@@ -7,6 +7,20 @@ const REDIRECT_URI = 'https://planflow-beige.vercel.app'
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
 const SUPABASE_SERVICE_KEY = Deno.env.get('SERVICE_ROLE_KEY')
 
+// Who is calling. Worked out from their QPlan sign-in, never from what the browser sends.
+// Returns null unless the caller is an approved, active QPlan user.
+async function getCaller(req: Request, supabase: any) {
+  const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim()
+  if (!token) return null
+  const { data, error } = await supabase.auth.getUser(token)
+  if (error || !data?.user) return null
+  const { data: u } = await supabase.from('app_users')
+    .select('id, username, role, company_id, is_approved, is_active')
+    .eq('id', data.user.id).maybeSingle()
+  if (!u || !u.is_approved || u.is_active === false) return null
+  return u
+}
+
 serve(async (req) => {
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -20,6 +34,12 @@ serve(async (req) => {
     const action = url.searchParams.get('action')
     const body = req.method === 'POST' ? await req.json() : {}
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_KEY!)
+
+    const caller = await getCaller(req, supabase)
+    if (!caller) return new Response(JSON.stringify({ success: false, connected: false, error: 'Please sign in to QPlan again.' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    // The company and the person always come from the sign-in, never from the request
+    body.company_id = caller.company_id
+    body.username = caller.username
 
     if (action === 'callback') {
       const { code, company_id, username } = body

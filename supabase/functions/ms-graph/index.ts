@@ -156,6 +156,20 @@ function mapItems(value: any[]) {
   }))
 }
 
+// Who is calling. Worked out from their QPlan sign-in, never from what the browser sends.
+// Returns null unless the caller is an approved, active QPlan user.
+async function getCaller(req: Request, supabase: any) {
+  const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim()
+  if (!token) return null
+  const { data, error } = await supabase.auth.getUser(token)
+  if (error || !data?.user) return null
+  const { data: u } = await supabase.from('app_users')
+    .select('id, username, role, company_id, is_approved, is_active')
+    .eq('id', data.user.id).maybeSingle()
+  if (!u || !u.is_approved || u.is_active === false) return null
+  return u
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
@@ -163,7 +177,15 @@ Deno.serve(async (req) => {
   const action = url.searchParams.get('action')
   let body: any = {}
   try { body = await req.json() } catch { /* no body */ }
-  const { company_id } = body
+  const caller = await getCaller(req, supabase)
+  if (!caller) return json({ success: false, connected: false, error: 'Please sign in to QPlan again.' }, 401)
+  // The company and the person always come from the sign-in, never from the request
+  const company_id = caller.company_id
+  body.username = caller.username
+  // Connecting, disconnecting and choosing the firm's jobs folder are for directors
+  if (['callback', 'disconnect', 'set_jobs_folder'].includes(action || '') && caller.role !== 'director') {
+    return json({ success: false, error: 'Only a director can change the Microsoft 365 connection.' }, 403)
+  }
   const driveId: string | null = body.drive_id || null
 
   try {

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { supabase } from './supabase'
+import { supabase, openDocument } from './supabase'
 import OneDriveBrowser from './OneDriveBrowser'
 import { jobTitle } from './jobMeta'
 import { IconPencil } from './icons'
@@ -192,7 +192,8 @@ export default function Documents({ currentUser }) {
     setUploadProgress(0)
 
     for (const file of fileArray) {
-      const path = `general/${Date.now()}_${safeFileName(file.name)}`
+      // Files live under the company's own folder, which is what the storage rules check
+      const path = `${currentUser.company_id}/general/${Date.now()}_${safeFileName(file.name)}`
       const { error: uploadError } = await supabase.storage
         .from('documents')
         .upload(path, file, { upsert: false })
@@ -204,14 +205,13 @@ export default function Documents({ currentUser }) {
         continue
       }
 
-      const { data: urlData } = supabase.storage.from('documents').getPublicUrl(path)
       await supabase.from('documents').insert({
         company_id: currentUser?.company_id,
         job_id: null,
         job_code: null,
         name: file.name,
         file_path: path,
-        file_url: urlData.publicUrl,
+        file_url: null,
         file_type: file.name.split('.').pop().toLowerCase(),
         file_size: file.size,
         uploaded_by: currentUser?.username || 'Unknown',
@@ -469,11 +469,11 @@ export default function Documents({ currentUser }) {
                 </div>
 
                 <div className="flex gap-2 mt-4">
-                  <a href={selectedDoc.file_url} download={selectedDoc.name}
+                  <button onClick={() => openDocument(selectedDoc, { download: true })}
                     className="flex-1 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-center"
                     title="Download document">
                     ↓ Download
-                  </a>
+                  </button>
                   <button
                     onClick={e => { e.stopPropagation(); setRenamingDoc(selectedDoc) }}
                     className="px-3 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50"

@@ -3,17 +3,14 @@
 // The Resend API key lives ONLY on the server as a Supabase secret.
 // Exported function signatures are unchanged, so no other file needs editing.
 
-const SUPABASE_URL = 'https://sltaaiumviyzgdsdkkbe.supabase.co'
-const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdGFhaXVtdml5emdkc2Rra2JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MTYyNTMsImV4cCI6MjA5MDQ5MjI1M30.xqWqvx8vdofj119nXDpasQ8xVD67YJU0RrjTrxycTGo'
+
+import { SUPABASE_URL, fnHeaders } from './supabase'
 
 async function sendTemplatedEmail(template, to, params) {
   try {
     const res = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${ANON_KEY}`,
-      },
+      headers: await fnHeaders(),
       body: JSON.stringify({ template, to, params }),
     })
     const data = await res.json()
