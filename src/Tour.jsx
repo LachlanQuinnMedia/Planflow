@@ -11,7 +11,7 @@
 //  - Whether someone has seen it is remembered on their device, per person and per role.
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useId } from 'react'
 import { createPortal } from 'react-dom'
-import { markTourSeen } from './tourState'
+import { markTourDone } from './userState'
 import { directorTour, staffTour, MENU_LABELS, JOB_TAB_LABELS, jobTabAnchor } from './tourSteps'
 import { useFirm } from './firm'
 
@@ -141,7 +141,7 @@ export default function Tour({ currentUser, isDirector, activePage, hasJobs, onN
   const click = clickNext(step, nextStep, isPhone, stagesTab)
   const clickName = click?.name || null
 
-  const finish = () => { markTourSeen(currentUser.id, currentUser.role); onClose() }
+  const finish = () => { markTourDone(currentUser.id, currentUser.role); onClose() }
   const goNext = () => { if (isLast) finish(); else setIndex(i => Math.min(i + 1, steps.length - 1)) }
   const goBack = () => setIndex(i => Math.max(i - 1, 0))
 

@@ -1,0 +1,8 @@
+# QPlan
+User-agent: *
+Allow: /
+# Private job summaries sent to clients, and the app's own screens
+Disallow: /summary/
+Disallow: /login
+
+Sitemap: https://planflow-beige.vercel.app/sitemap.xml

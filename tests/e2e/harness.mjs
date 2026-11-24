@@ -44,7 +44,7 @@ export const db = {
   ],
   active_timers: [], notifications: [], documents: [], bookings: [], stage_notifications: [], xero_tokens: [], calendar_connections: [],
   companies: [{ id: COMPANY, name: 'HPC Planning', company_code: '0000' }],
-  firm_settings: [hpcFirmRow()], import_batches: [], client_errors: [],
+  firm_settings: [hpcFirmRow()], import_batches: [], client_errors: [], user_state: [],
 }
 export const calls = []
 const b64u = (o) => Buffer.from(JSON.stringify(o)).toString('base64url')
@@ -52,6 +52,8 @@ export const fakeToken = (sub) => `${b64u({ alg: 'HS256', typ: 'JWT' })}.${b64u(
 export const fakeSession = (sub) => ({ access_token: fakeToken(sub), refresh_token: 'refresh-' + sub, expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, token_type: 'bearer', user: { id: sub, aud: 'authenticated', role: 'authenticated', email: `${sub}@users.qplan.invalid` } })
 export const authState = { password: 'Right-Pass-1', answer: 'brisbane', registered: [], resets: [], consent: [] }
 export const msState = { connected: true, jobsFolder: { driveId: 'd1', folderId: 'f-jobs', name: 'Jobs', path: 'HPC / Jobs', webUrl: 'https://example.sharepoint.com/jobs' }, createFails: false, email: 'office@hpc.example' }
+// What the account remembers about each person (the user_state table). `down` makes it unreachable.
+export const userStateMock = { down: false }
 export const calState = { me: { connected: false }, team: [] }
 
 // One condition as PostgREST writes it: column, then "eq.x", "not.is.null", "ilike.*x*", "in.(a,b)" ...
@@ -238,6 +240,7 @@ export async function installMocks(page) {
     if (!m) return send([])
     const table = m[1]
     db[table] = db[table] || []
+    if (table === 'user_state' && userStateMock.down) return send({ code: '42P01', message: 'relation "public.user_state" does not exist' }, 404)
     if (method === 'HEAD') {
       // a count: supabase-js reads the total from the content-range header
       const n = filterRows(db[table], url.searchParams).length
@@ -281,7 +284,11 @@ export async function installMocks(page) {
   })
 }
 
-export async function open(pathname = '/', { loggedIn = true, viewport = { width: 1360, height: 900 }, theme = null, colorScheme = 'light', fresh = false, tour = false, reducedMotion = undefined } = {}) {
+const TOUR_IDS = ['u-quinn', 'u-todd', 'u-murray', 'u-new']
+// `tour`: false = this person finished the tutorial long ago (the usual case, so it stays out of the way),
+// true = they have never seen it anywhere, 'account' = this device is new but their account says it is done.
+export async function open(pathname = '/', { loggedIn = true, viewport = { width: 1360, height: 900 }, theme = null, colorScheme = 'light', fresh = false, tour = false, reducedMotion = undefined, keepUserState = false } = {}) {
+  if (!keepUserState) db.user_state = tour === true ? [] : TOUR_IDS.map(id => ({ user_id: id, tours_done: { director: '2026-11-01T00:00:00.000Z', staff: '2026-11-01T00:00:00.000Z' }, notifications_seen: {} }))
   const browser = await chromium.launch()
   const context = await browser.newContext({ viewport, timezoneId: 'Australia/Brisbane', locale: 'en-AU', colorScheme, reducedMotion })
   // The first-time tutorial would sit over every other test. Only tests that ask for it get it.

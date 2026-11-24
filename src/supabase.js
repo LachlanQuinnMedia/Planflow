@@ -1,10 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 import { notify } from './notify'
 
-export const SUPABASE_URL = 'https://sltaaiumviyzgdsdkkbe.supabase.co'
-// The public key. It only identifies the project. What a person can see is decided by
-// their sign-in and the database rules, not by this key.
-export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsdGFhaXVtdml5emdkc2Rra2JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MTYyNTMsImV4cCI6MjA5MDQ5MjI1M30.xqWqvx8vdofj119nXDpasQ8xVD67YJU0RrjTrxycTGo'
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './publicKeys'
+export { SUPABASE_URL, SUPABASE_ANON_KEY }
 
 // "Stay logged in" keeps the sign-in in this browser. Without it, the sign-in ends when the tab is closed.
 const STAY_FLAG = 'pf_stay'

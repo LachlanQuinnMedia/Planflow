@@ -9,7 +9,8 @@ const activeTab = (page) => page.evaluate(() => document.querySelector('[data-to
 // Opening any job tidies an old-style stored name into the standard format. That is the app's normal
 // behaviour on opening a job (not the tour's), so the name is left out of the comparison and checked on its own.
 const snapshotDb = () => JSON.stringify({ jobs: db.jobs.map(({ name, ...rest }) => rest), logs: db.time_logs.length, timers: db.active_timers.length, bookings: db.bookings.length, docs: db.documents.length })
-const isWrite = c => !['GET', 'HEAD', 'OPTIONS'].includes(c.method) && c.path.startsWith('/rest/v1/')
+// Finishing the tutorial is remembered on the person's account (user_state). That is the one thing the tour saves.
+const isWrite = c => !['GET', 'HEAD', 'OPTIONS'].includes(c.method) && c.path.startsWith('/rest/v1/') && !c.path.startsWith('/rest/v1/user_state')
 const geometry = (page) => page.evaluate(() => {
   const c = document.querySelector('[data-testid=tour-card]').getBoundingClientRect(); const s = document.querySelector('[data-testid=tour-skip]').getBoundingClientRect(); const n = document.querySelector('[data-testid=tour-next]').getBoundingClientRect()
   const sp = document.querySelector('[data-testid=tour-spot]')?.getBoundingClientRect()
@@ -74,6 +75,7 @@ async function walk(page, expected, label, { phone = false } = {}) {
   assert.equal(other.length, 0, 'the tour makes no changes: ' + JSON.stringify(other.map(c => c.method + ' ' + c.path)))
   assert.equal(await page.evaluate(() => sessionStorage.getItem('qplan_job_tab')), null, 'the tour does not change which job tab you were on')
   assert.equal(await page.evaluate(() => localStorage.getItem('qplan_tour_director_u-quinn')), '1')
+  assert.ok(db.user_state.find(r => r.user_id === 'u-quinn')?.tours_done?.director, 'finishing is remembered on the account, not just this device')
   await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(1600)
   assert.equal(await page.getByTestId('tour').count(), 0)
   console.log('1 no data changed, timer untouched, not shown again: ok', errors, dialogs); assert.deepEqual(errors, [])

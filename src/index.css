@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./seasons-palette.css";
+@import "./site/site.css";
 
 /* Lets future code write dark: classes, e.g. dark:bg-gray-100 */
 /* Logo colours. The logo follows the theme. */
@@ -256,6 +257,15 @@ html[data-season] body { background-color: var(--qp-s-page); }
 :where(*):has(> .qp-row) {
   overflow-x: auto;
 }
+
+/* Nothing is ever wider than the screen, so a phone cannot drag the page sideways.
+   (clip, not hidden: hidden would stop the sticky bars from sticking.) The second line stops
+   the sideways "bounce" at the edges. */
+html, body { overflow-x: clip; overscroll-behavior-x: none; }
+/* index.html arrives with the website's home page already written into it. When the address
+   is for the app (login, a job summary), that copy stays hidden until the app replaces it. */
+html[data-app] #root > .qp-site { display: none; }
+#root { max-width: 100%; }
 
 /* iPhones zoom the whole page when a text box uses small type. 16px stops that. */
 @media (pointer: coarse) and (max-width: 1023px) {

@@ -12,7 +12,7 @@ import { getThemeChoice, setThemeChoice, watchSeason } from './theme'
 import { InstallAppButton } from './install'
 import { SeasonStrip, SeasonSticker, SeasonParticles } from './Seasonal'
 import { buildDemoJob } from './tourDemoJob'
-import { tourSeen } from './tourState'
+import { syncUserState, markNotificationsSeen, notificationsSeenAt, localNotificationsSeen, tourDone } from './userState'
 import { FirmContext, normaliseFirm, loadFirm, cachedFirm } from './firm'
 import { saveSession } from './auth'
 import { fetchWorkingJobs } from './jobsQuery'
@@ -23,7 +23,6 @@ import GlobalSearch from './GlobalSearch'
 // Pages are fetched when first opened (see lazyPage.js). Login stays in the first download.
 const Register = lazyPage(() => import('./Register'))
 const ForgotPassword = lazyPage(() => import('./ForgotPassword'))
-const Landing = lazyPage(() => import('./Landing'))
 const Dashboard = lazyPage(() => import('./Dashboard'))
 const Jobs = lazyPage(() => import('./Jobs'))
 const NewJob = lazyPage(() => import('./NewJob'))
@@ -495,18 +494,14 @@ function NotificationPanel({ notifications, lastSeenAt, onClose, onApprove, onRe
 }
 
 export default function App() {
-  // Someone new sees the front page. Anyone who has used QPlan on this device, opened /login,
-  // or is coming back from a Microsoft or Xero sign-in goes straight to the login screen.
-  const [authPage, setAuthPage] = useState(() => {
-    try {
-      const known = localStorage.getItem('qplan_known_user') || localStorage.getItem('pf_remember_username') || localStorage.getItem('qplanLastSeenNotifications')
-      const returning = /[?&](code|state|admin_consent|error)=/.test(window.location.search)
-      const standalone = typeof window.matchMedia === 'function' && window.matchMedia('(display-mode: standalone)').matches
-      return known || returning || standalone || window.location.pathname === '/login' ? 'login' : 'landing'
-    } catch {
-      return 'login'
-    }
-  })
+  // The public website is separate (src/site). By the time the app is running, the person
+  // wants to log in: they opened /login, came back from a Microsoft or Xero sign-in, or have
+  // used QPlan on this device before.
+  const [authPage, setAuthPage] = useState('login')
+  useEffect(() => {
+    // "About QPlan" on the login screen shows the website's home page once. Coming back to the app ends that.
+    try { sessionStorage.removeItem('qplan_show_site') } catch { /* storage unavailable */ }
+  }, [])
   const [currentUser, setCurrentUser] = useState(null)
   // The page this person was on before a refresh, if this browser still knows who they are
   const [restored] = useState(() => {
@@ -532,9 +527,10 @@ export default function App() {
   const [notifications, setNotifications] = useState([])
   const [showNotifications, setShowNotifications] = useState(false)
   const [processingNotificationId, setProcessingNotificationId] = useState(null)
-  const [lastSeenAt, setLastSeenAt] = useState(() => {
-    return localStorage.getItem('qplanLastSeenNotifications') || '1970-01-01T00:00:00.000Z'
-  })
+  // When this person last opened Notifications, and which tutorials they have finished.
+  // Kept on their account (userState.js) so a new device does not show them again.
+  const [localSeenAt, setLocalSeenAt] = useState(() => localNotificationsSeen())
+  const [userState, setUserState] = useState(null)
   const [history, setHistory] = useState(() => [restored?.page || 'dashboard'])
   const [historyIndex, setHistoryIndex] = useState(0)
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -695,15 +691,38 @@ export default function App() {
     setActivePage('microsoft')
   }, [currentUser])
 
-  // First time this person uses QPlan on this device: show the tutorial once the screen has settled
-  // (the job list has to be in first: the tutorial opens a real job to explain its tabs)
+  // Fetch what the account remembers about this person. Again whenever they come back to the
+  // tab, so something read on the phone is not "new" on the laptop a minute later.
+  const myId = currentUser?.id || null
+  const myCompany = currentUser?.company_id || null
   useEffect(() => {
-    if (!currentUser?.id || !jobsLoaded || tourSeen(currentUser.id, currentUser.role)) return
+    if (!myId) return
+    let cancelled = false
+    let lastSync = 0
+    const sync = () => {
+      if (Date.now() - lastSync < 60000) return
+      lastSync = Date.now()
+      syncUserState({ id: myId, company_id: myCompany }).then(st => { if (!cancelled) setUserState(st) })
+    }
+    sync()
+    const onVisible = () => { if (document.visibilityState === 'visible') sync() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => { cancelled = true; document.removeEventListener('visibilitychange', onVisible) }
+  }, [myId, myCompany])
+  const myState = userState && userState.userId === myId ? userState : null
+
+  // First time this person uses QPlan: show the tutorial once the screen has settled
+  // (the job list has to be in first: the tutorial opens a real job to explain its tabs).
+  // Waits for the account's answer, so someone who did it on another device is not shown it again.
+  const tourKnown = !!myState
+  const tourFinished = !!myId && tourDone(myState, myId, currentUser?.role)
+  useEffect(() => {
+    if (!currentUser?.id || !jobsLoaded || !tourKnown || tourFinished) return
     // Not on the way back from a Microsoft, Google, Calendly or Xero sign-in. That screen comes first.
     if (sessionStorage.getItem('oauth_callback') || sessionStorage.getItem('ms_notice')) return
     const t = setTimeout(() => setTourOpen(true), 700)
     return () => clearTimeout(t)
-  }, [currentUser?.id, currentUser?.role, jobsLoaded])
+  }, [currentUser?.id, currentUser?.role, jobsLoaded, tourKnown, tourFinished])
 
   const companyId = currentUser?.company_id || null
   const reloadFirm = useCallback(async () => {
@@ -797,7 +816,8 @@ export default function App() {
     if (data) setNotifications(data)
   }
 
-  // Unread = anything created after the last time the panel was opened.
+  // Unread = anything created after the last time this person opened the panel, on any device.
+  const lastSeenAt = notificationsSeenAt(myState, currentUser?.company_id, localSeenAt)
   const unreadCount = notifications.filter(n => new Date(n.created_at) > new Date(lastSeenAt)).length
 
   const handleOpenNotifications = async () => {
@@ -806,8 +826,8 @@ export default function App() {
     if (opening && currentUser?.company_id) {
       fetchNotifications()
       const now = new Date().toISOString()
-      setLastSeenAt(now)
-      localStorage.setItem('qplanLastSeenNotifications', now)
+      setLocalSeenAt(now)
+      markNotificationsSeen(currentUser.id, currentUser.company_id, now)
       supabase
         .from('notifications')
         .update({ is_read: true })
@@ -991,10 +1011,9 @@ export default function App() {
 
   if (!currentUser) {
     const blank = <div className="min-h-screen bg-gray-50" />
-    if (authPage === 'landing') return <Suspense fallback={blank}><Landing onLogin={() => setAuthPage('login')} /></Suspense>
     if (authPage === 'register') return <Suspense fallback={blank}><Register onBack={() => setAuthPage('login')} onSuccess={() => setAuthPage('login')} /></Suspense>
     if (authPage === 'forgot') return <Suspense fallback={blank}><ForgotPassword onBack={() => setAuthPage('login')} /></Suspense>
-    return <Login onLogin={handleLogin} onRegister={() => setAuthPage('register')} onForgotPassword={() => setAuthPage('forgot')} onAbout={() => setAuthPage('landing')} />
+    return <Login onLogin={handleLogin} onRegister={() => setAuthPage('register')} onForgotPassword={() => setAuthPage('forgot')} onAbout={() => { try { sessionStorage.setItem('qplan_show_site', '1') } catch { /* storage unavailable */ } window.location.assign('/') }} />
   }
 
   const visibleNavItems = navItems.filter(item => (!item.directorOnly || isDirector) && (!item.staffOnly || !isDirector) && (!item.masterOnly || isMaster))
@@ -1093,12 +1112,12 @@ export default function App() {
           {isDirector && (
             <div className="relative">
               <button
-                onClick={handleOpenNotifications}
+                onClick={handleOpenNotifications} data-testid="notifications-button"
                 className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-gray-100 text-xs text-gray-600 transition-colors"
               >
                 <span>Notifications</span>
                 {unreadCount > 0 && (
-                  <span className="bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full font-medium">{unreadCount}</span>
+                  <span data-testid="notifications-badge" className="bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full font-medium">{unreadCount}</span>
                 )}
               </button>
               {showNotifications && (

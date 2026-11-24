@@ -1,10 +1,13 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-AU">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!--qplan:head-->
     <meta name="description" content="QPlan: practice management for town planners. Jobs, statutory deadlines in business days, documents, time and invoices in one place." />
+    <meta name="robots" content="noindex" />
+    <!--/qplan:head-->
     <meta name="theme-color" content="#ffffff" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
@@ -12,16 +15,33 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="QPlan" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <title>QPlan</title>
+    <!--qplan:title--><title>QPlan</title><!--/qplan:title-->
     <script>
       // Set the theme before the page draws, so there is no flash of the wrong one.
       // The job summary page that clients open is always light.
       // Seasonal: the month decides the look. This list must match src/seasons.js (a test checks it).
       (function () {
         var SEASONS = [[1,1,31,'newyear','dark'],[2,1,14,'superbowl','light'],[2,15,31,'lunar','light'],[3,1,31,'womens','light'],[4,1,31,'easter','light'],[5,1,31,'labour','light'],[6,1,31,'environment','light'],[7,1,31,'tour','light'],[8,1,31,'ekka','light'],[9,1,31,'footy','light'],[10,1,31,'halloween','dark'],[11,1,31,'remembrance','light'],[12,1,31,'christmas','light']]
+        // The public website's pages. This list must match src/site/pages.js (a test checks it).
+        var SITE = ['/', '/features', '/da-tracking', '/time-and-invoicing', '/documents-and-templates', '/integrations', '/import-old-jobs', '/security', '/business-day-calculator', '/da-timeframes-queensland', '/faq', '/contact']
+        var path = location.pathname.replace(/\/+$/, '') || '/'
+        var site = SITE.indexOf(path) >= 0
+        // At the front door, someone who already uses QPlan here goes to the app, not the brochure.
+        if (site && path === '/') {
+          try {
+            var known = localStorage.getItem('qplan_known_user') || localStorage.getItem('pf_remember_username') || localStorage.getItem('qplanLastSeenNotifications')
+            var returning = /[?&](code|state|admin_consent|error)=/.test(location.search)
+            var standalone = !!(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+            var asked = sessionStorage.getItem('qplan_show_site') === '1' // they clicked "About QPlan"
+            if ((known || returning || standalone) && !asked) site = false
+          } catch (e) { site = false }
+        }
+        window.__qplanSite = site
+        if (!site) document.documentElement.setAttribute('data-app', '1')
         var choice = 'light', preview = null
         try { choice = localStorage.getItem('qplan_theme') || 'light' } catch (e) {}
-        var summary = location.pathname.indexOf('/summary/') === 0
+        // The job summary a client opens, and the public website, are always light.
+        var summary = location.pathname.indexOf('/summary/') === 0 || site
         var theme = 'light', season = ''
         if (!summary && choice === 'dark') theme = 'dark'
         if (!summary && choice === 'seasonal') {
