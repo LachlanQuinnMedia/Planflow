@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { notify } from './notify'
 import { supabase } from './supabase'
 import { generateFromTemplate, buildFromTemplate } from './templateFiller'
@@ -7,6 +7,9 @@ import { APP_TYPES, buildJobName, jobTitle, oneDriveFolderName, standardZone } f
 import { callGraph, OneDriveFolderPicker } from './OneDriveBrowser'
 import { useFirm, templateFileName } from './firm'
 import ZoneField from './ZoneField'
+import ReferralField from './ReferralField'
+import ClientPicker from './ClientPicker'
+import { pastClients, usualCouncil, lastCouncil, rememberCouncil } from './newJobHelp'
 
 const COUNCILS = [
   'Balina Shire Council', 'Banana Shire Council', 'Brisbane City Council',
@@ -187,7 +190,9 @@ export default function NewJob({ onNavigate, currentUser }) {
     company: '', firstName: '', lastName: '', email: '', phone: '',
     appType: 'MCU',
     assessment: 'Code Assessable',
-    address: '', lot: '', council: 'City of Gold Coast',
+    // Starts on the council this person last used. If they have not made a job on this device,
+    // it is set to the council on most of the firm's recent jobs once those have loaded.
+    address: '', lot: '', council: COUNCILS.includes(lastCouncil(currentUser?.id)) ? lastCouncil(currentUser?.id) : '',
     zone: '', proposedUse: '', referrals: '',
     budget: '', lodgement: '', decisionDue: '',
     complexity: 'C2',
@@ -262,6 +267,27 @@ export default function NewJob({ onNavigate, currentUser }) {
   }, [currentUser])
 
   const update = (field, value) => setForm(f => ({ ...f, [field]: value }))
+
+  // The firm's past clients (to pick from) and its usual council (to start on)
+  const [clients, setClients] = useState([])
+  const councilChosen = useRef(false)
+  useEffect(() => {
+    let cancelled = false
+    supabase.from('jobs')
+      .select('client_type, client_company, client_first_name, client_last_name, client_email, client_phone, council, created_at')
+      .order('created_at', { ascending: false }).limit(1000)
+      .then(({ data }) => {
+        if (cancelled || !data) return
+        setClients(pastClients(data))
+        const usual = usualCouncil(data)
+        if (usual && COUNCILS.includes(usual) && !councilChosen.current) setForm(f => (f.council ? f : { ...f, council: usual }))
+      })
+    return () => { cancelled = true }
+  }, [])
+  const pickClient = (c) => {
+    setClientType(c.type)
+    setForm(f => ({ ...f, company: c.company, firstName: c.firstName, lastName: c.lastName, email: c.email, phone: c.phone }))
+  }
   const togglePlanner = (name) => setSelectedPlanners(prev => prev.includes(name) ? prev.filter(p => p !== name) : [...prev, name])
 
   // Sequential job code: YYYY-001, YYYY-002 ... (next number after the highest existing one this year)
@@ -378,6 +404,7 @@ export default function NewJob({ onNavigate, currentUser }) {
     if (isCompany && !firstName) { setError('Please enter the contact person for this company.'); return }
     if (!isCompany && !firstName) { setError('Please enter the client name.'); return }
     if (!form.address.trim()) { setError('Please enter the site address.'); return }
+    if (!form.council) { setError('Please choose the council.'); return }
     if (selectedPlanners.length === 0) { setError('Please select at least one planner.'); return }
     if (folderMode === 'existing' && !pickedFolder) { setError('Choose the existing folder to link, or pick a different folder option.'); return }
     setError(null)
@@ -446,6 +473,7 @@ export default function NewJob({ onNavigate, currentUser }) {
     setSaving(false)
     setFolderResult(folder)
     setDocResults(results)
+    rememberCouncil(currentUser?.id, form.council)
     setCreatedJob(job)
     setShowDocModal(true)
   }
@@ -493,6 +521,8 @@ export default function NewJob({ onNavigate, currentUser }) {
           </div>
         </div>
 
+        <ClientPicker clients={clients} onPick={pickClient} inputClass={inputClass} />
+
         {isCompany && (
           <div className="mb-3">
             <label className="text-xs text-gray-600 mb-1 block">Company name</label>
@@ -535,18 +565,21 @@ export default function NewJob({ onNavigate, currentUser }) {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
           <div><label className="text-xs text-gray-600 mb-1 block">Council / LGA</label>
-            <select value={form.council} onChange={e => update('council', e.target.value)} className={inputClass}>
+            <select data-testid="council-select" value={form.council} onChange={e => { councilChosen.current = true; update('council', e.target.value) }} className={inputClass}>
+              <option value="">Choose a council...</option>
               {COUNCILS.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
           <div><label htmlFor="job-zone" className="text-xs text-gray-600 mb-1 block">Planning zone</label>
             <ZoneField value={form.zone} onChange={v => update('zone', v)} className={inputClass} /></div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-          <div><label className="text-xs text-gray-600 mb-1 block">Proposed use</label>
-            <input value={form.proposedUse} onChange={e => update('proposedUse', e.target.value)} placeholder="Mixed-use: retail GF + 12 units" className={inputClass} /></div>
-          <div><label className="text-xs text-gray-600 mb-1 block">Referral agencies</label>
-            <input value={form.referrals} onChange={e => update('referrals', e.target.value)} placeholder="SARA, Energex..." className={inputClass} /></div>
+        <div className="mb-3">
+          <label className="text-xs text-gray-600 mb-1 block">Proposed use</label>
+          <input value={form.proposedUse} onChange={e => update('proposedUse', e.target.value)} placeholder="Mixed-use: retail GF + 12 units" className={inputClass} />
+        </div>
+        <div className="mb-3">
+          <label className="text-xs text-gray-600 mb-1 block">Referral agencies</label>
+          <ReferralField value={form.referrals} onChange={v => update('referrals', v)} inputClass={inputClass} />
         </div>
 
         <div className="mb-5">

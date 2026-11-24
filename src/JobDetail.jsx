@@ -10,6 +10,7 @@ import { APP_TYPES, appTypeBadge, appTypeFull, buildJobName, clientName, contact
 import { addBusinessDays, deadlineStatus, skippedHolidays, beyondHolidayData, hasShowHoliday, stageDayRules } from './businessDays'
 import { IconPencil, IconFolder } from './icons'
 import ZoneField from './ZoneField'
+import ReferralField from './ReferralField'
 
 // Today's date as YYYY-MM-DD in Brisbane time (not UTC)
 function todayLocal() {
@@ -544,7 +545,7 @@ function EditJobModal({ job, currentUser, onClose, onSaved }) {
               <div><label className="text-xs text-gray-600 mb-1 block">Proposed use</label>
                 <input value={form.proposedUse} onChange={e => set('proposedUse', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
               <div className="col-span-2"><label className="text-xs text-gray-600 mb-1 block">Referral agencies</label>
-                <input value={form.referrals} onChange={e => set('referrals', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+                <ReferralField value={form.referrals} onChange={v => set('referrals', v)} inputClass="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
             </div>
           </div>
           <div>
