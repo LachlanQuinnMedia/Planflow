@@ -20,51 +20,67 @@ const G = ({ at = [0, 0, 1], className, children }) => (
   <g transform={`translate(${at[0]} ${at[1]}) scale(${at[2] ?? 1})`}><g className={className}>{children}</g></g>
 )
 
-const Spark = ({ color = '#f2c94c', ...p }) => (
-  <G {...p}><path d="M12 2c.8 5.2 2.8 7.2 8 8-5.2.8-7.2 2.800-8 8-.8-5.2-2.8-7.2-8-8 5.2-.8 7.2-2.8 8-8z" fill={color} /></G>
-)
-const Holly = (p) => (
+// New Year: a bottle of champagne, cork just popped
+const Champagne = (p) => (
   <G {...p}>
-    <path d="M11 13C6 14 3.500 11 2 7c4-.5 7.500 1 9 6z" fill="#1f7a4d" />
-    <path d="M13 13c5 1 7.500-2 9-6-4-.5-7.500 1-9 6z" fill="#2a9460" />
-    <circle cx="10.6" cy="15.6" r="2.1" fill="#c8323c" /><circle cx="13.6" cy="15.6" r="2.1" fill="#dd4a52" /><circle cx="12.1" cy="13.2" r="2.1" fill="#c8323c" />
+    <g transform="translate(0 -0.6) rotate(24 9 15)">
+      <path d="M5 23.800V13.400c0-2.200 1.700-3 1.900-5.200V4.600h4.200v3.600c.2 2.200 1.900 3 1.900 5.200v10.400z" fill="#1f7a4d" />
+      <path d="M6.300 14c0-1.500 1-2.200 1.300-3.700" fill="none" stroke="#6fbf95" strokeWidth="0.9" strokeLinecap="round" />
+      <path d="M6.900 4.600h4.200v3.600c.1.800.4 1.400.7 2H6.200c.3-.6.6-1.200.7-2z" fill="#e9c15a" />
+      <rect x="5" y="14.800" width="8" height="5" fill="#f4ead9" /><path d="M6.400 17.300h5.200" stroke="#c9a23a" strokeWidth="0.9" />
+      <path d="M7.600 3.500L6.200 .900M10.400 3.500l1.400-2.600M9 3.200V.300" stroke="#f6d77a" strokeWidth="1" strokeLinecap="round" />
+    </g>
+    <rect x="18.600" y=".600" width="3.600" height="4" rx="1.200" fill="#d2a468" transform="rotate(30 20.400 2.600)" />
+    <circle cx="21.400" cy="8.400" r="1" fill="#f6d77a" /><circle cx="18.600" cy="10.600" r="0.8" fill="#fff" /><circle cx="22.200" cy="12.200" r="0.6" fill="#f6d77a" /><circle cx="12.400" cy="2" r="0.7" fill="#fff" />
   </G>
 )
 const Football = (p) => (
   <G {...p}>
     <g transform="rotate(-28 12 12)">
-      <path d="M1.500 12Q12 2.500 22.500 12 12 21.500 1.500 12z" fill="#8b4a2b" />
-      <path d="M4.500 12Q12 5.500 19.500 12" fill="none" stroke="#a9623c" strokeWidth="1" />
+      <path d="M1.500 12Q12 2.500 22.500 12 12 21.500 1.500 12z" fill="#b5683c" stroke="#f3ead8" strokeWidth="0.8" strokeLinejoin="round" />
+      <path d="M4.500 12Q12 5.500 19.500 12" fill="none" stroke="#d08a5c" strokeWidth="1" />
       <path d="M8 12h8M9.500 10.600v2.800M12 10.600v2.800M14.500 10.600v2.800" stroke="#fff" strokeWidth="1.1" strokeLinecap="round" />
     </g>
   </G>
 )
-const Lantern = (p) => (
+// Lunar New Year: lucky bamboo, three stalks tied with a red ribbon
+const LuckyBamboo = (p) => (
   <G {...p}>
-    <path d="M12 0v4" stroke="#b8862b" strokeWidth="1" />
-    <rect x="8.500" y="3.600" width="7" height="2" rx="0.8" fill="#f0b840" />
-    <ellipse cx="12" cy="11.500" rx="7.500" ry="6.200" fill="#d6362f" />
-    <path d="M12 5.400v12.200M8.300 6.200Q6 11.500 8.300 16.800M15.700 6.200Q18 11.500 15.700 16.800" fill="none" stroke="#a81f24" strokeWidth="0.9" />
-    <rect x="8.500" y="17.200" width="7" height="2" rx="0.8" fill="#f0b840" />
-    <path d="M12 19.200v4.300M10.600 21v2.500M13.400 21v2.500" stroke="#f0b840" strokeWidth="0.9" strokeLinecap="round" />
+    <path d="M10.600 4.200C8.200 1.600 5.400 1.600 3.600 3.200c2.400.1 4.800.5 7 1zM13.600 3C15.500 .7 18.200 .5 20.200 2c-2.300.1-4.500.4-6.600 1zM17.200 8.200c1.300-2 3.500-2.500 5.300-1.500-1.800.3-3.600.8-5.300 1.500zM7.400 8.600C6 6.800 4 6.500 2.400 7.500c1.700.2 3.400.6 5 1.100z" fill="#7cc47f" />
+    {[[6.400, 8.200], [10.700, 3.600], [15, 7.200]].map(([x, top]) => (
+      <g key={x}>
+        <rect x={x} y={top} width="2.900" height={19.4 - top} rx="1.200" fill="#58a85c" />
+        <rect x={x + 0.5} y={top + 0.6} width="0.800" height={18.4 - top} rx="0.4" fill="#8fd18a" opacity="0.8" />
+        {[top + 3.4, top + 6.8, top + 10.2].filter(y => y < 13.2).map(y => <path key={y} d={`M${x} ${y}h2.900`} stroke="#3d8747" strokeWidth="0.8" />)}
+      </g>
+    ))}
+    <rect x="5.200" y="13.600" width="13.900" height="2.800" rx="0.9" fill="#d6362f" /><circle cx="12.100" cy="15" r="1.500" fill="#f0b840" />
+    <path d="M5.600 19.200h13l-1.400 4.300H7z" fill="#c8322b" /><path d="M6 20.600h12.200" stroke="#f0b840" strokeWidth="0.9" />
   </G>
 )
-const Bow = ({ color = '#ec5f9c', deep = '#c2357a', ...p }) => (
+// International Women's Day: a pink awareness ribbon
+const PinkRibbon = ({ color = '#ffbcd8', deep = '#f488b6', ...p }) => (
   <G {...p}>
-    <path d="M11 13.500L7 22l3.200-1.200L12 23l1-8z" fill={deep} /><path d="M13 13.500L17 22l-3.200-1.200L12 23l-1-8z" fill={deep} />
-    <path d="M11.200 12C8 6.500 3 5.500 1.500 7.500c-1.200 1.800-.6 6.800.4 8.300C3.500 18 8.500 16 11.200 12z" fill={color} />
-    <path d="M12.800 12C16 6.500 21 5.500 22.500 7.500c1.200 1.800.6 6.800-.4 8.300C20.500 18 15.500 16 12.800 12z" fill={color} />
-    <path d="M10.500 11.600C8 9.400 5.200 9 3.800 9.800M13.500 11.600C16 9.400 18.800 9 20.200 9.800" fill="none" stroke={deep} strokeWidth="0.9" strokeLinecap="round" opacity="0.6" />
-    <rect x="9.800" y="9.600" width="4.400" height="4.800" rx="1.800" fill={deep} />
+    <path d="M18.200 23L9.300 10.400C7.400 7.600 8.700 2.200 12 2.200" fill="none" stroke={deep} strokeWidth="4" strokeLinejoin="round" />
+    <path d="M5.800 23l8.900-12.600c1.900-2.800.6-8.200-2.700-8.200" fill="none" stroke={color} strokeWidth="4" strokeLinejoin="round" />
+    <path d="M10.400 13.600l1.600-2.300" stroke={deep} strokeWidth="4" opacity="0.35" />
   </G>
 )
-const EGG = 'M12 2C7.600 2 4.400 8.600 4.400 13.600a7.600 7.600 0 0 0 15.200 0C19.600 8.600 16.400 2 12 2z'
-const Egg = ({ color = '#a9d3f5', mark = '#fff', kind = 'bands', ...p }) => (
+// Easter: a painted egg
+const EGG = 'M12 1.500C7.400 1.500 4 8.400 4 13.800a8 8 0 0 0 16 0C20 8.400 16.600 1.500 12 1.500z'
+const PaintedEgg = (p) => (
   <G {...p}>
-    <path d={EGG} fill={color} />
-    {kind === 'bands' && <path d="M5.300 10.200h13.400M4.500 14.600h15" stroke={mark} strokeWidth="1.700" strokeLinecap="round" opacity="0.85" />}
-    {kind === 'zigzag' && <path d="M5 12.800l2.300-2.600 2.400 2.600 2.300-2.600 2.300 2.600 2.400-2.600 2.300 2.600" fill="none" stroke={mark} strokeWidth="1.500" strokeLinejoin="round" strokeLinecap="round" opacity="0.9" />}
-    {kind === 'dots' && [[9, 8.500], [14.500, 9.500], [7.500, 13.500], [12, 14], [16.500, 14.500], [10, 18], [14.500, 18.300]].map(([x, y]) => <circle key={`${x}-${y}`} cx={x} cy={y} r="1.150" fill={mark} opacity="0.9" />)}
+    <clipPath id="qp-sticker-egg"><path d={EGG} /></clipPath>
+    <path d={EGG} fill="#c9b3f0" />
+    <g clipPath="url(#qp-sticker-egg)">
+      <rect x="3" y="6.200" width="18" height="2.600" fill="#f7a8c9" />
+      <path d="M3 13.600l2.300-2.700 2.300 2.700 2.200-2.700 2.200 2.700 2.200-2.700 2.200 2.700 2.300-2.700 2.300 2.700" fill="none" stroke="#fff" strokeWidth="1.600" strokeLinejoin="round" />
+      <rect x="3" y="16" width="18" height="2.700" fill="#f9e08a" />
+      {[6, 9, 12, 15, 18].map(x => <circle key={x} cx={x} cy="17.350" r="0.750" fill="#f2a65a" />)}
+      {[9, 12, 15].map(x => <circle key={x} cx={x} cy="4.300" r="0.800" fill="#fff" />)}
+      {[9, 12, 15].map(x => <circle key={x} cx={x} cy="20.600" r="0.800" fill="#fff" />)}
+    </g>
+    <path d="M7.200 6.500C6 8.800 5.400 11 5.500 13.400" fill="none" stroke="#fff" strokeWidth="1.100" strokeLinecap="round" opacity="0.45" />
   </G>
 )
 const HardHat = (p) => (
@@ -80,17 +96,25 @@ const Leaf = ({ color = '#3fa34d', vein = '#2c7d39', ...p }) => (
     <path d="M12 21V6M12 10.500l-3-2.300M12 14l3.400-2.600M12 17l-3.200-2.200" fill="none" stroke={vein} strokeWidth="0.9" strokeLinecap="round" />
   </G>
 )
-const Jersey = ({ color = '#f6cf2f', dots = false, ...p }) => (
+// Tour de France: the mountains, with the road winding up
+const Mountain = (p) => (
   <G {...p}>
-    <path d="M8 3l-6 3.500 2.300 4.300L6.500 9.700V21h11V9.700l2.200 1.100L22 6.500 16 3c-.6 1.700-2.100 2.800-4 2.800S8.600 4.700 8 3z" fill={color} />
-    {dots && [[9.500, 11], [14, 10.500], [11.800, 14.500], [9, 17.500], [15, 16.800]].map(([x, y]) => <circle key={`${x}-${y}`} cx={x} cy={y} r="1.300" fill="#e23b3b" />)}
+    <path d="M6.500 21.500L15 4l8 17.500z" fill="#5f789e" /><path d="M15 4l2.900 6.300-1.700-1-1.200 1.700-1.500-1.900-1.500 1.300z" fill="#fff" />
+    <path d="M1 21.500L8 9.500l7 12z" fill="#8ba3c7" /><path d="M8 9.500l2.200 3.800-1.300-.6-.9 1.200-1-1.300-1.200.8z" fill="#fff" />
+    <rect x="1" y="21" width="22" height="2" rx="0.6" fill="#6fb36b" />
+    <path d="M9.800 21.200c-2.300-1.300 1.400-2.300-.3-3.800s1.100-1.900-.4-3.200" fill="none" stroke="#f6cf2f" strokeWidth="1" strokeLinecap="round" />
   </G>
 )
-const Strawberry = (p) => (
+// Ekka: the Ferris wheel
+const FerrisWheel = (p) => (
   <G {...p}>
-    <path d="M12 22c-5-3-8-7.500-8-11.500C4 7 7.500 6 12 7.500 16.500 6 20 7 20 10.500c0 4-3 8.500-8 11.500z" fill="#e8475f" />
-    {[[8.500, 11], [12, 10.500], [15.500, 11], [10, 14.500], [14, 14.500], [12, 18]].map(([x, y]) => <ellipse key={`${x}-${y}`} cx={x} cy={y} rx="0.650" ry="0.950" fill="#fde9a6" />)}
-    <path d="M12 8C10 4.500 7 4.500 5.500 6c2 .2 3.500 1 4.500 2.300zM12 8c2-3.500 5-3.500 6.500-2-2 .2-3.500 1-4.500 2.300zM12 8.300V3.500" fill="#3fa34d" stroke="#3fa34d" strokeWidth="1" strokeLinejoin="round" strokeLinecap="round" />
+    <path d="M12 10.300L6.600 22.600M12 10.300l5.400 12.300" stroke="#f3c9cf" strokeWidth="1.300" strokeLinecap="round" /><path d="M4.500 22.700h15" stroke="#f3c9cf" strokeWidth="1.300" strokeLinecap="round" />
+    <g className="qp-s-spin">
+      <circle cx="12" cy="10.300" r="8.300" fill="none" stroke="#fff3d6" strokeWidth="1.300" />
+      {[0, 45, 90, 135].map(a => <path key={a} d="M3.700 10.300h16.600" stroke="#fff3d6" strokeWidth="0.6" opacity="0.75" transform={`rotate(${a} 12 10.300)`} />)}
+      {['#f6c445', '#1f8aa3', '#f7a8cf', '#f6c445', '#1f8aa3', '#f7a8cf', '#f6c445', '#1f8aa3'].map((c, i) => <circle key={i} cx="12" cy="2" r="1.700" fill={c} transform={`rotate(${i * 45} 12 10.300)`} />)}
+    </g>
+    <circle cx="12" cy="10.300" r="1.600" fill="#f6c445" />
   </G>
 )
 const RugbyBall = (p) => (
@@ -117,6 +141,25 @@ const Poppy = (p) => (
     <circle cx="12" cy="12" r="3" fill="#1d1d1b" /><circle cx="12" cy="12" r="1.200" fill="#5d6b3f" />
   </G>
 )
+// Christmas: a tree with three wrapped presents under it, each tied with a ribbon
+const Present = ({ x, y, w, h, fill, ribbon }) => (
+  <g>
+    <rect x={x} y={y} width={w} height={h} rx="0.5" fill={fill} />
+    <path d={`M${x + w / 2} ${y}v${h}M${x} ${y + h * 0.45}h${w}`} stroke={ribbon} strokeWidth="1" />
+    <path d={`M${x + w / 2} ${y}c-1.300-2.100-3.100-1.500-2.300-.2zM${x + w / 2} ${y}c1.300-2.100 3.100-1.500 2.300-.2z`} fill={ribbon} />
+  </g>
+)
+const TreeAndPresents = (p) => (
+  <G {...p}>
+    <rect x="11" y="16.500" width="2" height="3.500" fill="#6b4a32" />
+    <path d="M12 2.200l3.400 4.600h-1.600l3.400 4.600h-1.700l3.700 5.200H4.800l3.700-5.200H6.800l3.400-4.600H8.600z" fill="#1f7a4d" />
+    <path d="M12 .300l.7 1.500 1.600.2-1.200 1.100.3 1.600-1.400-.8-1.400.8.300-1.600-1.200-1.100 1.600-.2z" fill="#f0b840" />
+    <circle className="qp-s-twinkle" cx="10.600" cy="8.600" r="0.900" fill="#f6d77a" /><circle cx="13.800" cy="11.600" r="0.900" fill="#e2463c" /><circle className="qp-s-twinkle" style={{ animationDelay: '0.8s' }} cx="9.200" cy="13.800" r="0.900" fill="#fff" /><circle cx="14.600" cy="14.800" r="0.900" fill="#f6d77a" />
+    <Present x={0.8} y={17} w={6.8} h={6.2} fill="#d94a4a" ribbon="#f6d77a" />
+    <Present x={16.4} y={16.2} w={6.8} h={7} fill="#f0b840" ribbon="#c8323c" />
+    <Present x={8.6} y={18.8} w={6.8} h={4.4} fill="#2f9e68" ribbon="#fff" />
+  </G>
+)
 
 // ------------------------------------------------------------------
 // The strip across the top of the page. It has a row to itself, so it never sits on text.
@@ -134,19 +177,23 @@ export function SeasonStrip() {
 // ------------------------------------------------------------------
 // The small picture beside the logo
 // ------------------------------------------------------------------
+// What each season shows beside the logo. Quinn chose these, one by one.
 const STICKERS = {
-  christmas: <Holly />, newyear: <Spark />, superbowl: <Football />, lunar: <Lantern />, womens: <Bow />,
-  easter: <Egg color="#c9b3f0" kind="zigzag" />, labour: <HardHat />, environment: <Leaf />, tour: <Jersey />,
-  ekka: <Strawberry />, footy: <RugbyBall />, halloween: <Pumpkin />, remembrance: <Poppy />,
+  newyear: ['champagne', <Champagne key="s" />], superbowl: ['american football', <Football key="s" />], lunar: ['lucky bamboo', <LuckyBamboo key="s" />],
+  womens: ['pink ribbon', <PinkRibbon key="s" />], easter: ['painted egg', <PaintedEgg key="s" />], labour: ['hard hat', <HardHat key="s" />],
+  environment: ['leaf', <Leaf key="s" />], tour: ['mountain', <Mountain key="s" />], ekka: ['ferris wheel', <FerrisWheel key="s" />],
+  footy: ['rugby ball', <RugbyBall key="s" />], halloween: ['jack-o-lantern', <Pumpkin key="s" />], remembrance: ['poppy', <Poppy key="s" />],
+  christmas: ['christmas tree with three presents', <TreeAndPresents key="s" />],
 }
 
-export function SeasonSticker({ size = 20 }) {
+export function SeasonSticker({ size = 24 }) {
   const season = useSeason()
   if (!season || !STICKERS[season.id]) return null
+  const [what, drawing] = STICKERS[season.id]
   return (
-    <svg data-testid="season-sticker" width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" className="qp-sticker flex-shrink-0 pointer-events-none">
+    <svg data-testid="season-sticker" data-sticker={what} width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" className="qp-sticker flex-shrink-0 pointer-events-none">
       <title>{season.name}</title>
-      {STICKERS[season.id]}
+      {drawing}
     </svg>
   )
 }

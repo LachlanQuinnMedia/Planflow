@@ -260,7 +260,7 @@ html[data-season] body { background-color: var(--qp-s-page); }
 }
 /* One thin, quiet line runs under the logo and on under the top bar, as it does on Light and Dark */
 :root[data-season] .qp-sidebar > .qp-sidebar-head { border-bottom: 1px solid var(--qp-s-rule); }
-:root[data-season] .qp-sidebar .qp-sticker { background-color: var(--qp-s-side-chip); border-radius: 999px; padding: 3px; box-sizing: content-box; }
+:root[data-season] .qp-sidebar .qp-sticker { background-color: var(--qp-s-side-chip); border-radius: 7px; padding: 3px; box-sizing: content-box; }
 /* Boxes on the menu are wells: text boxes, drop-downs, the timer read-out, the theme switch */
 :root[data-season] .qp-sidebar :is(.bg-white, .bg-emerald-50, .bg-emerald-100, select, input):not(.qp-plain, .qp-plain *) { background-color: var(--qp-s-side-well); color: var(--qp-s-bar-text); }
 :root[data-season] .qp-sidebar :is(input, select):not(.qp-plain, .qp-plain *)::placeholder { color: var(--qp-s-side-muted); opacity: 1; }

@@ -174,6 +174,7 @@ const overlapCheck = () => {
 }
 // ---------- 5. Colour coding: every season colours the page, the menu and the top bar, each plainly its own
 {
+  const SYMBOLS = { newyear: 'champagne', superbowl: 'american football', lunar: 'lucky bamboo', womens: 'pink ribbon', easter: 'painted egg', labour: 'hard hat', environment: 'leaf', tour: 'mountain', ekka: 'ferris wheel', footy: 'rugby ball', halloween: 'jack-o-lantern', remembrance: 'poppy', christmas: 'christmas tree with three presents' }
   const ALL = ['newyear', 'superbowl', 'lunar', 'womens', 'easter', 'labour', 'environment', 'tour', 'ekka', 'footy', 'halloween', 'remembrance', 'christmas']
   const read = (page) => page.evaluate(() => {
     const cv = document.createElement('canvas'); cv.width = cv.height = 1; const ctx = cv.getContext('2d', { willReadFrequently: true })
@@ -201,7 +202,7 @@ const overlapCheck = () => {
           logout: c(byText('Log out')), logoutBg: getComputedStyle(byText('Log out')).backgroundColor, tracker: c(byText('Time tracker')),
           logoPin: rgb(getComputedStyle(logo[0]).fill), logoText: rgb(getComputedStyle(logo[1]).fill), logoDot: rgb(getComputedStyle(side.querySelector('svg[aria-label=QPlan] circle')).fill),
           input: c(input), inputBg: b(input), select: c(select), selectBg: b(select),
-          headLine: rgb(getComputedStyle(head).borderBottomColor), headLineWidth: getComputedStyle(head).borderBottomWidth, sectionWeight: getComputedStyle(byText('main')).fontWeight, sectionSize: getComputedStyle(byText('main')).fontSize, sectionSpacing: parseFloat(getComputedStyle(byText('main')).letterSpacing), itemWeight: getComputedStyle(item).fontWeight, itemSize: getComputedStyle(item).fontSize, sectionRule: getComputedStyle(side.querySelectorAll('.qp-nav-section')[1]).borderTopWidth, headBottom: Math.round(head.getBoundingClientRect().bottom), barBottom: Math.round(bar.getBoundingClientRect().bottom),
+          sticker: side.querySelector('[data-testid=season-sticker]')?.dataset.sticker, stickerRight: side.querySelector('[data-testid=season-sticker]')?.getBoundingClientRect().right, stickerLeft: side.querySelector('[data-testid=season-sticker]')?.getBoundingClientRect().left, logoRight: side.querySelector('svg[aria-label=QPlan]').getBoundingClientRect().right, arrowLeft: head.querySelector('button').getBoundingClientRect().left, headLine: rgb(getComputedStyle(head).borderBottomColor), headLineWidth: getComputedStyle(head).borderBottomWidth, sectionWeight: getComputedStyle(byText('main')).fontWeight, sectionSize: getComputedStyle(byText('main')).fontSize, sectionSpacing: parseFloat(getComputedStyle(byText('main')).letterSpacing), itemWeight: getComputedStyle(item).fontWeight, itemSize: getComputedStyle(item).fontSize, sectionRule: getComputedStyle(side.querySelectorAll('.qp-nav-section')[1]).borderTopWidth, headBottom: Math.round(head.getBoundingClientRect().bottom), barBottom: Math.round(bar.getBoundingClientRect().bottom),
         }
       })(),
     }
@@ -236,6 +237,9 @@ const overlapCheck = () => {
     assert.ok(parseFloat(m.sectionSize) < parseFloat(m.itemSize) && m.sectionSpacing >= 1.2, `${id}: section headings are small, wide-spaced capitals`)
     assert.ok(ratio(m.section, c.side) > ratio(m.item, c.side) - 0.01, `${id}: section headings are at least as strong as the items under them`)
     assert.equal(m.sectionRule, '1px', `${id}: a line separates each group of the menu`)
+    // The symbol beside the logo is the one he chose for this season, and it sits clear of the logo and the arrows
+    assert.equal(m.sticker, SYMBOLS[id], `${id}: the symbol beside the logo`)
+    assert.ok(m.stickerLeft >= m.logoRight + 4 && m.stickerRight <= m.arrowLeft - 4, `${id}: the symbol fits between the logo and the arrows`)
     for (const [what, colour] of Object.entries({ 'a menu item': m.item, 'a section label': m.section, 'Notifications': m.notifications, 'the person\'s name': m.name, 'their role': m.role, 'Change password': m.password, 'Log out': m.logout, 'the Time tracker label': m.tracker, 'the logo\'s pin': m.logoPin, 'the logo\'s lettering': m.logoText, 'the unselected theme buttons': m.segOff })) {
       assert.ok(ratio(colour, c.side) >= 4.5, `${id}: ${what} is readable on the menu (${ratio(colour, c.side).toFixed(2)})`)
     }
