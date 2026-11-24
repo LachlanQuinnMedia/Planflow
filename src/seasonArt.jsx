@@ -23,6 +23,13 @@ export const Cloud = ({ x, y, s = 1, fill = '#fff', opacity = 0.9 }) => (
     </g>
   </g>
 )
+// Something that roams. Sideways and up-and-down each keep their own time, and the two never
+// line up again, so the path it takes is always a little different: it does not loop.
+const Roam = ({ wide = 44, tall = 12, across = 37, up = 23, start = 0, children }) => (
+  <g className="qp-s-roam-x" style={{ '--qp-roam': `${wide}px`, animationDuration: `${across}s`, animationDelay: `-${start}s` }}>
+    <g className="qp-s-roam-y" style={{ '--qp-roam': `${tall}px`, animationDuration: `${up}s`, animationDelay: `-${start * 0.6}s` }}>{children}</g>
+  </g>
+)
 // Things that fall through a banner picture: snow, or petals. Each has its own speed and drift.
 const Falling = ({ n = 16, fill = '#fff', stroke = 'none', petal = false, min = 1.2 }) => range(n).map(i => {
   const style = { animationDuration: `${9 + ((i * 37) % 8)}s`, animationDelay: `-${((i * 2.7) % 11).toFixed(1)}s`, '--dx': `${(i % 2 ? 1 : -1) * (4 + (i % 5) * 3)}px` }
@@ -182,10 +189,11 @@ const SCENES = {
         <radialGradient id={`${u}glow`}><stop offset="0" stopColor="#ffe9a0" stopOpacity="0.9" /><stop offset="1" stopColor="#ffe9a0" stopOpacity="0" /></radialGradient>
       </defs>
       <rect width="480" height="112" fill={`url(#${u}sky)`} />
-      <path d="M0 84Q70 58 150 76T300 70 480 78V112H0z" fill="#e7f1f8" />
+      {/* the far trees are drawn first and the rise over their feet, so none of them hangs in the air */}
       {[[36, 74, 0.8], [84, 70, 1], [140, 76, 0.7], [196, 72, 0.9]].map(([x, y, s]) => (
         <g key={x} transform={`translate(${x} ${y}) scale(${s})`}><path d="M0 -26l-9 12h5l-8 11h6l-9 11h30l-9-11h6l-8-11h5z" fill="#b5d2cb" /><rect x="-1.500" y="8" width="3" height="5" fill="#9bb9b1" /></g>
       ))}
+      <path d="M0 84Q70 58 150 76T300 70 480 78V112H0z" fill="#e7f1f8" />
       <path d="M0 96Q110 78 230 94T480 90V112H0z" fill="#fff" />
       {/* a string of lights along the top */}
       <path d="M150 0Q200 20 250 6T350 6T450 6T480 4" fill="none" stroke="#5a7a6a" strokeWidth="0.9" />
@@ -314,7 +322,8 @@ const SCENES = {
         {range(6).map(i => <g key={i} transform={`translate(${262 + (i % 2 ? 4.500 : -4.500)} ${12 + i * 8.500}) rotate(${i % 2 ? 28 : -28})`}><rect x="-2.300" y="-5" width="4.600" height="10" rx="1" fill="#d6362f" /><rect x="-2.300" y="-5" width="4.600" height="1.800" fill="#f0b840" /><rect x="-2.300" y="3.200" width="4.600" height="1.800" fill="#f0b840" /></g>)}
       </g>
       {/* mandarins */}
-      {[[452, 98, 8], [438, 101, 6.500], [466, 102, 6]].map(([x, y, r]) => <g key={x}><circle cx={x} cy={y} r={r} fill="#f39a2e" /><circle cx={x - r * 0.3} cy={y - r * 0.3} r={r * 0.3} fill="#ffc46b" opacity="0.7" /><path d={`M${x} ${y - r}q4-4 7-1-3 3-7 1z`} fill="#4f9a4a" /></g>)}
+      <ellipse cx="452" cy="107.500" rx="27" ry="2.400" fill="#e2a86c" opacity="0.55" />
+      {[[452, 99, 8], [438, 100.500, 6.500], [466, 101, 6]].map(([x, y, r]) => <g key={x}><circle cx={x} cy={y} r={r} fill="#f39a2e" /><circle cx={x - r * 0.3} cy={y - r * 0.3} r={r * 0.3} fill="#ffc46b" opacity="0.7" /><path d={`M${x} ${y - r}q4-4 7-1-3 3-7 1z`} fill="#4f9a4a" /></g>)}
       <Falling n={10} petal fill="#f6a5c0" min={1.4} />
     </>
   ),
@@ -331,9 +340,8 @@ const SCENES = {
       <path d="M0 78C50 54 90 100 150 74S250 50 310 70 370 56 384 52" fill="none" stroke="#c2357a" strokeWidth="9" strokeLinecap="round" opacity="0.3" />
       <path d="M0 72C50 48 90 94 150 68S250 44 310 64 370 50 384 46" fill="none" stroke={`url(#${u}rib)`} strokeWidth="9" strokeLinecap="round" />
       <path d="M0 69.500C50 45.500 90 91.500 150 65.500S250 41.500 310 61.500 370 47.500 384 43.500" fill="none" stroke="#fff" strokeWidth="1.300" strokeLinecap="round" opacity="0.5" />
-      {/* tulips, tied */}
-      <g transform="rotate(-8 228 96)"><Tulip x={216} y={44} color="#f49ac1" h={50} /><Tulip x={228} y={34} color="#b98be0" h={60} /><Tulip x={240} y={46} color="#ec5f9c" h={48} /></g>
-      <Bow x={229} y={84} s={0.62} a="#b98be0" b="#8e5bd0" c="#dcc7f5" />
+      {/* tulips, growing up from the foot of the picture */}
+      <Tulip x={216} y={62} color="#f49ac1" h={54} /><Tulip x={228} y={52} color="#b98be0" h={64} /><Tulip x={240} y={66} color="#ec5f9c" h={50} />
       {/* the bow */}
       <ellipse cx="384" cy="104" rx="46" ry="3" fill="#e9bcd3" opacity="0.6" />
       <g className="qp-s-bob"><Bow x={384} y={46} s={3.600} /></g>
@@ -406,11 +414,9 @@ const SCENES = {
       <g className="qp-s-sway" style={{ animationDuration: '6s' }}><path d="M272 20v30" stroke="#5b6470" strokeWidth="0.9" /><path d="M272 50l-12 6M272 50l12 6" stroke="#5b6470" strokeWidth="0.8" /><rect x="256" y="55" width="32" height="5" rx="1" fill="#6f7f95" /></g>
       <path d="M0 100h480v12H0z" fill="#d9cdb8" /><path d="M0 100h480" stroke="#bfb199" strokeWidth="1" />
       <path d="M146 100l5-17h6l5 17z" fill="#f08a24" /><path d="M149.500 91h9M148 95.500h12" stroke="#fff" strokeWidth="2" /><rect x="142" y="99" width="24" height="3.500" rx="1" fill="#d9701c" />
-      {/* cogs, tools, the plans and the hat */}
-      <g className="qp-s-spin"><g transform="translate(440 42)">{range(10).map(i => <rect key={i} x="-3" y="-21" width="6" height="8" rx="1.500" fill="#3d5a8a" transform={`rotate(${i * 36})`} />)}<circle r="15" fill="#3d5a8a" /><circle r="6.500" fill="#dbe8f7" /><circle r="10.500" fill="none" stroke="#5574a8" strokeWidth="1.500" /></g></g>
-      <g className="qp-s-spin" style={{ animationDirection: 'reverse', animationDuration: '9s' }}><g transform="translate(408 26)">{range(8).map(i => <rect key={i} x="-2.200" y="-13" width="4.400" height="5.500" rx="1" fill="#f08a24" transform={`rotate(${i * 45})`} />)}<circle r="9" fill="#f08a24" /><circle r="3.800" fill="#dbe8f7" /></g></g>
-      <g transform="translate(330 86) rotate(-12)"><rect x="-22" y="-7" width="44" height="14" rx="7" fill="#eaf2fb" stroke="#9fb2cc" strokeWidth="1" /><ellipse cx="-22" cy="0" rx="3.500" ry="7" fill="#c9d8ec" stroke="#9fb2cc" strokeWidth="1" /><path d="M-12 -2h24M-12 2h16" stroke="#7fa0c9" strokeWidth="0.9" /><path d="M2 -7v14" stroke="#d6362f" strokeWidth="1.600" /></g>
-      <g transform="translate(446 88) rotate(38)"><path d="M-3 -24h6v34a3 3 0 0 1-6 0z" fill="#9aa7b5" /><path d="M-8 -30a8 8 0 0 1 5-7v7h6v-7a8 8 0 0 1 5 7 8 8 0 0 1-16 0z" fill="#b5c0cc" /></g>
+      {/* tools, the plans and the hat, all resting on the ground */}
+      <g transform="translate(326 93.500)"><rect x="-22" y="-7" width="44" height="14" rx="7" fill="#eaf2fb" stroke="#9fb2cc" strokeWidth="1" /><ellipse cx="-22" cy="0" rx="3.500" ry="7" fill="#c9d8ec" stroke="#9fb2cc" strokeWidth="1" /><path d="M-12 -2h24M-12 2h16" stroke="#7fa0c9" strokeWidth="0.9" /><path d="M2 -7v14" stroke="#d6362f" strokeWidth="1.600" /></g>
+      <g transform="translate(452 98) rotate(84)"><path d="M-3 -24h6v34a3 3 0 0 1-6 0z" fill="#9aa7b5" /><path d="M-8 -30a8 8 0 0 1 5-7v7h6v-7a8 8 0 0 1 5 7 8 8 0 0 1-16 0z" fill="#b5c0cc" /></g>
       <ellipse cx="388" cy="103" rx="34" ry="3.500" fill="#bfb199" />
       <path d="M358 94a30 30 0 0 1 60 0z" fill={`url(#${u}hat)`} /><path d="M382 65a30 30 0 0 1 12 0v29h-12z" fill="#ffe680" /><path d="M366 80a24 24 0 0 1 10-12" fill="none" stroke="#fff" strokeWidth="2.400" strokeLinecap="round" opacity="0.6" />
       <rect x="350" y="92" width="76" height="9" rx="4.500" fill="#e0a511" /><rect x="350" y="92" width="76" height="3.500" rx="1.700" fill="#f6c93a" />
@@ -463,15 +469,14 @@ const SCENES = {
       <path d="M0 74Q120 56 240 72T480 66V112H0z" fill="#a9d79a" />
       {/* a village on the hill */}
       <g transform="translate(64 66)"><rect x="-10" y="-8" width="20" height="10" fill="#f3e6d2" /><path d="M-12 -8L0 -17 12 -8z" fill="#c8674a" /><rect x="10" y="-22" width="8" height="24" fill="#f3e6d2" /><path d="M9 -22l5-10 5 10z" fill="#c8674a" /><rect x="12.500" y="-16" width="3" height="5" fill="#8fa9c6" /><rect x="-6" y="-4" width="4" height="6" fill="#8fa9c6" /><rect x="-26" y="-4" width="14" height="6" fill="#f6ecdb" /><path d="M-28 -4l9-6 9 6z" fill="#b9573d" /></g>
-      {/* sunflowers */}
-      <path d="M0 92Q160 80 300 90T480 86V112H0z" fill="#7dbb62" />
-      {range(40).map(i => { const x = 6 + i * 12; const y = 92 + ((i * 7) % 5) + (i % 2 ? 6 : 0); return <g key={i}><path d={`M${x} ${y}v9`} stroke="#4f8f3d" strokeWidth="1" /><circle cx={x} cy={y} r="3.400" fill="#f6c93a" /><circle cx={x} cy={y} r="1.400" fill="#7a4a1e" /></g> })}
-      {/* the road and the riders */}
-      <path d="M0 86Q140 70 280 82T480 76V88Q360 80 280 94T0 98z" fill="#6b7480" /><path d="M0 92Q140 76 280 88T480 82" fill="none" stroke="#fff" strokeWidth="1" strokeDasharray="9 8" opacity="0.85" />
-      <path d="M300 14l180-6" stroke="#8b94a1" strokeWidth="0.8" />{range(9).map(i => <path key={i} d={`M${306 + i * 19} ${13.500 - i * 0.6}h13l-6.500 11z`} fill={['#1f4fa3', '#fff', '#e23b3b'][i % 3]} stroke="#c9d2dc" strokeWidth="0.3" />)}
-      <Cyclist x={296} y={78} s={0.85} jersey="#2f9b5c" helmet="#fff" delay={0.4} />
-      <Cyclist x={344} y={76} s={0.95} jersey="#fff" dots helmet="#e23b3b" delay={0.8} />
-      <Cyclist x={402} y={74} s={1.150} jersey="#f6cf2f" helmet="#1f4fa3" />
+      {/* the road, with the riders' wheels on it */}
+      <path d="M0 84Q140 70 280 80Q420 90 480 76V87Q420 101 280 91Q140 81 0 95z" fill="#6b7480" /><path d="M0 89.500Q140 75.500 280 85.500Q420 95.500 480 81.500" fill="none" stroke="#fff" strokeWidth="1" strokeDasharray="9 8" opacity="0.85" />
+      <Cyclist x={296} y={80.600} s={0.85} jersey="#2f9b5c" helmet="#fff" delay={0.4} />
+      <Cyclist x={344} y={82.200} s={0.95} jersey="#fff" dots helmet="#e23b3b" delay={0.8} />
+      <Cyclist x={402} y={81.400} s={1.150} jersey="#f6cf2f" helmet="#1f4fa3" />
+      {/* sunflowers in the field this side of the road */}
+      <path d="M0 99Q160 91 300 100T480 96V112H0z" fill="#7dbb62" />
+      {range(40).map(i => { const x = 6 + i * 12; const y = 101 + ((i * 7) % 5) + (i % 2 ? 4 : 0); return <g key={i}><path d={`M${x} ${y}v12`} stroke="#4f8f3d" strokeWidth="1" /><circle cx={x} cy={y} r="3.400" fill="#f6c93a" /><circle cx={x} cy={y} r="1.400" fill="#7a4a1e" /></g> })}
     </>
   ),
 
@@ -511,12 +516,15 @@ const SCENES = {
       {[[452, 30, '#e8475f', 0], [466, 42, '#f6c445', 0.6], [440, 44, '#9fd4f5', 1.200]].map(([x, y, c, d]) => (
         <g key={x} className="qp-s-bob" style={{ animationDelay: `${d}s` }}><path d={`M${x} ${y + 9}Q${x - 4} ${y + 30} 452 96`} fill="none" stroke="#8b94a1" strokeWidth="0.6" /><ellipse cx={x} cy={y} rx="7.500" ry="9" fill={c} /><ellipse cx={x - 2.500} cy={y - 3} rx="2" ry="3" fill="#fff" opacity="0.5" /><path d={`M${x - 1.500} ${y + 9}h3l-1.500 2.500z`} fill={c} /></g>
       ))}
+      <rect x="447" y="94" width="10" height="5" rx="1.500" fill="#7d8794" /><path d="M452 94v-2" stroke="#7d8794" strokeWidth="1" />
       {/* fairy floss */}
       <path d="M330 104L336 70" stroke="#e9dcc3" strokeWidth="2.400" strokeLinecap="round" />
       <g className="qp-s-bob" style={{ animationDelay: '0.5s' }}>{[[336, 54, 13], [326, 60, 9], [346, 60, 9.500], [331, 46, 9], [342, 45, 9.500], [336, 64, 9]].map(([x, y, r], i) => <circle key={`${x}${y}`} cx={x} cy={y} r={r} fill={i % 2 ? '#f9bfdc' : '#f7a8cf'} />)}<path d="M328 50q8-6 14 2M326 60q10-4 18 2" fill="none" stroke="#fff" strokeWidth="1.300" strokeLinecap="round" opacity="0.6" /></g>
       {/* the strawberry sundae */}
       <ellipse cx="396" cy="105" rx="20" ry="2.800" fill="#9fcf8a" />
+      <path d="M386 105l5.500-21M406 105l-5.500-21" stroke="#7d8794" strokeWidth="1.600" strokeLinecap="round" />
       <path d="M380 60l16 44 16-44z" fill={`url(#${u}cone)`} /><path d="M383 68h26M386.500 77h19M390 86h12M385 62l15 34M393 62l9 26M407 62l-15 34M399 62l-9 26" stroke="#a9742f" strokeWidth="0.7" opacity="0.8" />
+      <ellipse cx="396" cy="84" rx="7.500" ry="1.800" fill="none" stroke="#7d8794" strokeWidth="1.400" />
       <path d="M376 60q4-22 20-22t20 22q-10 5-20 5t-20-5z" fill="#f7a8cf" /><path d="M380 56q-2-12 16-22-6 10-2 22z" fill="#fbcfe3" opacity="0.8" />
       <path d="M380 44q16-12 32 0-4 8-16 8t-16-8z" fill="#fffaf0" /><path d="M385 34q11-10 22 0-3 6-11 6t-11-6z" fill="#fffaf0" /><path d="M383 44q13-7 26 0M388 34q8-5 16 0" fill="none" stroke="#eadfc8" strokeWidth="0.9" />
       <g transform="translate(396 22)"><path d="M0 12c-6-3-9-8-9-12 0-4 4-5 9-3.500 5-1.500 9 0 9 3.500 0 4-3 9-9 12z" fill="#e8475f" />{[[-4, 1], [0, .5], [4, 1], [-2, 5], [2, 5], [0, 8.500]].map(([a, b]) => <ellipse key={`${a}${b}`} cx={a} cy={b} rx="0.6" ry="0.9" fill="#fde9a6" />)}<path d="M0 -3C-2 -7 -5 -7 -6.500 -5.500c2 .2 3.500 1 4.500 2.300zM0 -3c2-4 5-4 6.500-2.500-2 .2-3.500 1-4.500 2.300zM0 -2.500V-8" fill="#3fa34d" stroke="#3fa34d" strokeWidth="1" strokeLinejoin="round" strokeLinecap="round" /></g>
@@ -587,18 +595,19 @@ const SCENES = {
       <g stroke="#b7a6d9" strokeWidth="0.7" fill="none" opacity="0.7"><path d="M0 0L52 0M0 0L46 22M0 0L26 44M0 0L0 50" /><path d="M16 0Q17 6 14 7.500 9 13 5 14 2 16 0 16M32 0Q33 12 28 14 18 24 11 26 4 30 0 31M46 0Q47 17 40 19.500 26 34 16 38 6 43 0 44" /></g>
       <g className="qp-s-bob" style={{ animationDuration: '4.5s' }}><path d="M40 20v20" stroke="#b7a6d9" strokeWidth="0.6" /><circle cx="40" cy="43" r="3.200" fill="#120a24" /><circle cx="40" cy="39.500" r="1.800" fill="#120a24" /><path d="M37 42l-5-3M37 44l-5 0M37.500 46l-4 3M43 42l5-3M43 44l5 0M42.500 46l4 3" stroke="#120a24" strokeWidth="0.8" strokeLinecap="round" /><circle cx="39.300" cy="39.300" r="0.5" fill="#ff8a3a" /><circle cx="40.800" cy="39.300" r="0.5" fill="#ff8a3a" /></g>
       {/* the hill, the house, the tree */}
-      <path d="M0 96Q90 66 190 82T360 84 480 78V112H0z" fill="#1c1233" />
+      {/* the house is drawn first and the hill over its footings, so it sits in the slope with no gap under it */}
       <g transform="translate(206 80)">
-        <path d="M-22 4V-22l11-11 11 11V4zM0 4V-34l9-12 9 12V4zM18 4V-18l8-7 8 7V4z" fill="#120a24" /><path d="M7 -46l2-9 2 9z" fill="#120a24" /><path d="M-26 -22l15-15 15 15zM-4 -34l13-17 13 17zM15 -18l11-10 11 10z" fill="#0c0619" />
+        <path d="M-22 16V-22l11-11 11 11V16zM0 16V-34l9-12 9 12V16zM18 16V-18l8-7 8 7V16z" fill="#120a24" /><path d="M7 -46l2-9 2 9z" fill="#120a24" /><path d="M-26 -22l15-15 15 15zM-4 -34l13-17 13 17zM15 -18l11-10 11 10z" fill="#0c0619" />
         {[[-15, -18, 0], [-15, -6, 1.100], [6, -30, 0.5], [6, -16, 1.600], [23, -12, 0.8]].map(([x, y, d]) => <rect key={`${x}${y}`} className="qp-s-flicker" style={{ animationDelay: `${d}s` }} x={x} y={y} width="6" height="8" rx="3" fill="#ffc45e" />)}
         <rect x="-8" y="-6" width="7" height="10" rx="3.500" fill="#2a1a45" />
       </g>
+      <path d="M0 96Q90 66 190 82T360 84 480 78V112H0z" fill="#1c1233" />
       <g stroke="#120a24" strokeLinecap="round" fill="none"><path d="M120 90Q118 66 124 46" strokeWidth="4" /><path d="M123 62q-12-6-16-18M124 54q12-6 14-20M122 70q10 0 18-8M108 46l-6-6M106 50l-8 2M138 36l6-8M136 40l10 0M140 62l8-2" strokeWidth="1.800" /></g>
       {[[156, 92], [172, 96]].map(([x, y]) => <g key={x}><path d={`M${x - 6} ${y}v-9a6 6 0 0 1 12 0v9z`} fill="#4a3a6b" /><path d={`M${x - 2.500} ${y - 8}h5M${x} ${y - 10.500}v6`} stroke="#2a1a45" strokeWidth="1" /></g>)}
       {/* ghosts and bats */}
-      <g className="qp-s-wander"><Ghost x={66} y={60} s={1.400} /></g><g className="qp-s-wander-back" style={{ animationDelay: '-6s' }}><Ghost x={298} y={56} s={1} delay={1.200} /></g>
-      <g className="qp-s-wander-back" style={{ animationDuration: '15s' }}><Bat x={262} y={24} s={1.200} /></g><g className="qp-s-wander" style={{ animationDuration: '13s', animationDelay: '-4s' }}><Bat x={300} y={62} s={0.9} fill="#8f7cc4" delay={0.2} /></g>
-      <g className="qp-s-wander" style={{ animationDuration: '21s', animationDelay: '-9s' }}><Bat x={140} y={22} s={0.8} fill="#8f7cc4" delay={0.35} /></g><g className="qp-s-wander-back" style={{ animationDuration: '17s', animationDelay: '-3s' }}><Bat x={446} y={68} s={0.7} delay={0.15} /></g>
+      <Roam wide={56} tall={14} across={41} up={17}><Ghost x={84} y={58} s={1.400} /></Roam><Roam wide={48} tall={16} across={53} up={29} start={11}><Ghost x={292} y={54} s={1} delay={1.200} /></Roam>
+      <Roam wide={90} tall={14} across={31} up={13} start={5}><Bat x={250} y={24} s={1.200} /></Roam><Roam wide={70} tall={18} across={43} up={19} start={17}><Bat x={318} y={58} s={0.9} fill="#8f7cc4" delay={0.2} /></Roam>
+      <Roam wide={80} tall={12} across={47} up={11} start={23}><Bat x={150} y={24} s={0.8} fill="#8f7cc4" delay={0.35} /></Roam><Roam wide={50} tall={16} across={29} up={21} start={9}><Bat x={436} y={66} s={0.7} delay={0.15} /></Roam>
       {/* pumpkins */}
       <circle cx="398" cy="88" r="40" fill={`url(#${u}glow)`} />
       <ellipse cx="398" cy="105" rx="60" ry="3.500" fill="#120a24" opacity="0.6" />

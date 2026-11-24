@@ -30,7 +30,7 @@ export const SEASONS = [
     bar: { l: 0.5, c: 0.12, h: 342 }, line: { l: 0.6, c: 0.17, h: 305 } },
   // Pastels: lilac, mint and butter yellow
   { id: 'easter', month: 4, name: 'Easter', greeting: 'Happy Easter', base: 'light', accent: { h: 295, c: 0.1 }, page: { h: 305, c: 0.018 }, side: { h: 168, c: 0.045 },
-    bar: { l: 0.82, c: 0.065, h: 300 }, line: { l: 0.9, c: 0.13, h: 98 } },
+    bar: { l: 0.75, c: 0.078, h: 300 }, line: { l: 0.9, c: 0.13, h: 98 } },
   // Denim blue and hi-vis orange
   { id: 'labour', month: 5, name: 'Labour Day', greeting: 'Labour Day', base: 'light', accent: { h: 252, c: 0.075 }, page: { h: 250, c: 0.011 },
     bar: { l: 0.43, c: 0.068, h: 252 }, line: { l: 0.76, c: 0.17, h: 60 } },
@@ -39,10 +39,10 @@ export const SEASONS = [
     bar: { l: 0.4, c: 0.075, h: 148 }, line: { l: 0.82, c: 0.18, h: 125 } },
   // The yellow jersey, with French blue
   { id: 'tour', month: 7, name: 'Tour de France', greeting: 'Tour de France', base: 'light', accent: { h: 258, c: 0.12 }, page: { h: 98, c: 0.02 },
-    bar: { l: 0.9, c: 0.085, h: 98 }, line: { l: 0.48, c: 0.17, h: 258 } },
+    bar: { l: 0.87, c: 0.095, h: 96 }, line: { l: 0.48, c: 0.17, h: 258 } },
   // Strawberry sundae: strawberry, vanilla cream and showbag teal
   { id: 'ekka', month: 8, name: 'Ekka', greeting: 'Ekka time', base: 'light', accent: { h: 208, c: 0.085 }, page: { h: 96, c: 0.016 }, side: { h: 8, c: 0.04 },
-    bar: { l: 0.54, c: 0.115, h: 18 }, line: { l: 0.93, c: 0.06, h: 92 } },
+    bar: { l: 0.5, c: 0.115, h: 8 }, line: { l: 0.93, c: 0.06, h: 92 } },
   // Navy and gold over grass green
   { id: 'footy', month: 9, name: 'Footy finals', greeting: 'Finals footy', base: 'light', accent: { h: 158, c: 0.1 }, page: { h: 140, c: 0.018 },
     bar: { l: 0.31, c: 0.062, h: 262 }, line: { l: 0.81, c: 0.15, h: 85 } },

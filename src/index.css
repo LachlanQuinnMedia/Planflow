@@ -244,7 +244,9 @@ html[data-season] body { background-color: var(--qp-s-page); }
      100         under the pointer      50   a well (text boxes, the timer read-out) */
 :root[data-season] .qp-app { --qp-s-rule: color-mix(in oklab, var(--qp-s-bar-text) 22%, var(--qp-s-bar)); }
 :root[data-season] .qp-sidebar {
-  background-color: var(--qp-s-bar);
+  /* not quite solid: the page shows through a little, and anything behind it is softened */
+  background-color: var(--qp-s-bar-glass);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
   color: var(--qp-s-bar-text);
   border-right-color: color-mix(in oklab, var(--qp-s-bar-text) 18%, var(--qp-s-bar));
   --color-gray-950: var(--qp-s-bar-text); --color-gray-900: var(--qp-s-bar-text); --color-gray-800: var(--qp-s-bar-text); --color-gray-700: var(--qp-s-bar-text);
@@ -277,7 +279,8 @@ html[data-season] body { background-color: var(--qp-s-page); }
 :root[data-season] .qp-sidebar .qp-plain { --color-gray-50: var(--qp-o-gray-50); --color-gray-100: var(--qp-o-gray-100); --color-gray-200: var(--qp-o-gray-200); --color-gray-300: var(--qp-o-gray-300); --color-gray-400: var(--qp-o-gray-400); --color-gray-500: var(--qp-o-gray-500); --color-gray-600: var(--qp-o-gray-600); --color-gray-700: var(--qp-o-gray-700); --color-gray-800: var(--qp-o-gray-800); --color-gray-900: var(--qp-o-gray-900); --color-gray-950: var(--qp-o-gray-950); --color-emerald-400: var(--qp-o-emerald-400); color: var(--color-gray-900); }
 
 :root[data-season] .qp-topbar {
-  background-color: var(--qp-s-bar);
+  background-color: var(--qp-s-bar-glass);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
   color: var(--qp-s-bar-text);
   border-bottom: 1px solid var(--qp-s-rule);
 }
@@ -471,6 +474,10 @@ html[data-app] #root > .qp-site { display: none; }
 @keyframes qp-s-wander { 0%, 100% { transform: translate(0, 0); } 20% { transform: translate(20px, -9px); } 45% { transform: translate(44px, 4px); } 70% { transform: translate(18px, 11px); } 85% { transform: translate(-7px, 4px); } }
 .qp-s-wander-back { animation: qp-s-wander-back 23s ease-in-out infinite; }
 @keyframes qp-s-wander-back { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(-22px, 8px); } 50% { transform: translate(-40px, -6px); } 75% { transform: translate(-12px, -12px); } }
+.qp-s-roam-x { animation: qp-s-roam-x 37s ease-in-out infinite alternate; }
+@keyframes qp-s-roam-x { from { transform: translateX(calc(var(--qp-roam, 40px) * -0.5)); } to { transform: translateX(calc(var(--qp-roam, 40px) * 0.5)); } }
+.qp-s-roam-y { animation: qp-s-roam-y 23s ease-in-out infinite alternate; }
+@keyframes qp-s-roam-y { from { transform: translateY(calc(var(--qp-roam, 12px) * -0.5)); } to { transform: translateY(calc(var(--qp-roam, 12px) * 0.5)); } }
 .qp-s-drift { animation: qp-s-drift 28s ease-in-out infinite alternate; }
 @keyframes qp-s-drift { from { transform: translateX(-9px); } to { transform: translateX(15px); } }
 .qp-s-lift { animation: qp-s-lift 12s ease-in infinite; }
@@ -480,6 +487,6 @@ html[data-app] #root > .qp-site { display: none; }
 [data-testid="season-strip"] * { animation: none !important; }
 @media (prefers-reduced-motion: reduce) {
   .qp-s-twinkle, .qp-s-sway, .qp-s-sway-base, .qp-s-bob, .qp-s-spin, .qp-s-spin-fast, .qp-s-burst,
-  .qp-s-flap, .qp-s-flicker, .qp-s-twitch, .qp-s-glow, .qp-s-wander, .qp-s-wander-back, .qp-s-drift { animation: none; }
+  .qp-s-flap, .qp-s-flicker, .qp-s-twitch, .qp-s-glow, .qp-s-wander, .qp-s-wander-back, .qp-s-roam-x, .qp-s-roam-y, .qp-s-drift { animation: none; }
   .qp-s-fall, .qp-s-rise, .qp-s-snow, .qp-s-lift { display: none; }
 }

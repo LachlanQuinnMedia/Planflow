@@ -179,8 +179,11 @@ const overlapCheck = () => {
     const bg = (sel) => rgb(getComputedStyle(document.querySelector(sel)).backgroundColor)
     const fg = (sel) => rgb(getComputedStyle(document.querySelector(sel)).color)
     const bar = document.querySelector('.qp-topbar')
+    // The toolbars are a little see-through, so what the eye sees is their colour over the page
+    const alpha = (sel) => { ctx.clearRect(0, 0, 1, 1); ctx.fillStyle = '#000'; ctx.fillStyle = getComputedStyle(document.querySelector(sel)).backgroundColor; ctx.fillRect(0, 0, 1, 1); return ctx.getImageData(0, 0, 1, 1).data[3] / 255 }
+    const seen = (sel) => { const a = alpha(sel), top = bg(sel), under = bg('.qp-app'); return top.map((v, i) => Math.round(v * a + under[i] * (1 - a))) }
     return {
-      page: bg('.qp-app'), side: bg('.qp-sidebar'), bar: bg('.qp-topbar'), title: fg('.qp-topbar .truncate'), help: fg('[data-tour=help-button]'),
+      page: bg('.qp-app'), side: seen('.qp-sidebar'), bar: seen('.qp-topbar'), glass: [alpha('.qp-sidebar'), alpha('.qp-topbar')], title: fg('.qp-topbar .truncate'), help: fg('[data-tour=help-button]'),
       cta: bg('.qp-topbar-cta'), ctaText: fg('.qp-topbar-cta'), chip: fg('.qp-topbar-chip'), line: rgb(getComputedStyle(bar).borderBottomColor), lineWidth: getComputedStyle(bar).borderBottomWidth,
       barH: bar.getBoundingClientRect().height, card: bg('[data-tour=dash-stats] > *'), body: rgb(getComputedStyle(document.body).backgroundColor),
       // the menu down the left: every kind of text on it, and what it sits on
@@ -223,6 +226,7 @@ const overlapCheck = () => {
     assert.equal(c.lineWidth, '1px', `${id}: the line under the top bar is thin`)
     assert.ok(dist(c.line, c.bar) > 12 && dist(c.line, c.bar) < 110 && sat(c.line) <= sat(c.bar) + 6, `${id}: the line under the top bar is quiet, not a coloured trim: ${c.line} on ${c.bar}`)
     assert.equal(c.barH, 48, `${id}: the top bar keeps its height`)
+    assert.ok(c.glass.every(a => a >= 0.76 && a <= 0.92), `${id}: the toolbars are a little see-through, not solid and not faint: ${c.glass}`)
     assert.ok(sat(c.bar) <= 135, `${id}: the bar colour is relaxed, not loud (${sat(c.bar)}): ${c.bar}`)
     assert.deepEqual(c.body, c.page, `${id}: nothing shows a different colour behind the app`)
     // The menu down the left is the same colour as the top bar, with the same trim, level with it
@@ -258,13 +262,13 @@ const overlapCheck = () => {
   // No two seasons share a top bar, and no two share the pair of page and bar
   for (let i = 0; i < ALL.length; i++) for (let j = i + 1; j < ALL.length; j++) {
     const a = got[ALL[i]], b = got[ALL[j]]
-    assert.ok(dist(a.bar, b.bar) > 28, `${ALL[i]} and ${ALL[j]} have top bars too alike: ${a.bar} ${b.bar}`)
+    assert.ok(dist(a.bar, b.bar) > 24, `${ALL[i]} and ${ALL[j]} have top bars too alike: ${a.bar} ${b.bar}`)
     assert.ok(dist(a.bar, b.bar) + dist(a.page, b.page) + dist(a.side, b.side) > 45, `${ALL[i]} and ${ALL[j]} look too alike`)
   }
   // What he asked for by name
   const hue = ([r, g, b]) => { const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn || 1; let h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return (h * 60 + 360) % 360 }
   const w = got.womens; assert.ok(w.page[0] > w.page[1] + 4 && w.page[0] > w.page[2], `Women's Day page is light pink: ${w.page}`); assert.ok(hue(w.bar) > 300 || hue(w.bar) < 10, `Women's Day bar is pink: ${w.bar}`)
-  const x = got.christmas; assert.ok(x.page[1] >= x.page[0] && x.page[1] >= x.page[2], `Christmas page is a frosted white, not orange: ${x.page}`); assert.ok(x.bar[0] > 90 && x.bar[1] < 60 && x.bar[2] < 70 && x.bar[0] < 150 && x.bar[0] > x.bar[1] + 45, `Christmas bar is a deep maroon: ${x.bar}`); assert.deepEqual(x.side, x.bar, 'Christmas menu is the same maroon as the bar')
+  const x = got.christmas; assert.ok(x.page[1] >= x.page[0] && x.page[1] >= x.page[2], `Christmas page is a frosted white, not orange: ${x.page}`); assert.ok(x.bar[0] > 90 && x.bar[1] < 80 && x.bar[2] < 95 && x.bar[0] < 150 && x.bar[0] > x.bar[1] + 40, `Christmas bar is a deep maroon: ${x.bar}`); assert.deepEqual(x.side, x.bar, 'Christmas menu is the same maroon as the bar')
   const hw = got.halloween; assert.ok(lum(hw.page) < 0.02 && sat(hw.page) < 12, `Halloween page is black: ${hw.page}`); assert.ok(hue(hw.bar) > 15 && hue(hw.bar) < 45 && sat(hw.bar) > 70, `Halloween bar is orange: ${hw.bar}`)
   console.log('5 colour coding: 13 seasons, each with its own page and frame; the menu matches the top bar; all text on both readable')
   console.log('   ' + ALL.map(id => `${id} bar rgb(${got[id].bar}) page rgb(${got[id].page})`).join('\n   '))
@@ -290,6 +294,7 @@ const overlapCheck = () => {
     await page.waitForSelector('[data-tour=dash-stats]')
     const c = await read(page)
     assert.deepEqual(c.bar, c.side, `${theme}: top bar and menu are the same plain colour`)
+    assert.deepEqual(c.glass, [1, 1], `${theme}: the plain themes keep solid bars`)
     if (theme === 'light') { assert.deepEqual(c.bar, [255, 255, 255]); assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('.qp-topbar')).borderBottomWidth), '1px') }
     assert.ok(Number(c.menu.sectionWeight) >= 700 && ratio(c.menu.section, c.side) >= 7, `${theme}: Main, Tools and Settings stand out`)
     await browser.close()

@@ -57,19 +57,23 @@ const GOLD = [0.82, 0.14, 85] // the dot in the logo
 //   shade     what wells and hovers are tinted with. It is the opposite of the text (black under
 //             white text, white under dark text), so a well always makes its text easier to read.
 //   dot       the dot in the logo: gold if it shows on the bar, else the season's trim, else the text colour
-function frame(s, lines, page) {
-  const bar = [s.bar.l, s.bar.c, s.bar.h], line = [s.line.l, s.line.c, s.line.h]
+// The bars are not quite solid: this much of the season's colour, the rest see-through, so the
+// page behind softens them. Everything on the bars is worked out from what the eye then sees.
+const GLASS = 84
+function frame(s, lines, page, pageColour) {
+  const solid = [s.bar.l, s.bar.c, s.bar.h], line = [s.line.l, s.line.c, s.line.h]
+  const bar = mixLab(solid, pageColour, GLASS)
   const dark = [0.21, Math.min(s.bar.c, 0.05), s.bar.h]
   const barText = contrast(WHITE, bar) >= contrast(dark, bar) ? WHITE : dark
   const shade = barText === WHITE ? [0, 0, 0] : WHITE
   const eased = (floor, start) => { for (let p = start; p <= 100; p += 2) { const c = mixLab(barText, bar, p); if (contrast(c, bar) >= floor) return c } return barText }
-  const muted = eased(4.6, 60), soft = eased(6, 78)
+  const muted = eased(5, 60), soft = eased(6.3, 78) // a little above the 4.5 floor: the browser blends the see-through bar slightly differently from this sum
   const well = mixLab(shade, bar, 20), hover = mixLab(shade, bar, 13)
   const dot = contrast(GOLD, bar) >= 1.9 ? GOLD : contrast(line, bar) >= 1.9 ? line : barText
   // The little season picture beside the logo was drawn for a pale background. On a pale bar it gets a white disc behind it.
   const chip = barText === WHITE ? 'transparent' : 'rgb(255 255 255 / 0.92)'
   lines.push(`  --qp-s-page: ${page};`,
-    `  --qp-s-bar: ${css(bar)};`, `  --qp-s-bar-text: ${css(barText)};`, `  --qp-s-line: ${css(line)};`,
+    `  --qp-s-bar: ${css(bar)};`, `  --qp-s-bar-glass: color-mix(in oklab, ${css(solid)} ${GLASS}%, transparent);`, `  --qp-s-bar-text: ${css(barText)};`, `  --qp-s-line: ${css(line)};`,
     `  --qp-s-side-soft: ${css(soft)};`, `  --qp-s-side-muted: ${css(muted)};`,
     `  --qp-s-side-well: ${css(well)};`, `  --qp-s-side-hover: ${css(hover)};`, `  --qp-s-side-dot: ${css(dot)};`, `  --qp-s-side-chip: ${chip};`)
   need(s.id, 'text on the top bar and menu', contrast(barText, bar))
@@ -95,7 +99,7 @@ for (const s of SEASONS) {
     const page = [0.96, s.page.c, s.page.h]
     const tints = { 50: [0.984, 0.42], 100: [0.964, 0.7], 200: [0.922, 0.85] }
     for (const k of Object.keys(tints)) lines.push(`  --color-gray-${k}: ${css([tints[k][0], s.page.c * tints[k][1], s.page.h])};`)
-    frame(s, lines, css(page))
+    frame(s, lines, css(page), page)
     need(s.id, 'body text on the page', contrast(GRAY_600, page))
     // Small grey labels sit on the page in a few places. They must read as well as in the ordinary light theme.
     need(s.id, 'small labels on the page', contrast(GRAY_500, page), contrast(GRAY_500, PLAIN_PAGE) - 0.15)
@@ -114,7 +118,7 @@ for (const s of SEASONS) {
     for (const k of Object.keys(DARK_MIX)) lines.push(`  --color-emerald-${k}: ${mixOverSurface([0.7, c, h], DARK_MIX[k], 'var(--qp-surface)')};`)
     for (const k of Object.keys(DARK_SOLID)) lines.push(`  --color-emerald-${k}: ${css([DARK_SOLID[k][0], c * DARK_SOLID[k][1], h])};`)
     for (const k of Object.keys(DARK_LIGHT)) lines.push(`  --color-emerald-${k}: ${css([DARK_LIGHT[k][0], c * DARK_LIGHT[k][1], h])};`)
-    frame(s, lines, 'var(--qp-page)')
+    frame(s, lines, 'var(--qp-page)', page)
     const text = [0.78, c, h], hover = [0.47, c * 0.85, h], pressed = [0.41, c * 0.75, h]
     lines.push(`  --qp-accent-text: ${css(text)};`, `  --qp-accent-hover: ${css(hover)};`, `  --qp-accent-pressed: ${css(pressed)};`)
     need(s.id, 'white on a button', contrast(WHITE, [0.54, c, h]))
