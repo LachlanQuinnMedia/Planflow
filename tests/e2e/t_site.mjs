@@ -1,5 +1,5 @@
 // The public website: every page, at every size, with the things search engines need.
-import { open, authState, calls } from './harness.mjs'
+import { open, authState, calls, swipe } from './harness.mjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import { createRequire } from 'node:module'
@@ -122,10 +122,11 @@ for (const name of ['iPhone 13', 'iPhone SE', 'Pixel 7']) {
     assert.equal(m.doc, m.inner, `${name} ${p}: the page is exactly as wide as the screen`)
     assert.equal(m.scale, 1, `${name} ${p}: not zoomed`)
     // drag sideways with a finger
-    const cdp = await context.newCDPSession(page)
-    await cdp.send('Input.synthesizeScrollGesture', { x: 200, y: 400, xDistance: -300, yDistance: 0, speed: 1200, gestureSourceType: 'touch' })
-    await page.waitForTimeout(150)
+    await swipe(page, 300, 400, 60, 400); await swipe(page, 60, 300, 300, 330)
     assert.equal(await page.evaluate(() => Math.round(window.scrollX + visualViewport.offsetLeft)), 0, `${name} ${p}: dragging sideways does not move the page`)
+    // ...and a finger dragged up still scrolls it, so the check above is a real one
+    await page.evaluate(() => window.scrollTo(0, 0)); await swipe(page, 200, 450, 200, 150)
+    assert.ok(await page.evaluate(() => window.scrollY) > 100, `${name} ${p}: the page scrolls up and down`)
     const small = await page.evaluate(() => [...document.querySelectorAll('.qp-site input:not([type=checkbox]):not([type=hidden]), .qp-site select, .qp-site textarea')].filter(e => e.getBoundingClientRect().width > 0 && parseFloat(getComputedStyle(e).fontSize) < 16).length)
     assert.equal(small, 0, `${name} ${p}: text boxes are 16px, so an iPhone does not zoom in on them`)
   }

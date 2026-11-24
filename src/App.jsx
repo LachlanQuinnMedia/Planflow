@@ -1087,7 +1087,7 @@ export default function App() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto py-2">
+        <div className="qp-scroll flex-1 overflow-y-auto py-2">
           {['main', 'tools', 'settings'].map(section => (
             <div key={section} data-tour={`nav-section-${section}`} className="px-2 mb-2">
               <div className="text-xs text-gray-500 uppercase tracking-wider px-2 py-1">{section}</div>
@@ -1192,7 +1192,7 @@ export default function App() {
           <button onClick={() => handleNavigate('newjob')} className="qp-topbar-cta px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex-shrink-0">+ New Job</button>
         </div>
 
-        <div key={refreshKey} className="flex-1 overflow-y-auto p-4 md:p-5">
+        <div key={refreshKey} data-testid="page-scroll" className="qp-scroll flex-1 overflow-y-auto p-4 md:p-5">
           <SeasonStrip />
           <div data-tour="page">
             <PageBoundary resetKey={`${activePage}|${refreshKey}|${selectedJob?.id || ''}`}>

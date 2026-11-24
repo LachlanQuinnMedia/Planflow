@@ -357,21 +357,21 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
           />
         </div>
         <div className="flex gap-2 flex-wrap">
-          <div className="flex flex-col gap-1 flex-1 sm:flex-none">
+          <div className="flex flex-col gap-1 flex-1 min-w-0 sm:flex-none">
             <label className="text-xs text-gray-500 font-medium px-1">Type</label>
             <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white">
               <option value="All">All</option>
               {APP_TYPES.map(t => <option key={t.code} value={t.code}>{t.code} · {t.label}</option>)}
             </select>
           </div>
-          <div className="flex flex-col gap-1 flex-1 sm:flex-none">
+          <div className="flex flex-col gap-1 flex-1 min-w-0 sm:flex-none">
             <label className="text-xs text-gray-500 font-medium px-1">Planner</label>
             <select value={plannerFilter} onChange={e => setPlannerFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white">
               <option value="All">All</option>
               {uniquePlanners.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
-          <div className="flex flex-col gap-1 flex-1 sm:flex-none">
+          <div className="flex flex-col gap-1 flex-1 min-w-0 sm:flex-none">
             <label className="text-xs text-gray-500 font-medium px-1">Status</label>
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white">
               <option value="All">All</option>

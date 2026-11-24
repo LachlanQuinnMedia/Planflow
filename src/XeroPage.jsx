@@ -271,8 +271,8 @@ export default function Xero({ currentUser }) {
     <div>
       {selectedInvoice && <InvoiceDetailModal invoice={selectedInvoice} onClose={() => setSelectedInvoice(null)} />}
 
-      <div data-tour="xero-main" className="bg-white rounded-xl border border-gray-200 p-4 mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div data-tour="xero-main" className="bg-white rounded-xl border border-gray-200 p-4 mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
             <span className="text-white text-sm font-bold">x</span>
           </div>
@@ -282,7 +282,7 @@ export default function Xero({ currentUser }) {
           </div>
           <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">● Live</span>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 ml-auto">
           <button onClick={fetchInvoices} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Sync</button>
           <button onClick={handleDisconnect} className="px-3 py-1.5 text-xs text-red-500 border border-red-100 rounded-lg hover:bg-red-50">Disconnect</button>
         </div>

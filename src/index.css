@@ -256,6 +256,27 @@ html[data-season] body { background-color: var(--qp-s-page); }
    instead of squashing the columns into each other. */
 :where(*):has(> .qp-row) {
   overflow-x: auto;
+  overscroll-behavior-x: contain; /* reaching the end of a table does not tug the page */
+}
+
+/* The app fills the screen and never moves as a whole: only the page area inside it scrolls.
+   (The website, the login screen and a client's job summary are ordinary scrolling pages,
+   so this only applies while the app itself is on screen.)
+   Without it a phone can drag the whole app down with the browser's pull-to-refresh, or leave
+   it scrolled part way with the top bar off the screen. The refresh button in the top bar
+   does what pulling down used to. */
+html:has(.qp-app) { height: 100%; overflow: hidden; overscroll-behavior: none; }
+html:has(.qp-app) body { position: fixed; inset: 0; overflow: hidden; overscroll-behavior: none; }
+html:has(.qp-app) #root, html:has(.qp-app) .qp-app { height: 100%; }
+
+/* The page area and the menu scroll up and down only. A little bounce at the top and bottom
+   is fine. Sideways there is nowhere to go. */
+.qp-scroll { overflow-x: hidden; overscroll-behavior-y: contain; overscroll-behavior-x: none; -webkit-overflow-scrolling: touch; }
+
+/* On phones a row of drop-downs or text boxes shrinks to fit. iPhones give these a minimum
+   width of their own, which pushed the last one off the edge. */
+@media (max-width: 1023px) {
+  .qp-app select, .qp-app input:not([type="checkbox"]):not([type="radio"]), .qp-app textarea { min-width: 0; max-width: 100%; }
 }
 
 /* Nothing is ever wider than the screen, so a phone cannot drag the page sideways.

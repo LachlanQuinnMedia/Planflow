@@ -313,3 +313,17 @@ export async function open(pathname = '/', { loggedIn = true, viewport = { width
 
 export const shot = (page, name, opts = {}) => page.screenshot({ path: `${OUT}/${name}.png`, ...opts })
 export { OUT, ME }
+
+// A finger dragged across the screen, from one point to another (real touch events, so the
+// browser scrolls, pans or refuses exactly as it would for a person). Needs a touch device context.
+export async function swipe(page, x1, y1, x2, y2) {
+  const cdp = await page.context().newCDPSession(page)
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: x1, y: y1 }] })
+  for (let i = 1; i <= 12; i++) {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x1 + (x2 - x1) * i / 12, y: y1 + (y2 - y1) * i / 12 }] })
+    await page.waitForTimeout(16)
+  }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+  await cdp.detach()
+  await page.waitForTimeout(350)
+}
