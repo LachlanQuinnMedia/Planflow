@@ -104,3 +104,34 @@ export function jobSearchText(job) {
     job.client_first_name, job.client_last_name, job.address, job.planner,
   ].map(clean).filter(Boolean).join(' ').toLowerCase()
 }
+
+// ------------------------------------------------------------------
+// Planning zones
+// ------------------------------------------------------------------
+// The zones a Queensland planning scheme may use: Planning Regulation 2017, schedule 2
+// (checked against the version in force 20 March 2026). Stored on the job without the
+// word "zone", in the regulation's own wording. Kept in alphabetical order.
+//
+// Older schemes, priority development areas and zone precincts use other names, so the
+// New Job and Edit forms also offer "Other" with a box to type one in.
+export const QLD_ZONES = [
+  'Centre', 'Character residential', 'Community facilities', 'Conservation', 'District centre',
+  'Emerging community', 'Environmental management', 'Environmental management and conservation',
+  'Extractive industry', 'General residential', 'High density residential', 'High impact industry',
+  'Industry', 'Industry investigation', 'Innovation', 'Limited development', 'Local centre',
+  'Low density residential', 'Low impact industry', 'Low-medium density residential', 'Major centre',
+  'Major tourism', 'Medium density residential', 'Medium impact industry', 'Minor tourism', 'Mixed use',
+  'Neighbourhood centre', 'Open space', 'Principal centre', 'Recreation and open space',
+  'Research and technology industry', 'Rural', 'Rural residential', 'Special industry', 'Special purpose',
+  'Specialised centre', 'Sport and recreation', 'Tourism', 'Tourist accommodation', 'Township',
+  'Waterfront and marine industry',
+]
+
+const zoneKey = (s) => clean(s).toLowerCase().replace(/[‐-―]/g, '-').replace(/\s*-\s*/g, '-').replace(/\bzone\b/g, '').replace(/\s+/g, ' ').trim()
+const ZONE_BY_KEY = new Map(QLD_ZONES.map(z => [zoneKey(z), z]))
+
+// The standard zone a piece of typed text means ("Medium Density Residential Zone" ->
+// "Medium density residential"), or '' when it is not one of the standard zones.
+export function standardZone(text) {
+  return ZONE_BY_KEY.get(zoneKey(text)) || ''
+}

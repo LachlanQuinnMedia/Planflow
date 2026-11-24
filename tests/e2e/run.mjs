@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url'
 
 const here = fileURLToPath(new URL('.', import.meta.url))
 const root = fileURLToPath(new URL('../..', import.meta.url))
-const ALL = ['t_auth', 't_site', 't_misc', 't_jobdetail', 't_ms365', 't_docs', 't_newjob', 't_newjob_folder', 't_newjob_docs',
+const ALL = ['t_auth', 't_site', 't_misc', 't_jobdetail', 't_ms365', 't_docs', 't_newjob', 't_zone', 't_newjob_folder', 't_newjob_docs',
   't_timer_summary', 't_edge', 't_calendar', 't_outlook', 't_dark', 't_dark2', 't_sizes', 't_select', 't_logo', 't_refresh',
   't_master', 't_firms', 't_import', 't_reliability', 't_daily', 't_digest', 't_devices', 't_cal2', 't_tour', 't_seasons', 't_theme_flash']
 const ARGS = { t_theme_flash: ['strict'] }

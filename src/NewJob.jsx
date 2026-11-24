@@ -3,9 +3,10 @@ import { notify } from './notify'
 import { supabase } from './supabase'
 import { generateFromTemplate, buildFromTemplate } from './templateFiller'
 import { saveDocToJob } from './jobDocs'
-import { APP_TYPES, buildJobName, jobTitle, oneDriveFolderName } from './jobMeta'
+import { APP_TYPES, buildJobName, jobTitle, oneDriveFolderName, standardZone } from './jobMeta'
 import { callGraph, OneDriveFolderPicker } from './OneDriveBrowser'
 import { useFirm, templateFileName } from './firm'
+import ZoneField from './ZoneField'
 
 const COUNCILS = [
   'Balina Shire Council', 'Banana Shire Council', 'Brisbane City Council',
@@ -316,7 +317,7 @@ export default function NewJob({ onNavigate, currentUser }) {
       client_company: isCompany ? form.company.trim() : null,
       client_first_name: form.firstName.trim(), client_last_name: form.lastName.trim() || null,
       client_email: form.email.trim() || null, client_phone: form.phone.trim() || null,
-      council: form.council, zone: form.zone,
+      council: form.council, zone: standardZone(form.zone) || form.zone.trim(),
       app_type: form.appType,
       assessment_level: form.assessment,
       proposed_use: form.proposedUse, referral_agencies: form.referrals,
@@ -538,8 +539,8 @@ export default function NewJob({ onNavigate, currentUser }) {
               {COUNCILS.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
-          <div><label className="text-xs text-gray-600 mb-1 block">Planning zone</label>
-            <input value={form.zone} onChange={e => update('zone', e.target.value)} placeholder="Medium Density Residential" className={inputClass} /></div>
+          <div><label htmlFor="job-zone" className="text-xs text-gray-600 mb-1 block">Planning zone</label>
+            <ZoneField value={form.zone} onChange={v => update('zone', v)} className={inputClass} /></div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
           <div><label className="text-xs text-gray-600 mb-1 block">Proposed use</label>

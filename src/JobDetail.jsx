@@ -6,9 +6,10 @@ import { saveDocToJob } from './jobDocs'
 import { useFirm, initialStageState, mergeStageState, templateFileName } from './firm'
 import { DA_STAGES } from './daStages'
 import OneDriveBrowser, { OneDriveFolderPicker } from './OneDriveBrowser'
-import { APP_TYPES, appTypeBadge, appTypeFull, buildJobName, clientName, contactName, isCompanyClient, jobTitle } from './jobMeta'
+import { APP_TYPES, appTypeBadge, appTypeFull, buildJobName, clientName, contactName, isCompanyClient, jobTitle, standardZone } from './jobMeta'
 import { addBusinessDays, deadlineStatus, skippedHolidays, beyondHolidayData, hasShowHoliday, stageDayRules } from './businessDays'
 import { IconPencil, IconFolder } from './icons'
+import ZoneField from './ZoneField'
 
 // Today's date as YYYY-MM-DD in Brisbane time (not UTC)
 function todayLocal() {
@@ -461,7 +462,7 @@ function EditJobModal({ job, currentUser, onClose, onSaved }) {
       client_first_name: firstName, client_last_name: lastName || null,
       client_email: (form.email || '').trim() || null, client_phone: (form.phone || '').trim() || null,
       address: form.address.trim(), lot_reference: form.lot,
-      council: form.council, zone: form.zone,
+      council: form.council, zone: standardZone(form.zone) || String(form.zone || '').trim(),
       app_type: form.appType, assessment_level: form.assessment,
       proposed_use: form.proposedUse, referral_agencies: form.referrals,
       planner: leadPlanner, planners: selectedPlanners,
@@ -538,8 +539,8 @@ function EditJobModal({ job, currentUser, onClose, onSaved }) {
                 <select value={form.council} onChange={e => set('council', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400">
                   {COUNCILS.map(c => <option key={c} value={c}>{c}</option>)}
                 </select></div>
-              <div><label className="text-xs text-gray-600 mb-1 block">Planning zone</label>
-                <input value={form.zone} onChange={e => set('zone', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
+              <div><label htmlFor="edit-job-zone" className="text-xs text-gray-600 mb-1 block">Planning zone</label>
+                <ZoneField id="edit-job-zone" value={form.zone} onChange={v => set('zone', v)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
               <div><label className="text-xs text-gray-600 mb-1 block">Proposed use</label>
                 <input value={form.proposedUse} onChange={e => set('proposedUse', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400" /></div>
               <div className="col-span-2"><label className="text-xs text-gray-600 mb-1 block">Referral agencies</label>
