@@ -461,11 +461,25 @@ html[data-app] #root > .qp-site { display: none; }
   15% { opacity: 0.9; }
   100% { transform: translate3d(var(--qp-drift, 12px), -90vh, 0) scale(1); opacity: 0; }
 }
+/* Slow, gentle motion for the Dashboard banner pictures: lights that glow and dim, snow and
+   petals that fall inside the picture, things that wander, clouds that drift */
+.qp-s-glow { animation: qp-s-glow 7s ease-in-out infinite; }
+@keyframes qp-s-glow { 0%, 100% { opacity: 1; } 50% { opacity: 0.28; } }
+.qp-s-snow { animation: qp-s-snow 11s linear infinite; }
+@keyframes qp-s-snow { from { transform: translate(0, -8px); } to { transform: translate(var(--dx, 8px), 124px); } }
+.qp-s-wander { animation: qp-s-wander 18s ease-in-out infinite; }
+@keyframes qp-s-wander { 0%, 100% { transform: translate(0, 0); } 20% { transform: translate(20px, -9px); } 45% { transform: translate(44px, 4px); } 70% { transform: translate(18px, 11px); } 85% { transform: translate(-7px, 4px); } }
+.qp-s-wander-back { animation: qp-s-wander-back 23s ease-in-out infinite; }
+@keyframes qp-s-wander-back { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(-22px, 8px); } 50% { transform: translate(-40px, -6px); } 75% { transform: translate(-12px, -12px); } }
+.qp-s-drift { animation: qp-s-drift 28s ease-in-out infinite alternate; }
+@keyframes qp-s-drift { from { transform: translateX(-9px); } to { transform: translateX(15px); } }
+.qp-s-lift { animation: qp-s-lift 12s ease-in infinite; }
+@keyframes qp-s-lift { 0% { transform: translate(0, 12px); opacity: 0; } 15% { opacity: 0.9; } 100% { transform: translate(var(--dx, 6px), -104px); opacity: 0; } }
 /* The strip across the top of each page is a still drawing. It is one large picture, and
    keeping it still means the browser draws it once and never again. */
 [data-testid="season-strip"] * { animation: none !important; }
 @media (prefers-reduced-motion: reduce) {
   .qp-s-twinkle, .qp-s-sway, .qp-s-sway-base, .qp-s-bob, .qp-s-spin, .qp-s-spin-fast, .qp-s-burst,
-  .qp-s-flap, .qp-s-flicker, .qp-s-twitch { animation: none; }
-  .qp-s-fall, .qp-s-rise { display: none; }
+  .qp-s-flap, .qp-s-flicker, .qp-s-twitch, .qp-s-glow, .qp-s-wander, .qp-s-wander-back, .qp-s-drift { animation: none; }
+  .qp-s-fall, .qp-s-rise, .qp-s-snow, .qp-s-lift { display: none; }
 }

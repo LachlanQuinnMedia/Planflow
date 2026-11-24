@@ -18,9 +18,19 @@ const range = (n) => Array.from({ length: n }, (_, i) => i)
 // ------------------------------------------------------------------
 export const Cloud = ({ x, y, s = 1, fill = '#fff', opacity = 0.9 }) => (
   <g transform={`translate(${x} ${y}) scale(${s})`} fill={fill} opacity={opacity}>
-    <circle cx="10" cy="10" r="8" /><circle cx="22" cy="7" r="10" /><circle cx="35" cy="11" r="7" /><rect x="6" y="10" width="34" height="8" rx="4" />
+    <g className="qp-s-drift" style={{ animationDuration: `${22 + (Math.round(x) % 7) * 3}s`, animationDelay: `-${Math.round(x) % 11}s` }}>
+      <circle cx="10" cy="10" r="8" /><circle cx="22" cy="7" r="10" /><circle cx="35" cy="11" r="7" /><rect x="6" y="10" width="34" height="8" rx="4" />
+    </g>
   </g>
 )
+// Things that fall through a banner picture: snow, or petals. Each has its own speed and drift.
+const Falling = ({ n = 16, fill = '#fff', stroke = 'none', petal = false, min = 1.2 }) => range(n).map(i => {
+  const style = { animationDuration: `${9 + ((i * 37) % 8)}s`, animationDelay: `-${((i * 2.7) % 11).toFixed(1)}s`, '--dx': `${(i % 2 ? 1 : -1) * (4 + (i % 5) * 3)}px` }
+  const x = (i * 61 + 17) % 480
+  return petal
+    ? <ellipse key={i} className="qp-s-snow" style={style} cx={x} cy="0" rx={min + (i % 3) * 0.4} ry={(min + (i % 3) * 0.4) * 1.6} fill={fill} />
+    : <circle key={i} className="qp-s-snow" style={style} cx={x} cy="0" r={min + (i % 3) * 0.5} fill={fill} stroke={stroke} strokeWidth="0.3" />
+})
 export const Sparkle = ({ x, y, s = 1, fill = '#f6d77a', className = 'qp-s-twinkle', delay = 0 }) => (
   <path className={className} style={{ animationDelay: `${delay}s` }} transform={`translate(${x} ${y}) scale(${s})`} fill={fill}
     d="M0 -6C.7 -1.6 1.6 -.7 6 0 1.6 .7 .7 1.6 0 6-.7 1.6-1.6 .7-6 0-1.6-.7-.7-1.6 0-6z" />
@@ -180,7 +190,7 @@ const SCENES = {
       {/* a string of lights along the top */}
       <path d="M150 0Q200 20 250 6T350 6T450 6T480 4" fill="none" stroke="#5a7a6a" strokeWidth="0.9" />
       {[[168, 9, '#e24b4b'], [190, 13, '#f6c945'], [214, 12, '#4fb07a'], [238, 8, '#5aa7e0'], [264, 9, '#e24b4b'], [290, 12, '#f6c945'], [316, 11, '#4fb07a'], [340, 7, '#5aa7e0'], [366, 9, '#e24b4b'], [392, 12, '#f6c945'], [418, 11, '#4fb07a'], [442, 7, '#5aa7e0'], [466, 8, '#e24b4b']].map(([x, y, c], i) => (
-        <g key={x} className="qp-s-twinkle" style={{ animationDelay: `${(i % 5) * 0.45}s` }}><rect x={x - 1} y={y - 2.500} width="2" height="2" fill="#5a7a6a" /><ellipse cx={x} cy={y + 1.800} rx="2.200" ry="3" fill={c} /></g>
+        <g key={x}><rect x={x - 1} y={y - 2.500} width="2" height="2" fill="#5a7a6a" /><ellipse className="qp-s-glow" style={{ animationDuration: `${5.5 + ((i * 1.9) % 4.7)}s`, animationDelay: `-${((i * 3.1) % 8).toFixed(1)}s` }} cx={x} cy={y + 1.800} rx="2.200" ry="3" fill={c} /></g>
       ))}
       {/* snowman */}
       <ellipse cx="262" cy="100" rx="17" ry="3" fill="#cfdfea" />
@@ -203,7 +213,7 @@ const SCENES = {
       ))}
       <path d="M340 52q20 9 40-1M334 68q26 10 52-1M327 84q33 11 66-1" fill="none" stroke="#f0c75e" strokeWidth="1.500" strokeLinecap="round" />
       {[[350, 34, '#e24b4b'], [369, 38, '#f6c945'], [344, 50, '#5aa7e0'], [362, 54, '#e24b4b'], [377, 50, '#f6c945'], [338, 66, '#f6c945'], [354, 71, '#e24b4b'], [370, 72, '#5aa7e0'], [384, 66, '#e24b4b'], [334, 82, '#e24b4b'], [350, 87, '#5aa7e0'], [367, 88, '#f6c945'], [383, 85, '#e24b4b']].map(([x, y, c], i) => (
-        <g key={`${x}${y}`}><circle className="qp-s-twinkle" style={{ animationDelay: `${(i % 4) * 0.5}s` }} cx={x} cy={y} r="3" fill={c} /><circle cx={x - 0.9} cy={y - 0.9} r="0.9" fill="#fff" opacity="0.7" /></g>
+        <g key={`${x}${y}`}><circle cx={x} cy={y} r="3" fill="#0f4f31" /><g className="qp-s-glow" style={{ animationDuration: `${6 + ((i * 2.3) % 6)}s`, animationDelay: `-${((i * 4.3) % 11).toFixed(1)}s` }}><circle cx={x} cy={y} r="3" fill={c} /><circle cx={x - 0.9} cy={y - 0.9} r="0.9" fill="#fff" opacity="0.7" /></g></g>
       ))}
       <Star5 x={360} y={15} s={0.95} />
       {/* presents */}
@@ -211,7 +221,7 @@ const SCENES = {
       <rect x="428" y="86" width="17" height="14" rx="2" fill="#2f9b79" /><rect x="435" y="86" width="3.500" height="14" fill="#fff" /><path d="M436.700 86c-5-5-8-1-3 0zM436.700 86c5-5 8-1 3 0z" fill="#fff" />
       <rect x="449" y="90" width="13" height="10" rx="1.500" fill="#f0b840" /><rect x="454" y="90" width="3" height="10" fill="#d6362f" />
       <path d="M390 100V86a4 4 0 0 1 8 0" fill="none" stroke="#fff" strokeWidth="3.200" strokeLinecap="round" /><path d="M390 100V86a4 4 0 0 1 8 0" fill="none" stroke="#d6362f" strokeWidth="3.200" strokeLinecap="round" strokeDasharray="3 3.500" />
-      {[[30, 20], [70, 40], [110, 14], [160, 34], [210, 22], [228, 52], [300, 36], [318, 60], [410, 40], [440, 56], [470, 30], [296, 84]].map(([x, y], i) => <circle key={`${x}${y}`} className="qp-s-twinkle" style={{ animationDelay: `${(i % 6) * 0.4}s` }} cx={x} cy={y} r={1.200 + (i % 3) * 0.5} fill="#fff" />)}
+      <Falling n={22} fill="#fff" stroke="#c9dbe8" />
     </>
   ),
 
@@ -305,6 +315,7 @@ const SCENES = {
       </g>
       {/* mandarins */}
       {[[452, 98, 8], [438, 101, 6.500], [466, 102, 6]].map(([x, y, r]) => <g key={x}><circle cx={x} cy={y} r={r} fill="#f39a2e" /><circle cx={x - r * 0.3} cy={y - r * 0.3} r={r * 0.3} fill="#ffc46b" opacity="0.7" /><path d={`M${x} ${y - r}q4-4 7-1-3 3-7 1z`} fill="#4f9a4a" /></g>)}
+      <Falling n={10} petal fill="#f6a5c0" min={1.4} />
     </>
   ),
 
@@ -330,6 +341,7 @@ const SCENES = {
         <g key={`${x}${y}`} className="qp-s-twinkle" style={{ animationDelay: `${d}s` }}><Heart x={x} y={y} s={s} fill={c} /></g>
       ))}
       <Sparkle x={300} y={50} s={0.7} fill="#fff" /><Sparkle x={428} y={50} s={0.6} fill="#fff" delay={0.9} /><Sparkle x={96} y={40} s={0.6} fill="#fff" delay={0.5} />
+      <Falling n={9} petal fill="#f4a9cb" min={1.3} />
     </>
   ),
 
@@ -584,8 +596,9 @@ const SCENES = {
       <g stroke="#120a24" strokeLinecap="round" fill="none"><path d="M120 90Q118 66 124 46" strokeWidth="4" /><path d="M123 62q-12-6-16-18M124 54q12-6 14-20M122 70q10 0 18-8M108 46l-6-6M106 50l-8 2M138 36l6-8M136 40l10 0M140 62l8-2" strokeWidth="1.800" /></g>
       {[[156, 92], [172, 96]].map(([x, y]) => <g key={x}><path d={`M${x - 6} ${y}v-9a6 6 0 0 1 12 0v9z`} fill="#4a3a6b" /><path d={`M${x - 2.500} ${y - 8}h5M${x} ${y - 10.500}v6`} stroke="#2a1a45" strokeWidth="1" /></g>)}
       {/* ghosts and bats */}
-      <Ghost x={78} y={62} s={1.400} /><Ghost x={286} y={58} s={1} delay={1.200} />
-      <Bat x={250} y={22} s={1.200} /><Bat x={318} y={62} s={0.9} fill="#8f7cc4" delay={0.2} /><Bat x={150} y={24} s={0.8} fill="#8f7cc4" delay={0.35} /><Bat x={440} y={70} s={0.7} delay={0.15} />
+      <g className="qp-s-wander"><Ghost x={66} y={60} s={1.400} /></g><g className="qp-s-wander-back" style={{ animationDelay: '-6s' }}><Ghost x={298} y={56} s={1} delay={1.200} /></g>
+      <g className="qp-s-wander-back" style={{ animationDuration: '15s' }}><Bat x={262} y={24} s={1.200} /></g><g className="qp-s-wander" style={{ animationDuration: '13s', animationDelay: '-4s' }}><Bat x={300} y={62} s={0.9} fill="#8f7cc4" delay={0.2} /></g>
+      <g className="qp-s-wander" style={{ animationDuration: '21s', animationDelay: '-9s' }}><Bat x={140} y={22} s={0.8} fill="#8f7cc4" delay={0.35} /></g><g className="qp-s-wander-back" style={{ animationDuration: '17s', animationDelay: '-3s' }}><Bat x={446} y={68} s={0.7} delay={0.15} /></g>
       {/* pumpkins */}
       <circle cx="398" cy="88" r="40" fill={`url(#${u}glow)`} />
       <ellipse cx="398" cy="105" rx="60" ry="3.500" fill="#120a24" opacity="0.6" />

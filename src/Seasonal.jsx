@@ -2,7 +2,7 @@
 // The pictures for the Seasonal theme. One set per season in seasons.js.
 //
 // Four places show them, and none of them can cover text:
-//   SeasonStrip      a picture across the top of the page. It has its own row. (Drawings: seasonStrips.jsx)
+//   SeasonStrip      a picture across the top of the page. Switched off for now (see STRIP_ON below).
 //   SeasonBanner     a card at the top of the Dashboard with the season's scene. (Drawings: seasonArt.jsx)
 //   SeasonSticker    a small picture beside the logo, in space that was empty.
 //   SeasonParticles  snow, petals or sparkles drifting BEHIND the page, so cards and text sit over them.
@@ -45,19 +45,18 @@ const Football = (p) => (
     </g>
   </G>
 )
-// Lunar New Year: lucky bamboo, three stalks tied with a red ribbon
-const LuckyBamboo = (p) => (
+// Lunar New Year: a firecracker, fuse lit
+const Firecracker = (p) => (
   <G {...p}>
-    <path d="M10.600 4.200C8.200 1.600 5.400 1.600 3.600 3.200c2.400.1 4.800.5 7 1zM13.600 3C15.500 .7 18.200 .5 20.200 2c-2.300.1-4.500.4-6.600 1zM17.200 8.200c1.300-2 3.500-2.500 5.300-1.500-1.800.3-3.600.8-5.300 1.500zM7.400 8.600C6 6.800 4 6.500 2.400 7.500c1.700.2 3.400.6 5 1.100z" fill="#7cc47f" />
-    {[[6.400, 8.200], [10.700, 3.600], [15, 7.200]].map(([x, top]) => (
-      <g key={x}>
-        <rect x={x} y={top} width="2.900" height={19.4 - top} rx="1.200" fill="#58a85c" />
-        <rect x={x + 0.5} y={top + 0.6} width="0.800" height={18.4 - top} rx="0.4" fill="#8fd18a" opacity="0.8" />
-        {[top + 3.4, top + 6.8, top + 10.2].filter(y => y < 13.2).map(y => <path key={y} d={`M${x} ${y}h2.900`} stroke="#3d8747" strokeWidth="0.8" />)}
-      </g>
-    ))}
-    <rect x="5.200" y="13.600" width="13.900" height="2.800" rx="0.9" fill="#d6362f" /><circle cx="12.100" cy="15" r="1.500" fill="#f0b840" />
-    <path d="M5.600 19.200h13l-1.400 4.300H7z" fill="#c8322b" /><path d="M6 20.600h12.200" stroke="#f0b840" strokeWidth="0.9" />
+    <g transform="rotate(32 12 13)">
+      <path d="M12 7.200C12 5.400 13 4.600 12.700 3" fill="none" stroke="#b8862b" strokeWidth="1.100" strokeLinecap="round" />
+      <path d="M12.700 -1.600l.9 2.300 2.300.9-2.300.9-.9 2.300-.9-2.300-2.300-.9 2.300-.9z" fill="#f6d77a" />
+      <circle cx="16.200" cy="3.600" r="0.700" fill="#f6d77a" /><circle cx="9.400" cy="3.800" r="0.600" fill="#fff" />
+      <rect x="7.800" y="7" width="8.400" height="15.500" rx="1.500" fill="#d6362f" />
+      <path d="M9.600 11.600v6" stroke="#f08a80" strokeWidth="1.100" strokeLinecap="round" />
+      <rect x="7.800" y="8.500" width="8.400" height="2.300" fill="#f0b840" /><rect x="7.800" y="18.700" width="8.400" height="2.300" fill="#f0b840" />
+      <path d="M12.400 12.300l1.900 2.400-1.900 2.400-1.900-2.400z" fill="#f0b840" />
+    </g>
   </G>
 )
 // International Women's Day: a pink awareness ribbon
@@ -166,9 +165,13 @@ const TreeAndPresents = (p) => (
 // ------------------------------------------------------------------
 // The strip across the top of the page. It has a row to itself, so it never sits on text.
 // ------------------------------------------------------------------
+// Switched off on 24 November 2026: Quinn wants proper illustrations here, not drawings made
+// in code. The drawings are still in seasonStrips.jsx. Set this to true to show them again.
+const STRIP_ON = false
+
 export function SeasonStrip() {
   const season = useSeason()
-  if (!season) return null
+  if (!season || !STRIP_ON) return null
   return (
     <div aria-hidden="true" data-testid="season-strip" className="-mx-4 md:-mx-5 -mt-4 md:-mt-5 mb-3 h-9 overflow-hidden pointer-events-none select-none">
       <Suspense fallback={null}><SeasonFrieze seasonId={season.id} /></Suspense>
@@ -181,7 +184,7 @@ export function SeasonStrip() {
 // ------------------------------------------------------------------
 // What each season shows beside the logo. Quinn chose these, one by one.
 const STICKERS = {
-  newyear: ['champagne', <Champagne key="s" />], superbowl: ['american football', <Football key="s" />], lunar: ['lucky bamboo', <LuckyBamboo key="s" />],
+  newyear: ['champagne', <Champagne key="s" />], superbowl: ['american football', <Football key="s" />], lunar: ['firecracker', <Firecracker key="s" />],
   womens: ['pink ribbon', <PinkRibbon key="s" />], easter: ['painted egg', <PaintedEgg key="s" />], labour: ['hard hat', <HardHat key="s" />],
   environment: ['leaf', <Leaf key="s" />], tour: ['mountain', <Mountain key="s" />], ekka: ['ferris wheel', <FerrisWheel key="s" />],
   footy: ['rugby ball', <RugbyBall key="s" />], halloween: ['jack-o-lantern', <Pumpkin key="s" />], remembrance: ['poppy', <Poppy key="s" />],

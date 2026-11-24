@@ -35,9 +35,10 @@ const attrs = (page) => page.evaluate(() => ({ theme: document.documentElement.d
   await page.getByRole('radio', { name: 'Seasonal' }).click(); await page.waitForTimeout(300)
   assert.deepEqual(await attrs(page), { theme: 'light', season: 'christmas' })
   assert.equal((await page.getByTestId('season-greeting').innerText()).trim(), 'Merry Christmas')
-  for (const id of ['season-strip', 'season-sticker', 'season-particles', 'season-banner']) assert.equal(await page.getByTestId(id).count(), 1, id)
+  for (const id of ['season-sticker', 'season-particles', 'season-banner']) assert.equal(await page.getByTestId(id).count(), 1, id)
+  assert.equal(await page.getByTestId('season-strip').count(), 0, 'the strip under the top bar is switched off for now')
   assert.equal(await page.locator('select, [role=listbox], [role=radio]').filter({ hasText: /Easter|Halloween|Christmas/ }).count(), 0, 'there is no way to pick a season')
-  console.log('2 Seasonal in December is Christmas, with garland, sticker, snow and banner: ok')
+  console.log('2 Seasonal in December is Christmas, with sticker, snow and banner, and no strip: ok')
   // remembered across a reload, and set before the page draws
   await page.reload({ waitUntil: 'domcontentloaded' })
   assert.deepEqual(await attrs(page), { theme: 'light', season: 'christmas' })
@@ -111,15 +112,11 @@ const overlapCheck = () => {
         if (res.order) { assert.equal(res.order.pointer, 'none'); assert.ok(Number(res.order.particles) < 0, 'the drifting pieces sit behind the page'); assert.equal(res.order.rootIsolated, 'isolate'); assert.ok(res.order.pieces >= 8) }
         checked++
       }
-      // every strip is one long hand-drawn scene: nothing in it is drawn twice on this screen
-      {
-        const strip = await page.evaluate(() => { const el = document.querySelector('[data-testid=season-strip]'), p = el.querySelector('svg > defs > pattern[patternUnits]'); return { h: el.getBoundingClientRect().height, w: el.getBoundingClientRect().width, tile: p && p.parentElement.parentElement === el.firstElementChild && p.id === el.querySelector('svg > rect:last-child')?.getAttribute('fill')?.slice(5, -1) ? Number(p.getAttribute('width')) : null, pieces: el.querySelectorAll('svg *').length } })
-        assert.equal(strip.h, 36); assert.ok(strip.pieces > 60, `${s.id}: the strip is a drawn scene`)
-        assert.ok(strip.tile === null || strip.tile > strip.w, `${s.id}: the scene is wider than the screen (${strip.tile} against ${strip.w}), so nothing repeats`)
-      }
-      // the calendar still fits the screen with the strip above it
+      // the strip under the top bar is off for now; the Dashboard banner is still there
+      assert.equal(await page.getByTestId('season-strip').count(), 0, `${s.id}: no strip`)
+      // the calendar still fits the screen
       const fit = await page.evaluate(() => { const g = document.querySelector('[data-testid=calendar-grid]'); const sc = g.closest('.overflow-y-auto'); return g.getBoundingClientRect().bottom <= sc.getBoundingClientRect().bottom })
-      assert.ok(fit, `${s.id}: calendar fits with the garland`)
+      assert.ok(fit, `${s.id}: calendar fits`)
       assert.deepEqual(errors, [], `${s.id}: no errors`)
       await browser.close()
     }
@@ -174,7 +171,7 @@ const overlapCheck = () => {
 }
 // ---------- 5. Colour coding: every season colours the page, the menu and the top bar, each plainly its own
 {
-  const SYMBOLS = { newyear: 'champagne', superbowl: 'american football', lunar: 'lucky bamboo', womens: 'pink ribbon', easter: 'painted egg', labour: 'hard hat', environment: 'leaf', tour: 'mountain', ekka: 'ferris wheel', footy: 'rugby ball', halloween: 'jack-o-lantern', remembrance: 'poppy', christmas: 'christmas tree with three presents' }
+  const SYMBOLS = { newyear: 'champagne', superbowl: 'american football', lunar: 'firecracker', womens: 'pink ribbon', easter: 'painted egg', labour: 'hard hat', environment: 'leaf', tour: 'mountain', ekka: 'ferris wheel', footy: 'rugby ball', halloween: 'jack-o-lantern', remembrance: 'poppy', christmas: 'christmas tree with three presents' }
   const ALL = ['newyear', 'superbowl', 'lunar', 'womens', 'easter', 'labour', 'environment', 'tour', 'ekka', 'footy', 'halloween', 'remembrance', 'christmas']
   const read = (page) => page.evaluate(() => {
     const cv = document.createElement('canvas'); cv.width = cv.height = 1; const ctx = cv.getContext('2d', { willReadFrequently: true })
@@ -226,6 +223,7 @@ const overlapCheck = () => {
     assert.equal(c.lineWidth, '1px', `${id}: the line under the top bar is thin`)
     assert.ok(dist(c.line, c.bar) > 12 && dist(c.line, c.bar) < 110 && sat(c.line) <= sat(c.bar) + 6, `${id}: the line under the top bar is quiet, not a coloured trim: ${c.line} on ${c.bar}`)
     assert.equal(c.barH, 48, `${id}: the top bar keeps its height`)
+    assert.ok(sat(c.bar) <= 135, `${id}: the bar colour is relaxed, not loud (${sat(c.bar)}): ${c.bar}`)
     assert.deepEqual(c.body, c.page, `${id}: nothing shows a different colour behind the app`)
     // The menu down the left is the same colour as the top bar, with the same trim, level with it
     const m = c.menu
@@ -251,7 +249,7 @@ const overlapCheck = () => {
     assert.ok(ratio(m.logoDot, c.side) >= 1.85, `${id}: the dot in the logo shows (${ratio(m.logoDot, c.side).toFixed(2)})`)
     assert.equal(m.logoutBg, 'rgba(0, 0, 0, 0)', `${id}: Log out is outlined, not a red block`)
     if (!['newyear', 'halloween'].includes(id)) {
-      assert.ok(sat(c.page) >= 9, `${id}: the page is tinted, not grey: ${c.page}`)
+      assert.ok(sat(c.page) >= 4 && sat(c.page) <= 20, `${id}: the page is tinted, gently: ${c.page}`)
       assert.ok(lum(c.page) > 0.82, `${id}: the page stays light`)
     }
     assert.deepEqual(errors, [], id)
@@ -265,9 +263,9 @@ const overlapCheck = () => {
   }
   // What he asked for by name
   const hue = ([r, g, b]) => { const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn || 1; let h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return (h * 60 + 360) % 360 }
-  const w = got.womens; assert.ok(w.page[0] > w.page[1] + 8 && w.page[0] > w.page[2], `Women's Day page is light pink: ${w.page}`); assert.ok(hue(w.bar) > 300 || hue(w.bar) < 10, `Women's Day bar is pink: ${w.bar}`)
-  const x = got.christmas; assert.ok(x.page[1] >= x.page[0] && x.page[1] >= x.page[2], `Christmas page is a frosted white, not orange: ${x.page}`); assert.ok(x.bar[0] > 90 && x.bar[1] < 45 && x.bar[2] < 60 && x.bar[0] < 150, `Christmas bar is a deep maroon: ${x.bar}`); assert.deepEqual(x.side, x.bar, 'Christmas menu is the same maroon as the bar')
-  const hw = got.halloween; assert.ok(lum(hw.page) < 0.02 && sat(hw.page) < 12, `Halloween page is black: ${hw.page}`); assert.ok(hue(hw.bar) > 15 && hue(hw.bar) < 45 && sat(hw.bar) > 120, `Halloween bar is orange: ${hw.bar}`)
+  const w = got.womens; assert.ok(w.page[0] > w.page[1] + 4 && w.page[0] > w.page[2], `Women's Day page is light pink: ${w.page}`); assert.ok(hue(w.bar) > 300 || hue(w.bar) < 10, `Women's Day bar is pink: ${w.bar}`)
+  const x = got.christmas; assert.ok(x.page[1] >= x.page[0] && x.page[1] >= x.page[2], `Christmas page is a frosted white, not orange: ${x.page}`); assert.ok(x.bar[0] > 90 && x.bar[1] < 60 && x.bar[2] < 70 && x.bar[0] < 150 && x.bar[0] > x.bar[1] + 45, `Christmas bar is a deep maroon: ${x.bar}`); assert.deepEqual(x.side, x.bar, 'Christmas menu is the same maroon as the bar')
+  const hw = got.halloween; assert.ok(lum(hw.page) < 0.02 && sat(hw.page) < 12, `Halloween page is black: ${hw.page}`); assert.ok(hue(hw.bar) > 15 && hue(hw.bar) < 45 && sat(hw.bar) > 70, `Halloween bar is orange: ${hw.bar}`)
   console.log('5 colour coding: 13 seasons, each with its own page and frame; the menu matches the top bar; all text on both readable')
   console.log('   ' + ALL.map(id => `${id} bar rgb(${got[id].bar}) page rgb(${got[id].page})`).join('\n   '))
   // A pop-up that opens from the menu is an ordinary card, not the menu's colour
