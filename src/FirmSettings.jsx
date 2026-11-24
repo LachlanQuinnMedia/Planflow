@@ -1,8 +1,10 @@
 // src/FirmSettings.jsx
 // Directors only. What makes QPlan this firm's own: what it calls its service stages, and the
 // stages themselves, each with a default fee and a checklist. New jobs start from these.
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useFirm, saveFirm, DEFAULT_STAGES } from './firm'
+import { callFunction } from './supabase'
+import { notify } from './notify'
 
 const MAX_STAGES = 8
 const newId = () => `s${Date.now().toString(36)}${Math.floor(Math.random() * 1296).toString(36)}`
@@ -19,8 +21,19 @@ export default function FirmSettings({ currentUser, onNavigate }) {
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
   const [dirty, setDirty] = useState(false)
+  // The Monday email: what it would say this week and who would get it
+  const [digest, setDigest] = useState(null)
+  const [digestBusy, setDigestBusy] = useState('')
+  const [weeklyPending, setWeeklyPending] = useState(null)
+  const isDirector = currentUser?.role === 'director'
+  useEffect(() => {
+    if (!isDirector) return
+    let cancelled = false
+    callFunction('weekly-digest', 'preview').then(res => { if (!cancelled) setDigest(res?.success ? res : { items: [], recipients: [], failed: true }) }, () => { if (!cancelled) setDigest({ items: [], recipients: [], failed: true }) })
+    return () => { cancelled = true }
+  }, [isDirector])
 
-  if (currentUser?.role !== 'director') {
+  if (!isDirector) {
     return <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-sm text-gray-500">Firm settings are for directors.</div>
   }
 
@@ -64,6 +77,21 @@ export default function FirmSettings({ currentUser, onNavigate }) {
       setError('Could not save: ' + e.message)
     }
     setSaving(false)
+  }
+
+  const weeklyOn = firm.setup.weekly_email === true
+  const setWeekly = async (on) => {
+    setWeeklyPending(on) // the tick shows at once, and is put back if the save fails
+    try { await saveFirm(currentUser.company_id, { setup: { ...firm.setup, weekly_email: on } }, currentUser.username); await firm.reload() }
+    catch (e) { notify.error('Could not save: ' + e.message) }
+    setWeeklyPending(null)
+  }
+  const sendTest = async () => {
+    setDigestBusy('test')
+    const res = await callFunction('weekly-digest', 'send_test').catch(() => ({ error: 'Could not reach QPlan. Check your internet connection and try again.' }))
+    setDigestBusy('')
+    if (res.success) notify.success(`Sent to ${res.to}. It can take a minute to arrive.`)
+    else notify.error(`The test email was not sent${res.to ? ` to ${res.to}` : ''}: ${res.error || 'unknown error'}`)
   }
 
   const tabName = label.trim() ? `${label.trim()} Stages` : 'Service Stages'
@@ -149,6 +177,41 @@ export default function FirmSettings({ currentUser, onNavigate }) {
           {saved && !dirty && <span className="text-xs text-emerald-700">✓ Saved. Everyone at the firm sees it the next time they open a job.</span>}
           {dirty && <span className="text-xs text-amber-600">Not saved yet</span>}
         </div>
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4" data-testid="digest-card">
+        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Monday email</div>
+        <label className="flex items-start gap-2 text-sm cursor-pointer">
+          <input type="checkbox" className="mt-0.5" checked={weeklyPending ?? weeklyOn} disabled={weeklyPending !== null} onChange={e => setWeekly(e.target.checked)} data-testid="digest-switch" />
+          <span>
+            <span className="font-medium">Email the directors every Monday at 7am with the week's deadlines</span>
+            <span className="block text-xs text-gray-500 mt-0.5">Decision dates, IR responses, public notice dates and DA stages ending in the next seven days. A week with nothing due sends nothing.</span>
+          </span>
+        </label>
+        {digest && (
+          <div className="mt-3 pl-6">
+            <div className="text-xs text-gray-600 mb-2">
+              {digest.recipients?.length
+                ? <>Goes to: <span className="font-medium text-gray-800">{digest.recipients.join(', ')}</span></>
+                : 'No director email addresses yet. Each director adds theirs under Planners > Edit my profile.'}
+            </div>
+            {/resend\.dev/.test(digest.from || '') && (
+              <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-2">
+                Not delivering to firms yet: QPlan's own email address is still being set up. You can switch this on now and it will start by itself.
+              </div>
+            )}
+            <div className="text-xs font-medium text-gray-600 mb-1">This week's email would list {digest.items?.length || 0} date{digest.items?.length === 1 ? '' : 's'}{digest.items?.length ? ':' : '.'}</div>
+            {(digest.items || []).slice(0, 8).map((d, n) => (
+              <div key={n} data-testid="digest-item" className="flex gap-3 text-xs py-1 border-b border-gray-50 last:border-0">
+                <span className={`w-24 flex-shrink-0 font-medium ${d.days < 0 ? 'text-red-600' : ''}`}>{d.when}</span>
+                <span className="w-44 flex-shrink-0 text-gray-600 truncate">{d.what}</span>
+                <span className="min-w-0 flex-1 truncate"><span className="font-medium">{d.code}</span> {d.job}</span>
+              </div>
+            ))}
+            {(digest.items?.length || 0) > 8 && <div className="text-xs text-gray-500 mt-1">and {digest.items.length - 8} more.</div>}
+            <button onClick={sendTest} disabled={digestBusy === 'test'} className="mt-3 px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50">{digestBusy === 'test' ? 'Sending...' : 'Send me a test now'}</button>
+          </div>
+        )}
       </div>
     </div>
   )

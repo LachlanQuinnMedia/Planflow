@@ -15,6 +15,8 @@ const HPC_FIRM = JSON.parse(fs.readFileSync(new URL('./fixtures/hpc_firm.json', 
 export const hpcFirmRow = () => ({ company_id: COMPANY, stage_label: 'HPC', stages: structuredClone(HPC_FIRM.stages), templates: structuredClone(HPC_FIRM.templates), legacy_templates: true, setup: { hidden: true } })
 // Other firms the master account can open (the platform function)
 export const platformState = { firms: [], switched: [] }
+// The Monday email (the weekly-digest function)
+export const digestState = { items: [], recipients: ['murray@hpc.example', 'lq@example.com'], from: 'QPlan <onboarding@resend.dev>', testFails: '', calls: [] }
 // The firm's job folders in Microsoft 365, by parent folder id (the job-import function)
 export const importState = { folders: {}, pageSize: 200, calls: [] }
 const ME = { id: 'u-quinn', username: 'Lachlan Quinn', role: 'director', company_id: COMPANY, company_code: '0000', companyName: 'HPC Planning' }
@@ -168,6 +170,14 @@ export async function installMocks(page) {
       const j = db.jobs.find(x => x.share_token && x.share_token === body.p_token)
       const fs2 = j && db.firm_settings.find(f => f.company_id === j.company_id)
       return send(fs2?.stages ? { stage_label: fs2.stage_label, stage_defs: fs2.stages.map(({ defaultFee, ...rest }) => rest) } : null)
+    }
+    if (url.pathname.startsWith('/functions/v1/weekly-digest')) {
+      const action = url.searchParams.get('action')
+      digestState.calls.push(action)
+      if (ME.role !== 'director') return send({ success: false, error: 'Only a director can do this.' }, 403)
+      if (action === 'preview') return send({ success: true, items: digestState.items, recipients: ME.company_id === COMPANY ? digestState.recipients : [], from: digestState.from })
+      if (action === 'send_test') return send(digestState.testFails ? { success: false, to: 'lq@example.com', error: digestState.testFails } : { success: true, to: 'lq@example.com', dates: digestState.items.length })
+      return send({ success: false, error: 'Unknown action' }, 400)
     }
     if (url.pathname.startsWith('/functions/v1/job-import')) {
       // Folders are handed out a page at a time, like Microsoft does

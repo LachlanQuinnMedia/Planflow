@@ -6,6 +6,25 @@ const CALENDLY_CLIENT_SECRET = Deno.env.get('CALENDLY_CLIENT_SECRET')
 const REDIRECT_URI = 'https://planflow-beige.vercel.app'
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
 const SUPABASE_SERVICE_KEY = Deno.env.get('SERVICE_ROLE_KEY')
+// Calendly signs each booking it sends with this key, so a made-up booking can be told apart
+const SIGNING_KEY = Deno.env.get('CALENDLY_WEBHOOK_SECRET') || ''
+
+// Calendly's signature header looks like "t=1700000000,v1=<hex>". The hex is an HMAC-SHA256 of
+// "<t>.<body>" made with the signing key. Anything older than five minutes is refused.
+async function signatureIsValid(header: string | null, rawBody: string) {
+  if (!SIGNING_KEY || !header) return false
+  const parts = Object.fromEntries(header.split(',').map(p => { const i = p.indexOf('='); return [p.slice(0, i).trim(), p.slice(i + 1).trim()] }))
+  const t = parts['t'], v1 = parts['v1']
+  if (!t || !v1) return false
+  if (Math.abs(Date.now() / 1000 - Number(t)) > 300) return false
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(SIGNING_KEY), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+  const mac = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`${t}.${rawBody}`)))
+  const expected = Array.from(mac).map(b => b.toString(16).padStart(2, '0')).join('')
+  if (expected.length !== v1.length) return false
+  let diff = 0
+  for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ v1.charCodeAt(i)
+  return diff === 0
+}
 
 // Who is calling. Worked out from their QPlan sign-in, never from what the browser sends.
 // Returns null unless the caller is an approved, active QPlan user.
@@ -74,7 +93,6 @@ serve(async (req) => {
         headers: { Authorization: `Bearer ${tokens.access_token}` }
       })
       const userData = await userRes.json()
-      console.log('User data:', JSON.stringify(userData))
 
       const userUri = userData.resource?.uri
       const email = userData.resource?.email
@@ -98,16 +116,31 @@ serve(async (req) => {
 
       // Register webhook
       const webhookUrl = `${SUPABASE_URL}/functions/v1/calendar-calendly?action=webhook&company_id=${company_id}&username=${encodeURIComponent(username)}`
-      console.log('Webhook URL:', webhookUrl)
 
-      const webhookBody = {
+      // An earlier, unsigned registration for this same address is removed first, so the new signed one replaces it
+      try {
+        const listRes = await fetch(`https://api.calendly.com/webhook_subscriptions?organization=${encodeURIComponent(orgUri)}&user=${encodeURIComponent(userUri)}&scope=user&count=100`, {
+          headers: { Authorization: `Bearer ${tokens.access_token}` },
+        })
+        const list = await listRes.json()
+        for (const sub of list.collection || []) {
+          if (sub.callback_url === webhookUrl && sub.uri) {
+            await fetch(sub.uri, { method: 'DELETE', headers: { Authorization: `Bearer ${tokens.access_token}` } })
+          }
+        }
+      } catch (e) {
+        console.log('Could not tidy old webhook registrations:', e.message)
+      }
+
+      const webhookBody: Record<string, unknown> = {
         url: webhookUrl,
         events: ['invitee.created', 'invitee.canceled'],
         organization: orgUri,
         user: userUri,
         scope: 'user',
       }
-      console.log('Webhook body:', JSON.stringify(webhookBody))
+      if (SIGNING_KEY) webhookBody.signing_key = SIGNING_KEY
+      console.log('Registering webhook for', username, SIGNING_KEY ? '(signed)' : '(unsigned)')
 
       const webhookRes = await fetch('https://api.calendly.com/webhook_subscriptions', {
         method: 'POST',
@@ -119,7 +152,11 @@ serve(async (req) => {
       })
 
       const webhookData = await webhookRes.json()
-      console.log('Webhook registration response:', JSON.stringify(webhookData))
+      console.log('Webhook registration status:', webhookRes.status)
+      // Only once Calendly has accepted the signed registration are unsigned bookings refused for this person
+      const signed = !!SIGNING_KEY && webhookRes.status === 201
+      await supabase.from('calendar_connections').update({ webhook_signed: signed })
+        .eq('company_id', company_id).eq('username', username).eq('provider', 'calendly')
 
       return new Response(JSON.stringify({ success: true, email, webhook: webhookData }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -132,12 +169,16 @@ serve(async (req) => {
       console.log('Webhook received for:', company_id, username)
 
       // Only accept bookings for a person who has actually connected Calendly
-      const { data: conn } = await supabase.from('calendar_connections').select('id')
+      const { data: conn } = await supabase.from('calendar_connections').select('id, webhook_signed')
         .eq('company_id', company_id).eq('username', username).eq('provider', 'calendly').maybeSingle()
       if (!conn) return new Response('not found', { status: 404, headers: corsHeaders })
 
       const rawBody = await req.text()
-      console.log('Webhook payload:', rawBody)
+      // A connection registered with a signing key only accepts bookings Calendly has signed
+      if (conn.webhook_signed && !(await signatureIsValid(req.headers.get('Calendly-Webhook-Signature'), rawBody))) {
+        console.log('Webhook refused: missing or wrong signature for', username)
+        return new Response('forbidden', { status: 403, headers: corsHeaders })
+      }
       const payload = JSON.parse(rawBody)
 
       if (payload.event === 'invitee.created') {
