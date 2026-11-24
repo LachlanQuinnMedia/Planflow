@@ -11,7 +11,7 @@
 // company marks. Footy colours are plain club colours with no names, logos or badges.
 import { useId } from 'react'
 import { CLUBS } from './seasonClubs'
-import { Firework, Sparkle, BallPale, BallRed, BallBrown, Poppy, Egg, Pumpkin, Bat, Ghost, Cyclist, Tulip, Heart, Lantern, Cloud } from './seasonArt'
+import { Firework, Sparkle, BallPale, BallRed, BallBrown, Poppy, Egg, Pumpkin, Bat, Ghost, Cyclist, Tulip, Heart, Lantern, Cloud, Dragon, Pearl } from './seasonArt'
 
 const H = 36
 const W = 2400
@@ -330,70 +330,12 @@ function remembrance() {
 // ------------------------------------------------------------------
 // Lunar New Year: dragons through gold clouds, each chasing its pearl
 // ------------------------------------------------------------------
-const Dragon = ({ x, y = 19, len = 300, amp = 6, cycles = 2.25, phase = 0, body = '#c8322b', belly = '#f0b840', fin = '#f0b840', dark = '#9c1f24', flip = false }) => {
-  const pts = []
-  for (let d = 0; d <= len; d += 3) {
-    const t = d / len, a = 2 * Math.PI * cycles * t + phase
-    pts.push({ t, x: d, y: amp * Math.sin(a), slope: ((amp * 2 * Math.PI * cycles) / len) * Math.cos(a) })
-  }
-  const thick = (t) => 2 + 8 * Math.min(1, t * 3.2)
-  // a point beside the spine: sign 1 is the belly side, -1 the back, frac how far out
-  const off = (p, sign, frac = 1) => { const n = Math.hypot(1, p.slope), w = (thick(p.t) / 2) * frac; return [n1(p.x - (sign * w * p.slope) / n), n1(p.y + (sign * w) / n)] }
-  const line = (list) => list.map(([a, b], i) => `${i ? 'L' : 'M'}${a} ${b}`).join('')
-  const back = pts.map(p => off(p, -1)), under = pts.map(p => off(p, 1)), mid = pts.map(p => off(p, 1, 0.2))
-  const head = pts[pts.length - 1], tail = pts[0]
-  const deg = (p) => n1((Math.atan(p.slope) * 180) / Math.PI)
-  return (
-    <g transform={`translate(${x} ${y})${flip ? ' scale(-1 1)' : ''}`}>
-      {/* the tuft on the tail */}
-      <path transform={`translate(${tail.x} ${n1(tail.y)}) rotate(${deg(tail)}) scale(1.3)`} d="M2 0C-2 -3.500 -7 -2.500 -9.500 -6c.6 3.600-.6 5.400-3.500 6.200 3.300 1 6 .9 8.500-.4-1.200 2.300-3.200 3.400-6 3.500C-5.500 5.200-.5 4 2 0z" fill={fin} />
-      {/* the fins along the back */}
-      {pts.filter((p, i) => i % 3 === 1 && p.t > 0.06 && p.t < 0.95).map((p, i) => {
-        const [bx, by] = off(p, -1, 0.8)
-        return <path key={i} transform={`translate(${bx} ${by}) rotate(${deg(p)}) scale(1.5)`} d="M-2.600 .600L-1.600 -3.600 2.600 .600z" fill={fin} />
-      })}
-      {/* the legs */}
-      {[0.3, 0.52, 0.76].map(t => {
-        const p = pts[Math.round(t * (pts.length - 1))], [lx, ly] = off(p, 1, 0.8)
-        return (
-          <g key={t} transform={`translate(${lx} ${ly}) rotate(${deg(p)}) scale(1.5)`}>
-            <path d="M0 0c.5 2.200 1.800 3.300 3.800 3.600" fill="none" stroke={body} strokeWidth="2" strokeLinecap="round" />
-            <path d="M3.600 3.400l2.300-.9M3.800 3.700l2.500.6M3.600 4l1.700 1.900" stroke={belly} strokeWidth="0.800" strokeLinecap="round" />
-          </g>
-        )
-      })}
-      <path d={`${line(back)}${line([...under].reverse()).replace('M', 'L')}z`} fill={body} />
-      <path d={`${line(mid)}${line([...under].reverse()).replace('M', 'L')}z`} fill={belly} />
-      {pts.filter((p, i) => i % 2 === 0 && p.t > 0.12).map((p, i) => { const [ax, ay] = off(p, 1, 0.2), [bx, by] = off(p, 1); return <path key={i} d={`M${ax} ${ay}L${bx} ${by}`} stroke={dark} strokeWidth="0.500" opacity="0.55" /> })}
-      <path d={line(pts.filter(p => p.t > 0.1).map(p => off(p, -1, 0.4)))} fill="none" stroke="#fff" strokeWidth="1" strokeDasharray="2.600 4" strokeLinecap="round" opacity="0.35" />
-      {/* the head */}
-      <g transform={`translate(${head.x - 2} ${n1(head.y)}) rotate(${deg(head)}) scale(1.55)`}>
-        <path d="M1.500 -3C-2.500 -6.500 -7 -5.500 -9.500 -9c.4 3.200-.6 5-3.200 5.600 2.600.9 4.400.8 6.200-.1-1.400 2.200-3.400 3.200-6 3.200 3.200 2.300 7.400 2.300 10.500.3z" fill={fin} />
-        <path d="M3.500 -4.200L.3 -10M1.700 -7.400l-3.400-.5M6.200 -4.600L5.200 -10M5.700 -7.600l2.200-1.600" fill="none" stroke={belly} strokeWidth="1" strokeLinecap="round" />
-        <path d="M-2.800 -3.600C2 -6.200 9 -5.600 12.200 -2.900c2 .6 2.900 2.500 1.600 3.800L5.800 2.500C2.600 4-1.200 3.800-2.800 3.200z" fill={body} />
-        <path d="M2.600 2.700l10.400-1.100c-.7 3-5.100 4.900-9.700 3.700z" fill={dark} />
-        <path d="M5.800 2.500l.9 1.500.9-1.600M9 2.200l.8 1.400.8-1.500" fill="#fff" />
-        <circle cx="13.200" cy="-1.400" r="1.400" fill={belly} />
-        <circle cx="6.200" cy="-2.500" r="1.400" fill="#fff" /><circle cx="6.600" cy="-2.500" r="0.700" fill="#1d1d1b" />
-        <path d="M3.800 -4.600c1.600-1 3.300-.9 4.800.3" fill="none" stroke={belly} strokeWidth="1" strokeLinecap="round" />
-        <path d="M13.800 -2c3.200-3.400 6.400-2.100 8-5.600M13.800 .200c3.200 .200 4.800 3.200 8.600 2.100" fill="none" stroke={belly} strokeWidth="0.800" strokeLinecap="round" />
-        <path d="M3.800 5c-.5 2.700-2.700 3.800-4.900 3.500 1.600-.9 2-2.200 1.700-3.900z" fill={fin} />
-      </g>
-    </g>
-  )
-}
 const Swirl = ({ x, y, s = 1, flip = false, stroke = '#d9a441', opacity = 1 }) => (
   <g transform={`translate(${n1(x)} ${n1(y)}) scale(${flip ? -s : s} ${s})`} fill="none" stroke={stroke} strokeWidth={n1(1.1 / s)} strokeLinecap="round" opacity={opacity}>
     <path d="M-13 4h11c3.300 0 5.200-1.900 5.200-4.400S1.400 -4.200 -.7 -4.200s-3.300 1.300-3.300 3 1 2.600 2.400 2.600" />
     <path d="M3.500 3.600h9c2.500 0 3.900-1.300 3.900-3.200s-1.200-3-2.800-3-2.400 1-2.400 2.200" />
     <path d="M-18 7.600h24" opacity="0.6" />
   </g>
-)
-const Pearl = ({ x, y }) => (
-  <At x={x} y={y}>
-    <path className="qp-s-flicker" d="M-3.600 -1.500c-.5-3.500 1.400-5.300 2.400-7.500.6 2.200 2.700 2.900 2.900 5.300.9-1 1.200-2 1.100-3.300 1.800 1.900 2 4.500.9 6.700z" fill="#f08a24" />
-    <circle r="3.600" fill="#fff3c4" stroke="#e2a336" strokeWidth="0.800" /><circle cx="-1.100" cy="-1.200" r="1" fill="#fff" />
-  </At>
 )
 function lunar() {
   const r = seeded(888)

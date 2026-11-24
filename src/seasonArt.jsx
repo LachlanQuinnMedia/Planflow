@@ -23,6 +23,85 @@ export const Cloud = ({ x, y, s = 1, fill = '#fff', opacity = 0.9 }) => (
     </g>
   </g>
 )
+const n1 = (v) => Math.round(v * 10) / 10
+// A person standing, about 31 high with their feet at (x, y). Everything else in a picture is
+// sized against them: a storey is two people high, a cow comes up to the chest, and so on.
+// arm: 'down', 'out' (holding something in front) or 'up' (holding something overhead).
+export const Person = ({ x, y, s = 1, flip = false, shirt = '#5b86c4', trousers = '#3d4f6b', skin = '#e8b88f', hair = '#4a3526', hat = null, vest = null, back = false, arm = 'down', ink = '#2a3550', children }) => {
+  const reach = { down: 'M4.300 -22.500l1.500 7.500', out: 'M4.300 -22.500l5 3.800', up: 'M4.300 -22.800l3 -7.600' }[arm]
+  const hand = { down: [5.8, -15], out: [9.3, -18.7], up: [7.3, -30.4] }[arm]
+  return (
+    <g transform={`translate(${x} ${y}) scale(${flip ? -s : s} ${s})`} strokeLinejoin="round" strokeLinecap="round">
+      <path d="M-3.300 -11h2.900l-.4 10.200h-2.900zM.4 -11h2.900l.4 10.200H.8z" fill={trousers} stroke={ink} strokeWidth="0.450" />
+      <path d="M-4.300 -.900h3.700v.900h-3.700zM.6 -.900h3.700v.900H.6z" fill="#2a2f3a" />
+      <path d="M-4.300 -22.500l-1.500 7.500" fill="none" stroke={shirt} strokeWidth="2.300" /><circle cx="-5.800" cy="-14.600" r="1.050" fill={skin} />
+      <path d="M-4.700 -22.500c0-1.500 1.200-2.400 2.600-2.400h4.200c1.400 0 2.600.9 2.600 2.400l.4 12h-10.200z" fill={shirt} stroke={ink} strokeWidth="0.450" />
+      {vest && <path d="M-3.700 -24.900h7.400l.9 14.400h-9.200z" fill={vest} stroke={ink} strokeWidth="0.300" />}
+      {vest && <path d={back ? 'M-4 -17h8M-4.200 -13.500h8.400M-1.900 -24.900v14.400M1.900 -24.900v14.400' : 'M-4 -16h8M0 -24.900v14.400'} fill="none" stroke="#fbe9a8" strokeWidth="0.9" />}
+      <path d={reach} fill="none" stroke={shirt} strokeWidth="2.300" /><circle cx={hand[0]} cy={hand[1]} r="1.050" fill={skin} />
+      <circle cy="-28.300" r="3" fill={back ? hair : skin} stroke={ink} strokeWidth="0.400" />
+      {!back && !hat && <path d="M-3 -28.600a3 3 0 0 1 6 0c-1.700-1.300-4.300-1.300-6 0z" fill={hair} />}
+      {hat && <path d="M-3.700 -28.900a3.700 3.700 0 0 1 7.400 0z" fill={hat} stroke={ink} strokeWidth="0.350" />}
+      {hat && <path d="M-4.800 -28.900h9.600" stroke={ink} strokeWidth="0.9" />}
+      {children}
+    </g>
+  )
+}
+// A dragon, as carried in a dragon dance: a long body that winds from the tail (at x) to the head
+export const Dragon = ({ x, y = 19, len = 300, amp = 6, cycles = 2.25, phase = 0, body = '#c8322b', belly = '#f0b840', fin = '#f0b840', dark = '#9c1f24', flip = false, legs = true }) => {
+  const pts = []
+  for (let d = 0; d <= len; d += 3) {
+    const t = d / len, a = 2 * Math.PI * cycles * t + phase
+    pts.push({ t, x: d, y: amp * Math.sin(a), slope: ((amp * 2 * Math.PI * cycles) / len) * Math.cos(a) })
+  }
+  const thick = (t) => 2 + 8 * Math.min(1, t * 3.2)
+  // a point beside the spine: sign 1 is the belly side, -1 the back, frac how far out
+  const off = (p, sign, frac = 1) => { const n = Math.hypot(1, p.slope), w = (thick(p.t) / 2) * frac; return [n1(p.x - (sign * w * p.slope) / n), n1(p.y + (sign * w) / n)] }
+  const line = (list) => list.map(([a, b], i) => `${i ? 'L' : 'M'}${a} ${b}`).join('')
+  const back = pts.map(p => off(p, -1)), under = pts.map(p => off(p, 1)), mid = pts.map(p => off(p, 1, 0.2))
+  const head = pts[pts.length - 1], tail = pts[0]
+  const deg = (p) => n1((Math.atan(p.slope) * 180) / Math.PI)
+  return (
+    <g transform={`translate(${x} ${y})${flip ? ' scale(-1 1)' : ''}`}>
+      <path transform={`translate(${tail.x} ${n1(tail.y)}) rotate(${deg(tail)}) scale(1.3)`} d="M2 0C-2 -3.500 -7 -2.500 -9.500 -6c.6 3.600-.6 5.400-3.500 6.200 3.300 1 6 .9 8.500-.4-1.200 2.300-3.200 3.400-6 3.500C-5.500 5.200-.5 4 2 0z" fill={fin} />
+      {pts.filter((p, i) => i % 3 === 1 && p.t > 0.06 && p.t < 0.95).map((p, i) => {
+        const [bx, by] = off(p, -1, 0.8)
+        return <path key={i} transform={`translate(${bx} ${by}) rotate(${deg(p)}) scale(1.5)`} d="M-2.600 .600L-1.600 -3.600 2.600 .600z" fill={fin} />
+      })}
+      {legs && [0.3, 0.52, 0.76].map(t => {
+        const p = pts[Math.round(t * (pts.length - 1))], [lx, ly] = off(p, 1, 0.8)
+        return (
+          <g key={t} transform={`translate(${lx} ${ly}) rotate(${deg(p)}) scale(1.5)`}>
+            <path d="M0 0c.5 2.200 1.800 3.300 3.800 3.600" fill="none" stroke={body} strokeWidth="2" strokeLinecap="round" />
+            <path d="M3.600 3.400l2.300-.9M3.800 3.700l2.500.6M3.600 4l1.700 1.900" stroke={belly} strokeWidth="0.800" strokeLinecap="round" />
+          </g>
+        )
+      })}
+      <path d={`${line(back)}${line([...under].reverse()).replace('M', 'L')}z`} fill={body} />
+      <path d={`${line(mid)}${line([...under].reverse()).replace('M', 'L')}z`} fill={belly} />
+      {pts.filter((p, i) => i % 2 === 0 && p.t > 0.12).map((p, i) => { const [ax, ay] = off(p, 1, 0.2), [bx, by] = off(p, 1); return <path key={i} d={`M${ax} ${ay}L${bx} ${by}`} stroke={dark} strokeWidth="0.500" opacity="0.55" /> })}
+      <path d={line(pts.filter(p => p.t > 0.1).map(p => off(p, -1, 0.4)))} fill="none" stroke="#fff" strokeWidth="1" strokeDasharray="2.600 4" strokeLinecap="round" opacity="0.35" />
+      <g transform={`translate(${head.x - 2} ${n1(head.y)}) rotate(${deg(head)}) scale(1.55)`}>
+        <path d="M1.500 -3C-2.500 -6.500 -7 -5.500 -9.500 -9c.4 3.200-.6 5-3.200 5.600 2.600.9 4.400.8 6.200-.1-1.400 2.200-3.400 3.200-6 3.200 3.200 2.300 7.400 2.300 10.500.3z" fill={fin} />
+        <path d="M3.500 -4.200L.3 -10M1.700 -7.400l-3.400-.5M6.200 -4.600L5.200 -10M5.700 -7.600l2.200-1.600" fill="none" stroke={belly} strokeWidth="1" strokeLinecap="round" />
+        <path d="M-2.800 -3.600C2 -6.200 9 -5.600 12.200 -2.900c2 .6 2.900 2.500 1.600 3.800L5.800 2.500C2.600 4-1.200 3.800-2.800 3.200z" fill={body} />
+        <path d="M2.600 2.700l10.400-1.100c-.7 3-5.100 4.900-9.700 3.700z" fill={dark} />
+        <path d="M5.800 2.500l.9 1.500.9-1.600M9 2.200l.8 1.400.8-1.500" fill="#fff" />
+        <circle cx="13.200" cy="-1.400" r="1.400" fill={belly} />
+        <circle cx="6.200" cy="-2.500" r="1.400" fill="#fff" /><circle cx="6.600" cy="-2.500" r="0.700" fill="#1d1d1b" />
+        <path d="M3.800 -4.600c1.600-1 3.300-.9 4.800.3" fill="none" stroke={belly} strokeWidth="1" strokeLinecap="round" />
+        <path d="M13.800 -2c3.200-3.400 6.400-2.100 8-5.600M13.800 .200c3.200 .200 4.800 3.200 8.600 2.100" fill="none" stroke={belly} strokeWidth="0.800" strokeLinecap="round" />
+        <path d="M3.800 5c-.5 2.700-2.700 3.800-4.900 3.500 1.600-.9 2-2.200 1.700-3.900z" fill={fin} />
+      </g>
+    </g>
+  )
+}
+export const Pearl = ({ x, y }) => (
+  <g transform={`translate(${x} ${y})`}>
+    <path className="qp-s-flicker" d="M-3.600 -1.500c-.5-3.500 1.400-5.300 2.400-7.500.6 2.200 2.700 2.900 2.900 5.300.9-1 1.200-2 1.100-3.300 1.800 1.900 2 4.500.9 6.700z" fill="#f08a24" />
+    <circle r="3.600" fill="#fff3c4" stroke="#e2a336" strokeWidth="0.800" /><circle cx="-1.100" cy="-1.200" r="1" fill="#fff" />
+  </g>
+)
 // Something that roams. Sideways and up-and-down each keep their own time, and the two never
 // line up again, so the path it takes is always a little different: it does not loop.
 const Roam = ({ wide = 44, tall = 12, across = 37, up = 23, start = 0, children }) => (
@@ -277,56 +356,67 @@ const SCENES = {
       {range(9).map(i => <path key={i} d={`M${130 + i * 27.500} 70L${40 + i * 50} 112`} stroke="#fff" strokeWidth={i % 4 === 0 ? 1.300 : 0.7} opacity="0.8" />)}
       <path d="M130 70H350" stroke="#fff" strokeWidth="1.200" /><path d="M112 78.500H368L350 70H130z" fill="#2f5fb5" opacity="0.85" />
       <path d="M240 70V52M222 52h36M222 52V30M258 52V30" fill="none" stroke="#f2c230" strokeWidth="2.600" strokeLinecap="round" />
-      {/* two plain helmets, facing each other */}
-      {[[92, 96, 1, '#d6362f', '#fff'], [176, 96, -1, '#2f5fb5', '#f6c945']].map(([x, y, dir, a, b]) => (
-        <g key={x} transform={`translate(${x} ${y}) scale(${dir * 1.150} 1.150)`}>
-          <path d="M-13 4a13 13 0 0 1 26-2c0 4-1 7-3 9H-2l-3-5h-8z" fill={a} /><path d="M-3 -9.500a13 13 0 0 1 6-.5l-1 20.500h-4z" fill={b} opacity="0.9" />
-          <circle cx="-5" cy="3" r="2.200" fill="#1d2430" opacity="0.35" /><path d="M2 3h13M5 7h10M13 0v9" fill="none" stroke="#c9d1db" strokeWidth="1.300" strokeLinecap="round" />
-          <ellipse cx="-4" cy="-5" rx="5" ry="2" fill="#fff" opacity="0.3" />
-        </g>
-      ))}
       {/* the ball */}
       <path d="M210 104Q300 6 388 46" fill="none" stroke="#7d8794" strokeWidth="1" strokeDasharray="2 4.500" strokeLinecap="round" />
-      <ellipse cx="402" cy="104" rx="18" ry="2.600" fill="#1f6b39" opacity="0.5" />
-      <g className="qp-s-bob"><BallBrown x={402} y={54} s={2.300} /></g>
+      <g className="qp-s-bob"><BallBrown x={388} y={46} s={0.5} /></g>
+      {/* the kicker watches it go */}
+      <Person x={206} y={106} s={0.95} shirt="#d6362f" trousers="#f3f4f6" hat="#d6362f" arm="up" />
       {[[300, 20, '#d6362f'], [330, 34, '#f6c945'], [452, 28, '#2f5fb5'], [436, 78, '#f6c945'], [356, 16, '#2f5fb5'], [462, 60, '#d6362f']].map(([x, y, c], i) => <rect key={`${x}${y}`} className="qp-s-twinkle" style={{ animationDelay: `${i * 0.35}s` }} x={x} y={y} width="4" height="2" rx="0.5" fill={c} transform={`rotate(${i * 37} ${x} ${y})`} />)}
     </>
   ),
 
-  lunar: (u) => (
-    <>
-      <defs>
-        <linearGradient id={`${u}sky`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#fff1dc" /><stop offset="1" stopColor="#ffdfc4" /></linearGradient>
-        <radialGradient id={`${u}glow`}><stop offset="0" stopColor="#ffd27a" stopOpacity="0.75" /><stop offset="1" stopColor="#ffd27a" stopOpacity="0" /></radialGradient>
-        <radialGradient id={`${u}moon`}><stop offset="0" stopColor="#fff6d8" /><stop offset="1" stopColor="#ffe3a3" /></radialGradient>
-      </defs>
-      <rect width="480" height="112" fill={`url(#${u}sky)`} />
-      <circle cx="372" cy="60" r="44" fill={`url(#${u}moon)`} opacity="0.9" />
-      {/* lucky clouds */}
-      {[[40, 84, 1], [150, 96, 0.8], [430, 96, 0.9], [236, 88, 0.7]].map(([x, y, s]) => (
-        <g key={x} transform={`translate(${x} ${y}) scale(${s})`} fill="none" stroke="#f0b840" strokeWidth="2" strokeLinecap="round" opacity="0.6">
-          <path d="M-22 6h44M-14 6a8 8 0 1 1 9-9 9 9 0 0 1 17 3 6 6 0 0 1 2 6" /><path d="M-4 0a3 3 0 1 0 3-3" />
+  lunar: (u) => {
+    // an evening street: lanterns strung between two poles, a gate behind, and a dragon dance in front
+    const wave = (px) => 44 + 6 * Math.sin(2 * Math.PI * 1.5 * ((px - 200) / 204) + 0.6)
+    const sag = (px) => 9 + 9 * 4 * (px / 480) * (1 - px / 480)
+    return (
+      <>
+        <defs>
+          <linearGradient id={`${u}sky`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#171a40" /><stop offset="0.62" stopColor="#3c2558" /><stop offset="1" stopColor="#9c4a3c" /></linearGradient>
+          <radialGradient id={`${u}glow`}><stop offset="0" stopColor="#ffb347" stopOpacity="0.7" /><stop offset="1" stopColor="#ffb347" stopOpacity="0" /></radialGradient>
+          <radialGradient id={`${u}moon`}><stop offset="0.55" stopColor="#fde9a8" stopOpacity="0.45" /><stop offset="1" stopColor="#fde9a8" stopOpacity="0" /></radialGradient>
+        </defs>
+        <rect width="480" height="112" fill={`url(#${u}sky)`} />
+        {[[30, 30], [96, 14], [150, 34], [208, 12], [262, 28], [318, 16], [372, 34], [430, 22], [462, 40]].map(([sx, sy], i) => <circle key={`${sx}${sy}`} className="qp-s-glow" style={{ animationDuration: `${6 + (i * 1.9) % 5}s`, animationDelay: `-${(i * 2.3) % 7}s` }} cx={sx} cy={sy} r={0.6 + (i % 2) * 0.3} fill="#fff" opacity="0.8" />)}
+        <circle cx="64" cy="40" r="20" fill={`url(#${u}moon)`} /><circle cx="64" cy="40" r="9" fill="#fde9a8" />
+        {/* rooftops along the street, with lit windows */}
+        {[[0, 34, 20], [40, 30, 28], [196, 30, 24], [232, 36, 18], [274, 30, 30], [310, 34, 22], [350, 30, 27], [386, 38, 19], [430, 30, 25], [464, 20, 20]].map(([bx, bw, bh], i) => (
+          <g key={bx}>
+            <rect x={bx} y={74 - bh} width={bw} height={bh} fill="#231a3c" />
+            <path d={`M${bx - 4} ${74 - bh}q4 -1 6 -4h${bw - 4}q2 3 6 4z`} fill="#34244f" />
+            {range(Math.floor(bw / 9)).map(k => <rect key={k} x={bx + 4 + k * 9} y={74 - bh + 6 + ((i + k) % 2) * 6} width="3" height="4" fill="#ffc45e" opacity={0.5 + ((i + k) % 3) * 0.2} />)}
+          </g>
+        ))}
+        <path d="M0 74H480V112H0z" fill="#2b1d40" /><path d="M0 74H480" stroke="#3d2a57" strokeWidth="1" />
+        <ellipse cx="330" cy="106" rx="140" ry="8" fill="#ffb347" opacity="0.12" />
+        {/* the gate, far end of the street */}
+        <g>
+          <rect x="112" y="48" width="6" height="34" fill="#b3312c" /><rect x="150" y="48" width="6" height="34" fill="#b3312c" /><rect x="108" y="52" width="52" height="5" fill="#8f2622" />
+          <path d="M98 48q10 -2 14 -9h44q4 7 14 9z" fill="#1f5c57" /><path d="M98 48q36 3 72 0" fill="none" stroke="#f0b840" strokeWidth="1.200" />
+          <path d="M110 39q4 -1 6 -5h36q2 4 6 5z" fill="#237068" /><rect x="126" y="41" width="16" height="6" fill="#f0b840" opacity="0.85" />
+          <path d="M134 57v9" stroke="#b8862b" strokeWidth="0.600" />{range(4).map(k => <rect key={k} x={132 + (k % 2 ? 1.6 : -1.6)} y={59 + k * 2.4} width="2.400" height="3.600" rx="0.5" fill="#e2463c" transform={`rotate(${k % 2 ? 24 : -24} ${133.2 + (k % 2 ? 1.6 : -1.6)} ${60.8 + k * 2.4})`} />)}
         </g>
-      ))}
-      {/* blossom branch */}
-      <path d="M0 22Q60 10 120 30T220 26" fill="none" stroke="#7a4a2a" strokeWidth="3" strokeLinecap="round" /><path d="M70 17q14-12 30-10M130 31q12 12 30 10M176 29q10-12 26-12" fill="none" stroke="#7a4a2a" strokeWidth="1.800" strokeLinecap="round" />
-      {[[26, 18, 1], [58, 12, 0.8], [98, 6, 0.9], [112, 28, 1.050], [150, 40, 0.8], [164, 24, 0.7], [200, 16, 0.95], [220, 28, 0.8], [84, 24, 0.6]].map(([x, y, s], i) => <Blossom key={x} x={x} y={y} s={s} color={i % 2 ? '#f9c3d5' : '#f6a5c0'} />)}
-      {[[44, 24], [138, 22], [188, 34]].map(([x, y]) => <circle key={x} cx={x} cy={y} r="2.200" fill="#f08fb0" />)}
-      {/* lanterns */}
-      {[[300, 0, 1.200, 0], [346, 0, 1.700, 0.7], [400, 0, 1.350, 1.400], [446, 0, 1.050, 0.3]].map(([x, y, s, d]) => (
-        <g key={x} className="qp-s-sway" style={{ animationDelay: `${d}s` }}><path d={`M${x} 0v${6 * s}`} stroke="#b8862b" strokeWidth="1" /><Lantern x={x} y={y + 3 * s} s={s} glow={`${u}glow`} /></g>
-      ))}
-      {/* firecrackers */}
-      <g className="qp-s-sway" style={{ animationDelay: '0.5s' }}>
-        <path d="M262 0v62" stroke="#b8862b" strokeWidth="1" />
-        {range(6).map(i => <g key={i} transform={`translate(${262 + (i % 2 ? 4.500 : -4.500)} ${12 + i * 8.500}) rotate(${i % 2 ? 28 : -28})`}><rect x="-2.300" y="-5" width="4.600" height="10" rx="1" fill="#d6362f" /><rect x="-2.300" y="-5" width="4.600" height="1.800" fill="#f0b840" /><rect x="-2.300" y="3.200" width="4.600" height="1.800" fill="#f0b840" /></g>)}
-      </g>
-      {/* mandarins */}
-      <ellipse cx="452" cy="107.500" rx="27" ry="2.400" fill="#e2a86c" opacity="0.55" />
-      {[[452, 99, 8], [438, 100.500, 6.500], [466, 101, 6]].map(([x, y, r]) => <g key={x}><circle cx={x} cy={y} r={r} fill="#f39a2e" /><circle cx={x - r * 0.3} cy={y - r * 0.3} r={r * 0.3} fill="#ffc46b" opacity="0.7" /><path d={`M${x} ${y - r}q4-4 7-1-3 3-7 1z`} fill="#4f9a4a" /></g>)}
-      <Falling n={10} petal fill="#f6a5c0" min={1.4} />
-    </>
-  ),
+        {/* lanterns on a line between two poles, each with its own slow glow */}
+        <path d="M14 110V4M477 110V4" stroke="#1a1330" strokeWidth="2.600" strokeLinecap="round" />
+        <path d="M14 9Q245 27 477 9" fill="none" stroke="#b8862b" strokeWidth="0.800" />
+        {[46, 92, 138, 184, 230, 276, 322, 368, 414, 446].map((lx, i) => (
+          <g key={lx}>
+            <circle className="qp-s-glow" style={{ animationDuration: `${6 + (i * 2.1) % 5}s`, animationDelay: `-${(i * 3.3) % 9}s` }} cx={lx} cy={sag(lx) + 8} r="11" fill={`url(#${u}glow)`} />
+            <Lantern x={lx} y={sag(lx) - 1.200} s={0.5 + (i % 3) * 0.04} />
+          </g>
+        ))}
+        {/* the dragon, carried on poles by six dancers, chasing the pearl */}
+        {[212, 248, 284, 320, 356, 392].map((px, i) => (
+          <g key={px}>
+            <path d={`M${px + 8} 73.500L${px + 8} ${n1(wave(px + 8) + 4)}`} stroke="#e9d9b0" strokeWidth="1.100" />
+            <Person x={px} y={107} s={1.1} arm="up" shirt={i % 2 ? '#f0b840' : '#d6362f'} trousers="#1d1830" hair="#1d1830" ink="#1d1830" />
+          </g>
+        ))}
+        <Dragon x={200} y={44} len={204} amp={6} cycles={1.5} phase={0.6} legs={false} />
+        <path d="M458 73.500L458 40" stroke="#e9d9b0" strokeWidth="1.100" /><Person x={466} y={107} s={1.1} flip arm="up" shirt="#f0b840" trousers="#1d1830" hair="#1d1830" ink="#1d1830" /><Pearl x={458} y={37} />
+      </>
+    )
+  },
 
   womens: (u) => (
     <>
@@ -392,34 +482,53 @@ const SCENES = {
     </>
   ),
 
+  // Everything stands on one level site and is sized against the people: the horizon is at
+  // their eye height, so the nearer something stands, the lower its feet and the larger it is.
   labour: (u) => (
     <>
       <defs>
-        <linearGradient id={`${u}sky`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#dbe8f7" /><stop offset="1" stopColor="#f6f1e6" /></linearGradient>
-        <linearGradient id={`${u}hat`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ffd84d" /><stop offset="1" stopColor="#f0b414" /></linearGradient>
+        <linearGradient id={`${u}sky`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#d7e6f6" /><stop offset="1" stopColor="#f3efe6" /></linearGradient>
+        <linearGradient id={`${u}dirt`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#dccdb2" /><stop offset="1" stopColor="#c9b592" /></linearGradient>
       </defs>
       <rect width="480" height="112" fill={`url(#${u}sky)`} />
-      <circle cx="56" cy="30" r="13" fill="#ffe08a" /><Cloud x={96} y={14} s={0.9} /><Cloud x={300} y={8} s={0.8} />
-      <path d="M0 96h20V64h22v32h14V50h26v46h12V72h20v24h16V58h18v38h340v16H0z" fill="#c5d1e2" opacity="0.8" />
-      {[[26, 70], [34, 70], [26, 80], [34, 80], [62, 58], [72, 58], [62, 70], [72, 70], [62, 82], [100, 78], [108, 78], [136, 64], [136, 76], [144, 64]].map(([x, y]) => <rect key={`${x}${y}`} x={x} y={y} width="4" height="5" fill="#eaf1f9" />)}
-      {/* a building going up */}
-      <g stroke="#6f7f95" strokeWidth="1.600" fill="none"><path d="M236 100V40M260 100V40M284 100V40M308 100V52M236 40h48M236 55h72M236 70h72M236 85h72" /><path d="M236 55l24-15M260 70l24-15M284 85l24-15M236 85l24-15" strokeWidth="0.8" opacity="0.7" /></g>
-      <path d="M236 70h48v15h-48zM260 85h48v15h-48z" fill="#9fb2cc" opacity="0.5" />
-      {/* tower crane */}
-      <g stroke="#f08a24" strokeWidth="1.600" fill="none" strokeLinecap="round">
-        <path d="M196 100V14M204 100V14" /><path d="M196 92l8-8-8-8 8-8-8-8 8-8-8-8 8-8-8-8 8-8-8-8" strokeWidth="0.9" />
-        <path d="M172 20h122M172 14h122M200 14V4l94 10M200 4L172 14" /><path d="M210 14l8 6 8-6 8 6 8-6 8 6 8-6 8 6 8-6 8 6 8-6" strokeWidth="0.8" />
+      <circle cx="66" cy="22" r="10" fill="#ffe08a" /><Cloud x={104} y={10} s={0.8} /><Cloud x={338} y={6} s={0.7} />
+      {/* the city on the horizon */}
+      {[[0, 30, 20], [34, 22, 32], [60, 30, 16], [98, 20, 38], [338, 26, 26], [368, 30, 16], [404, 22, 34], [430, 30, 22], [462, 18, 28]].map(([bx, bw, bh]) => (
+        <g key={bx}><rect x={bx} y={70 - bh} width={bw} height={bh} fill="#cdd8e8" />{range(Math.floor(bw / 7)).map(c => range(Math.floor(bh / 8)).map(f => <rect key={`${c}${f}`} x={bx + 3 + c * 7} y={70 - bh + 3 + f * 8} width="3" height="4" fill="#e9f0f9" />))}</g>
+      ))}
+      <path d="M0 70H480V112H0z" fill={`url(#${u}dirt)`} /><path d="M0 70H480" stroke="#b9a684" strokeWidth="0.8" />
+      <path d="M60 104q90 -14 170 -8M40 110q100 -16 200 -10" fill="none" stroke="#b9a684" strokeWidth="1.200" strokeDasharray="5 4" opacity="0.7" />
+      {/* the tower crane, on the far side of the site */}
+      <g stroke="#f08a24" fill="none">
+        <path d="M204 74V9M210 74V9" strokeWidth="1.200" />{range(11).map(k => <path key={k} d={`M204 ${72 - k * 6}l6 -3l-6 -3`} strokeWidth="0.600" />)}
+        <path d="M184 12H302" strokeWidth="2.200" /><path d="M207 3L302 12M207 3L184 12M207 12V3" strokeWidth="0.700" stroke="#8a5a2b" />
+        <rect x="184" y="12" width="9" height="6" fill="#5f6b7a" stroke="none" /><rect x="210" y="13" width="7" height="6" fill="#fff" stroke="#8a5a2b" strokeWidth="0.500" />
+        <g className="qp-s-sway" style={{ animationDuration: '8s' }}><path d="M276 13v20" stroke="#5f6b7a" strokeWidth="0.600" /><path d="M276 33l-9 5M276 33l9 5" stroke="#5f6b7a" strokeWidth="0.500" /><rect x="265" y="38" width="22" height="2.600" fill="#5f6b7a" stroke="none" /></g>
       </g>
-      <rect x="170" y="14" width="14" height="10" fill="#7d8794" /><rect x="194" y="20" width="12" height="9" rx="1" fill="#f6c945" stroke="#f08a24" strokeWidth="1" />
-      <g className="qp-s-sway" style={{ animationDuration: '6s' }}><path d="M272 20v30" stroke="#5b6470" strokeWidth="0.9" /><path d="M272 50l-12 6M272 50l12 6" stroke="#5b6470" strokeWidth="0.8" /><rect x="256" y="55" width="32" height="5" rx="1" fill="#6f7f95" /></g>
-      <path d="M0 100h480v12H0z" fill="#d9cdb8" /><path d="M0 100h480" stroke="#bfb199" strokeWidth="1" />
-      <path d="M146 100l5-17h6l5 17z" fill="#f08a24" /><path d="M149.500 91h9M148 95.500h12" stroke="#fff" strokeWidth="2" /><rect x="142" y="99" width="24" height="3.500" rx="1" fill="#d9701c" />
-      {/* tools, the plans and the hat, all resting on the ground */}
-      <g transform="translate(326 93.500)"><rect x="-22" y="-7" width="44" height="14" rx="7" fill="#eaf2fb" stroke="#9fb2cc" strokeWidth="1" /><ellipse cx="-22" cy="0" rx="3.500" ry="7" fill="#c9d8ec" stroke="#9fb2cc" strokeWidth="1" /><path d="M-12 -2h24M-12 2h16" stroke="#7fa0c9" strokeWidth="0.9" /><path d="M2 -7v14" stroke="#d6362f" strokeWidth="1.600" /></g>
-      <g transform="translate(452 98) rotate(84)"><path d="M-3 -24h6v34a3 3 0 0 1-6 0z" fill="#9aa7b5" /><path d="M-8 -30a8 8 0 0 1 5-7v7h6v-7a8 8 0 0 1 5 7 8 8 0 0 1-16 0z" fill="#b5c0cc" /></g>
-      <ellipse cx="388" cy="103" rx="34" ry="3.500" fill="#bfb199" />
-      <path d="M358 94a30 30 0 0 1 60 0z" fill={`url(#${u}hat)`} /><path d="M382 65a30 30 0 0 1 12 0v29h-12z" fill="#ffe680" /><path d="M366 80a24 24 0 0 1 10-12" fill="none" stroke="#fff" strokeWidth="2.400" strokeLinecap="round" opacity="0.6" />
-      <rect x="350" y="92" width="76" height="9" rx="4.500" fill="#e0a511" /><rect x="350" y="92" width="76" height="3.500" rx="1.700" fill="#f6c93a" />
+      {/* the building going up: four storeys of steel, the ground floor already clad */}
+      <g>
+        <rect x="240" y="64" width="84" height="14" fill="#b9c7dd" />{range(8).map(k => <rect key={k} x={244 + k * 10.2} y="67" width="6" height="7" fill="#e6eefb" />)}
+        {range(5).map(c => <path key={c} d={`M${240 + c * 21} 78V${c % 2 ? 22 : 19}`} stroke="#3d5a8a" strokeWidth="2" />)}
+        {range(4).map(f => <path key={f} d={`M240 ${64 - f * 14}H324`} stroke="#3d5a8a" strokeWidth="1.700" />)}
+        {range(3).map(f => <path key={f} d={`M240 ${64 - f * 14}l21 -14M324 ${64 - f * 14}l-21 -14`} stroke="#3d5a8a" strokeWidth="0.600" opacity="0.7" />)}
+        <Person x={272} y={36} s={0.27} vest="#f08a24" hat="#f6c93a" /><Person x={300} y={50} s={0.27} flip vest="#f6c93a" hat="#fff" />
+      </g>
+      {/* an excavator and its spoil heap */}
+      <path d="M96 92q16 -18 34 0z" fill="#b89c72" /><path d="M104 88q8 -7 16 0" fill="none" stroke="#a48a62" strokeWidth="0.800" />
+      <g transform="translate(160 91) scale(1.9)" stroke="#2f4770" strokeWidth="0.300" strokeLinejoin="round">
+        <rect x="-10" y="-4" width="19" height="4" rx="2" fill="#3b4656" />{[-7, -3, 1, 5].map(c => <circle key={c} cx={c + 0.5} cy="-2" r="1" fill="#8b94a1" stroke="none" />)}
+        <path d="M-8.500 -10.500h12.500v6.500H-8.500z" fill="#f08a24" /><path d="M-2.500 -16.500h6.500v6H-4z" fill="#f08a24" /><path d="M-1.400 -15.300h4.200v3.600h-5z" fill="#d7e7f7" />
+        <path d="M3.500 -10.500L13 -21 20.500 -12" fill="none" stroke="#f08a24" strokeWidth="2.600" strokeLinecap="round" /><path d="M3.500 -10.500L13 -21 20.500 -12" fill="none" strokeWidth="0.300" />
+        <path d="M20.500 -12.500l2.800 4.500-5.800 1.800c-.6-2.200.4-4.600 3-6.300z" fill="#5f6b7a" />
+      </g>
+      {/* a worker walking across, and cones */}
+      <Person x={350} y={93} s={0.74} vest="#f08a24" hat="#f6c93a" shirt="#7fa0cf" />
+      {[[372, 101, 1.5], [452, 105, 1.9], [34, 103, 1.6]].map(([cx, cy, cs]) => <g key={cx} transform={`translate(${cx} ${cy}) scale(${cs})`}><path d="M-1 -7h2l2 6h-6z" fill="#f08a24" stroke="#2f4770" strokeWidth="0.300" /><path d="M-1.700 -4.800h3.400l.6 1.700h-4.600z" fill="#fff" /><rect x="-4" y="-1" width="8" height="1.200" rx="0.400" fill="#f08a24" /></g>)}
+      {/* two planners in hard hats, going over the plans */}
+      <ellipse cx="412" cy="108.500" rx="30" ry="2.600" fill="#b39f7c" opacity="0.7" />
+      <Person x={396} y={108} s={1.27} arm="out" vest="#f08a24" hat="#fff" shirt="#7fa0cf" trousers="#3d5a8a" />
+      <Person x={430} y={108} s={1.27} flip arm="out" vest="#f6c93a" hat="#f6c93a" shirt="#9fb7d8" trousers="#2f4770" skin="#c98f63" />
+      <g className="qp-s-bob" style={{ animationDuration: '5s' }}><path d="M404 79l19 -2 1.400 11.500-19 2z" fill="#fff" stroke="#2f4770" strokeWidth="0.500" strokeLinejoin="round" /><path d="M407 82l13 -1.400M407.400 85l13 -1.400M407.800 88l8 -.9M413 80.400l1 9" fill="none" stroke="#6f8fc0" strokeWidth="0.600" /></g>
     </>
   ),
 
@@ -446,14 +555,12 @@ const SCENES = {
       {[[250, 80, 1, '#3fa34d'], [276, 84, 0.8, '#62b96a'], [226, 86, 0.7, '#4fae5c']].map(([x, y, s, c]) => (
         <g key={x} transform={`translate(${x} ${y}) scale(${s})`}><rect x="-1.800" y="-4" width="3.600" height="14" rx="1" fill="#8a5a3b" /><circle cy="-13" r="12" fill={c} /><circle cx="-7" cy="-7" r="8" fill={c} /><circle cx="7" cy="-7" r="8" fill={c} /><circle cx="-4" cy="-17" r="4" fill="#fff" opacity="0.18" /></g>
       ))}
-      {/* the Earth, cradled in leaves */}
-      <ellipse cx="398" cy="104" rx="34" ry="3.500" fill="#6fba73" />
-      <g className="qp-s-sway-base"><path d="M398 100C372 100 356 84 354 58c20 2 36 14 44 42z" fill="#3fa34d" /><path d="M398 100C386 84 372 70 358 62" fill="none" stroke="#2c7d39" strokeWidth="1.200" /></g>
-      <g className="qp-s-sway-base" style={{ animationDelay: '1s' }}><path d="M398 100c26 0 42-16 44-42-20 2-36 14-44 42z" fill="#62b96a" /><path d="M398 100c12-16 26-30 40-38" fill="none" stroke="#3f8f4a" strokeWidth="1.200" /></g>
-      <circle cx="398" cy="52" r="31" fill={`url(#${u}sea)`} />
-      <path d="M378 34c8-5 17-3 18 4 1 6-8 6-9 13-1 7-8 5-10-3-1-6-2-10 1-14zM404 48c8-3 17 1 17 10s-8 17-15 17-5-8-8-13 0-12 6-14zM400 23c7-3 14-1 18 3-6 3-13 3-18-3zM372 62c4 0 8 4 7 9-4 1-8-3-7-9z" fill="#5fb96a" />
-      <path d="M376 36a26 26 0 0 1 20-11" fill="none" stroke="#fff" strokeWidth="2.400" strokeLinecap="round" opacity="0.45" /><ellipse cx="412" cy="36" rx="9" ry="3" fill="#fff" opacity="0.5" /><ellipse cx="384" cy="70" rx="8" ry="2.600" fill="#fff" opacity="0.45" />
-      {[[320, 40, 30], [300, 64, -40], [344, 22, 70], [452, 26, -20]].map(([x, y, r], i) => <g key={x} className="qp-s-bob" style={{ animationDelay: `${i * 0.7}s` }}><path d="M0 8C-5 5 -5 -3 0 -8 5 -3 5 5 0 8z" fill={i % 2 ? '#8fd18a' : '#3fa34d'} transform={`translate(${x} ${y}) rotate(${r})`} /></g>)}
+      {/* planting a tree */}
+      <ellipse cx="404" cy="106.500" rx="34" ry="3" fill="#6fba73" />
+      <path d="M380 106q8 -6 16 0z" fill="#8a5a3b" /><path d="M388 104V88" stroke="#8a5a3b" strokeWidth="1.300" />
+      <g className="qp-s-sway-base">{[[388, 86, 5.500, '#3fa34d'], [384, 90, 4, '#62b96a'], [392, 90, 4, '#4fae5c']].map(([cx, cy, cr, c]) => <circle key={`${cx}${cy}`} cx={cx} cy={cy} r={cr} fill={c} />)}</g>
+      <Person x={416} y={106} s={1.2} flip shirt="#62b96a" trousers="#5c6672" hat="#e9cf7a" arm="out"><path d="M9.300 -18.700V-1M7 -1h4.600l-.6 3.600h-3.400z" stroke="#8a5a3b" strokeWidth="0.900" fill="#9aa7b5" /></Person>
+      <Person x={446} y={106} s={0.86} shirt="#f6c445" trousers="#3d5a8a" hair="#4a3526" arm="out"><path d="M7.600 -19.600h4.600l-.6 4.600h-3.400z" fill="#5aa7e0" stroke="#2f6fb5" strokeWidth="0.400" /><path d="M12 -18.600l2.600 1.600" stroke="#2f6fb5" strokeWidth="0.700" /></Person>
     </>
   ),
 
@@ -483,52 +590,60 @@ const SCENES = {
   ekka: (u) => (
     <>
       <defs>
-        <linearGradient id={`${u}sky`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#cfeaf6" /><stop offset="1" stopColor="#fff4e2" /></linearGradient>
-        <linearGradient id={`${u}cone`} x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#e2b06a" /><stop offset="1" stopColor="#c98f45" /></linearGradient>
+        <linearGradient id={`${u}sky`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#cfe8f5" /><stop offset="1" stopColor="#fdf3df" /></linearGradient>
       </defs>
       <rect width="480" height="112" fill={`url(#${u}sky)`} />
-      <Cloud x={220} y={8} s={0.8} /><Cloud x={30} y={18} s={0.6} />
-      <path d="M0 96Q240 86 480 96V112H0z" fill="#bfe3a8" />
-      {/* bunting */}
-      <path d="M0 6Q120 26 240 8T480 8" fill="none" stroke="#9b8f7a" strokeWidth="0.9" />
-      {range(22).map(i => { const x = 8 + i * 21.500; const y = 6 + 10 * Math.sin((x / 240) * Math.PI) * (x < 240 ? 1 : 0.15) + (x >= 240 ? 2 : 0); return <path key={i} d={`M${x} ${y}h12l-6 11z`} fill={['#e8475f', '#1f8aa3', '#f6c445', '#f7a8cf'][i % 4]} /> })}
-      {/* the big wheel */}
-      <path d="M132 100L150 52l18 48M140 100h20" fill="none" stroke="#7d8794" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-      <g transform="translate(150 52)">
-        <g className="qp-s-spin" style={{ animationDuration: '24s' }}>
-          <circle r="40" fill="none" stroke="#1f8aa3" strokeWidth="2.600" /><circle r="33" fill="none" stroke="#7fc0d0" strokeWidth="1" />
-          {range(8).map(i => <path key={i} d="M0 0V-40" stroke="#7fc0d0" strokeWidth="1.200" transform={`rotate(${i * 45})`} />)}
-          {range(8).map(i => (
-            <g key={i} transform={`rotate(${i * 45}) translate(0 -40)`}>
-              <g className="qp-s-spin" style={{ animationDuration: '24s', animationDirection: 'reverse' }}>
-                <g transform={`rotate(${-i * 45})`}><path d="M-5 0a5 5 0 0 1 10 0z" fill={['#e8475f', '#f6c445', '#f7a8cf', '#9fd4f5'][i % 4]} /><rect x="-5" y="0" width="10" height="6" rx="1.500" fill="#fff" stroke={['#e8475f', '#f6c445', '#f7a8cf', '#9fd4f5'][i % 4]} strokeWidth="1" /></g>
-              </g>
-            </g>
-          ))}
+      <Cloud x={200} y={8} s={0.8} /><Cloud x={24} y={16} s={0.6} /><Cloud x={400} y={12} s={0.7} />
+      <path d="M0 70H480V112H0z" fill="#bfe3a8" /><path d="M0 96Q240 89 480 98V112H0z" fill="#e6d7ab" />
+      {/* the big wheel, on the far side of the ground */}
+      <g transform="translate(120 41)">
+        <path d="M0 0L-13 32M0 0L13 32M-18 32h36" stroke="#5c6672" strokeWidth="1.800" strokeLinecap="round" />
+        <g className="qp-s-spin" style={{ animationDuration: '80s' }}>
+          <circle r="28" fill="none" stroke="#e8475f" strokeWidth="1.600" /><circle r="17" fill="none" stroke="#f3a3b0" strokeWidth="0.700" />
+          {range(6).map(k => <path key={k} d="M-28 0H28" stroke="#8b94a1" strokeWidth="0.600" transform={`rotate(${k * 30})`} />)}
+          {range(12).map(k => <circle key={k} cy="-28" r="2.600" fill={['#f6c445', '#1f8aa3', '#f7a8cf', '#e8475f', '#9fd4f5', '#fff3d6'][k % 6]} stroke="#7a3340" strokeWidth="0.400" transform={`rotate(${k * 30})`} />)}
         </g>
-        <circle r="5" fill="#1f8aa3" /><circle r="2" fill="#fff" />
+        <circle r="2.400" fill="#f6c445" stroke="#7a3340" strokeWidth="0.400" />
       </g>
-      {/* a striped tent */}
-      <path d="M228 100V70h56v30z" fill="#fff6e6" /><path d="M235 100V70h7v30zM249 100V70h7v30zM263 100V70h7v30zM277 100V70h7v30z" fill="#e8475f" opacity="0.85" />
-      <path d="M222 70L256 44l34 26z" fill="#e8475f" /><path d="M239 70l17-26 0 26zM256 44l17 26h-8.500z" fill="#fff6e6" /><path d="M222 70q5.700 6 11.300 0t11.300 0 11.400 0 11.300 0 11.300 0 11.400 0" fill="none" stroke="#c9364b" strokeWidth="1.600" />
-      <path d="M256 44V32" stroke="#7d8794" strokeWidth="1" /><path className="qp-s-sway" d="M256 32l10 3-10 3z" fill="#f6c445" /><rect x="250" y="84" width="12" height="16" rx="5" fill="#7a4a2a" />
-      {/* balloons */}
-      {[[452, 30, '#e8475f', 0], [466, 42, '#f6c445', 0.6], [440, 44, '#9fd4f5', 1.200]].map(([x, y, c, d]) => (
-        <g key={x} className="qp-s-bob" style={{ animationDelay: `${d}s` }}><path d={`M${x} ${y + 9}Q${x - 4} ${y + 30} 452 96`} fill="none" stroke="#8b94a1" strokeWidth="0.6" /><ellipse cx={x} cy={y} rx="7.500" ry="9" fill={c} /><ellipse cx={x - 2.500} cy={y - 3} rx="2" ry="3" fill="#fff" opacity="0.5" /><path d={`M${x - 1.500} ${y + 9}h3l-1.500 2.500z`} fill={c} /></g>
-      ))}
-      <rect x="447" y="94" width="10" height="5" rx="1.500" fill="#7d8794" /><path d="M452 94v-2" stroke="#7d8794" strokeWidth="1" />
-      {/* fairy floss */}
-      <path d="M330 104L336 70" stroke="#e9dcc3" strokeWidth="2.400" strokeLinecap="round" />
-      <g className="qp-s-bob" style={{ animationDelay: '0.5s' }}>{[[336, 54, 13], [326, 60, 9], [346, 60, 9.500], [331, 46, 9], [342, 45, 9.500], [336, 64, 9]].map(([x, y, r], i) => <circle key={`${x}${y}`} cx={x} cy={y} r={r} fill={i % 2 ? '#f9bfdc' : '#f7a8cf'} />)}<path d="M328 50q8-6 14 2M326 60q10-4 18 2" fill="none" stroke="#fff" strokeWidth="1.300" strokeLinecap="round" opacity="0.6" /></g>
-      {/* the strawberry sundae */}
-      <ellipse cx="396" cy="105" rx="20" ry="2.800" fill="#9fcf8a" />
-      <path d="M386 105l5.500-21M406 105l-5.500-21" stroke="#7d8794" strokeWidth="1.600" strokeLinecap="round" />
-      <path d="M380 60l16 44 16-44z" fill={`url(#${u}cone)`} /><path d="M383 68h26M386.500 77h19M390 86h12M385 62l15 34M393 62l9 26M407 62l-15 34M399 62l-9 26" stroke="#a9742f" strokeWidth="0.7" opacity="0.8" />
-      <ellipse cx="396" cy="84" rx="7.500" ry="1.800" fill="none" stroke="#7d8794" strokeWidth="1.400" />
-      <path d="M376 60q4-22 20-22t20 22q-10 5-20 5t-20-5z" fill="#f7a8cf" /><path d="M380 56q-2-12 16-22-6 10-2 22z" fill="#fbcfe3" opacity="0.8" />
-      <path d="M380 44q16-12 32 0-4 8-16 8t-16-8z" fill="#fffaf0" /><path d="M385 34q11-10 22 0-3 6-11 6t-11-6z" fill="#fffaf0" /><path d="M383 44q13-7 26 0M388 34q8-5 16 0" fill="none" stroke="#eadfc8" strokeWidth="0.9" />
-      <g transform="translate(396 22)"><path d="M0 12c-6-3-9-8-9-12 0-4 4-5 9-3.500 5-1.500 9 0 9 3.500 0 4-3 9-9 12z" fill="#e8475f" />{[[-4, 1], [0, .5], [4, 1], [-2, 5], [2, 5], [0, 8.500]].map(([a, b]) => <ellipse key={`${a}${b}`} cx={a} cy={b} rx="0.6" ry="0.9" fill="#fde9a6" />)}<path d="M0 -3C-2 -7 -5 -7 -6.500 -5.500c2 .2 3.500 1 4.500 2.300zM0 -3c2-4 5-4 6.500-2.500-2 .2-3.500 1-4.500 2.300zM0 -2.500V-8" fill="#3fa34d" stroke="#3fa34d" strokeWidth="1" strokeLinejoin="round" strokeLinecap="round" /></g>
-      <rect x="408" y="26" width="5" height="20" rx="1" fill="#e2b06a" transform="rotate(24 410 36)" />
+      {/* the big top */}
+      <g transform="translate(250 80)">
+        {range(8).map(k => <rect key={k} x={-36 + k * 9} y="-22" width="9" height="22" fill={k % 2 ? '#e8475f' : '#fff3d6'} />)}
+        {range(8).map(k => <path key={k} d={`M0 -54L${-39 + k * 9.75} -22h9.750z`} fill={k % 2 ? '#fff3d6' : '#e8475f'} />)}
+        <path d="M0 -54L-39 -22H39z" fill="none" stroke="#7a3340" strokeWidth="0.600" strokeLinejoin="round" /><rect x="-36" y="-22" width="72" height="22" fill="none" stroke="#7a3340" strokeWidth="0.600" />
+        {range(8).map(k => <circle key={k} cx={-34.1 + k * 9.75} cy="-21.400" r="4.875" fill={k % 2 ? '#fff3d6' : '#e8475f'} stroke="#7a3340" strokeWidth="0.300" />)}
+        <path d="M-5 0v-14a5 5 0 0 1 10 0V0z" fill="#7a3340" /><path d="M0 -54v-7" stroke="#7a3340" strokeWidth="0.700" /><path className="qp-s-sway" d="M0 -61l8 2.200-8 2.400z" fill="#f6c445" />
+      </g>
+      {/* bunting from the tent to the stall */}
+      <path d="M289 58Q312 68 334 54" fill="none" stroke="#8a6a4f" strokeWidth="0.500" />{range(6).map(k => { const t = (k + 0.5) / 6, bx = 289 + 45 * t, by = 58 * (1 - t) * (1 - t) + 2 * 68 * t * (1 - t) + 54 * t * t; return <path key={k} d={`M${n1(bx - 2.2)} ${n1(by)}h4.400l-2.200 4.600z`} fill={['#e8475f', '#f6c445', '#1f8aa3'][k % 3]} /> })}
+      {/* the strawberry sundae stall, with someone serving */}
+      <g transform="translate(356 88)">
+        <path d="M-22 0v-34M22 0v-34" stroke="#8a6a4f" strokeWidth="1.600" />
+        <Person x={-4} y={0} s={0.56} shirt="#fff3d6" hair="#7a4a2b" arm="out" />
+        <rect x="-23" y="-11" width="46" height="11" fill="#f4ead9" stroke="#7a3340" strokeWidth="0.500" /><path d="M-19 -5.500h38" stroke="#1f8aa3" strokeWidth="2" />
+        {range(7).map(k => <path key={k} d={`M${-24.5 + k * 7} -40h7v6a3.500 3.500 0 0 1-7 0z`} fill={k % 2 ? '#fff3d6' : '#1f8aa3'} stroke="#7a3340" strokeWidth="0.300" />)}
+        {[8, 13, 18].map(cx => <g key={cx}><path d={`M${cx - 1.4} -14.500h2.800l-1.400 3.500z`} fill="#e0a85a" /><circle cx={cx} cy="-15.600" r="1.600" fill="#f58fa8" /><circle cx={cx} cy="-17.200" r="0.900" fill="#e8475f" /></g>)}
+      </g>
+      {/* a show cow with her ribbon, and her handler */}
+      <g transform="translate(196 94) scale(1.25)" stroke="#5c4a3d" strokeWidth="0.400" strokeLinejoin="round">
+        <path d="M-7 -4.500V0h1.800v-4M-3.500 -4.500V0h1.800v-4M3.500 -4.500V0h1.800v-4M6.500 -4.500V0h1.800v-4" fill="#fff" />
+        <path d="M-9 -8c-2 .5-2.500 3-2.200 5.500" fill="none" /><rect x="-9" y="-12" width="18.500" height="8.500" rx="3.400" fill="#fff" />
+        <path d="M-6 -11.800c2.500-.4 4.200 1 3.600 3.200s-3.600 2.300-4.800.6M2 -6.500c1.200-1.900 4.200-1.800 4.800 0s-.6 2.800-2.400 2.800z" fill="#5c4a3d" stroke="none" />
+        <path d="M8 -14.500h4.500c1.300 0 2 1 2 2.300v3.400c0 1-.8 1.800-1.800 1.800H9.500C8.500 -7 8 -7.800 8 -8.800z" fill="#fff" /><path d="M11 -9.600h3.500v1.800c0 .5-.4.800-.9.800H11z" fill="#f2b6c0" stroke="none" />
+        <path d="M8.300 -14.300l-1.800-1.700M12.300 -14.500l1.200-1.900" fill="none" strokeLinecap="round" /><circle cx="11" cy="-12" r="0.600" fill="#3b2a2a" stroke="none" />
+        <circle cx="3" cy="-12.500" r="2.300" fill="#1f8aa3" stroke="#14607a" strokeWidth="0.300" /><circle cx="3" cy="-12.500" r="0.900" fill="#f6c445" stroke="none" /><path d="M1.800 -10.600l-.9 3.200 1.600-.8zM4.200 -10.600l.9 3.200-1.600-.8z" fill="#1f8aa3" stroke="none" />
+      </g>
+      <path d="M214 80q7 2 11 -1" fill="none" stroke="#8a6a4f" strokeWidth="0.600" /><Person x={232} y={95} s={0.8} flip shirt="#fff" trousers="#5c6672" hat="#c9a26a" arm="out" />
+      {/* people at the show: fairy floss, balloons, a sundae */}
+      <Person x={404} y={108} s={1.24} shirt="#1f8aa3" trousers="#3d4f6b" hair="#6b4423" arm="out">
+        <path d="M9.300 -18.700l.8 -8" stroke="#f4ead9" strokeWidth="0.800" /><circle cx="9.200" cy="-29.200" r="3" fill="#f7a8cf" /><circle cx="11.600" cy="-28" r="2.600" fill="#f9bfdc" /><circle cx="10.600" cy="-31.200" r="2.500" fill="#f9bfdc" />
+      </Person>
+      <Person x={432} y={108} s={0.86} shirt="#f6c445" trousers="#7a3340" hair="#3b2a2a" arm="up">
+        <path d="M7.300 -30.400L3 -45M7.300 -30.400L9 -49M7.300 -30.400L14.500 -44" fill="none" stroke="#8a6a4f" strokeWidth="0.350" />
+        <g className="qp-s-bob"><ellipse cx="3" cy="-49" rx="3.400" ry="4.200" fill="#e8475f" /><ellipse cx="9" cy="-53" rx="3.400" ry="4.200" fill="#9fd4f5" /><ellipse cx="15" cy="-48" rx="3.400" ry="4.200" fill="#f6c445" /></g>
+      </Person>
+      <Person x={460} y={108} s={1.2} flip shirt="#e8475f" trousers="#3d4f6b" hair="#2a2f3a" skin="#c98f63" arm="out">
+        <path d="M8 -19.500h2.800l-1.400 4z" fill="#e0a85a" /><circle cx="9.400" cy="-20.800" r="1.900" fill="#f58fa8" /><circle cx="9.400" cy="-22.800" r="1.200" fill="#fff7e6" /><circle cx="9.400" cy="-24" r="0.800" fill="#e8475f" />
+      </Person>
     </>
   ),
 
@@ -563,19 +678,21 @@ const SCENES = {
       <g fill="none" strokeLinecap="round"><path d="M92 92V14M132 92V14M92 56h40" stroke="#7c8ca5" strokeWidth="4" /><path d="M92 92V14M132 92V14M92 56h40" stroke="#fbfcfe" strokeWidth="2.500" /></g>
       <rect x="88.500" y="78" width="7" height="14" rx="2.500" fill={CLUBS.broncos[0]} /><rect x="128.500" y="78" width="7" height="14" rx="2.500" fill={CLUBS.broncos[0]} />
       <path d="M40 104Q84 8 150 34" fill="none" stroke="#fff" strokeWidth="1.100" strokeDasharray="2 4.500" strokeLinecap="round" opacity="0.9" />
-      <g className="qp-s-bob"><BallPale x={112} y={36} s={0.95} rot={-30} /></g>
+      <g className="qp-s-bob"><BallPale x={112} y={36} s={0.5} rot={-30} /></g>
       {/* rules-style posts, with a ball sailing through the middle */}
       <g fill="none" strokeLinecap="round"><path d="M352 92V10M376 92V10M334 92V34M394 92V34" stroke="#7c8ca5" strokeWidth="3.600" /><path d="M352 92V10M376 92V10M334 92V34M394 92V34" stroke="#fbfcfe" strokeWidth="2.200" /></g>
       {[352, 376, 334, 394].map(x => <rect key={x} x={x - 3} y="80" width="6" height="12" rx="2.300" fill={CLUBS.lions[1]} />)}
       <path d="M452 104Q420 4 352 30" fill="none" stroke="#fff" strokeWidth="1.100" strokeDasharray="2 4.500" strokeLinecap="round" opacity="0.9" />
-      <g className="qp-s-bob" style={{ animationDelay: '0.8s' }}><BallRed x={364} y={28} s={0.95} rot={24} /></g>
-      {/* the cup */}
+      <g className="qp-s-bob" style={{ animationDelay: '0.8s' }}><BallRed x={364} y={28} s={0.5} rot={24} /></g>
+      {/* the cup, on its stand in the centre circle */}
+      <g transform="translate(240 105) scale(0.34) translate(-240 -104)">
       <ellipse cx="240" cy="104" rx="20" ry="3" fill="#2c8648" />
       <rect x="226" y="94" width="28" height="9" rx="1.500" fill="#3a2a22" /><rect x="230" y="96.500" width="20" height="3.500" rx="1" fill="#e2a92c" />
       <path d="M237 94h6v-9h-6z" fill="#d49a22" /><path d="M233 85h14l-2-3h-10z" fill="#e2a92c" />
       <path d="M227 54h26c0 16-4 27-13 28-9-1-13-12-13-28z" fill={`url(#${u}cup)`} /><ellipse cx="240" cy="54" rx="13" ry="2.600" fill="#c98b16" />
       <path d="M227 58c-9-2-11 12 2 15M253 58c9-2 11 12-2 15" fill="none" stroke="#e2a92c" strokeWidth="2.300" strokeLinecap="round" /><path d="M232 59c0 9 1.500 15 4 19" fill="none" stroke="#fff" strokeWidth="1.800" strokeLinecap="round" opacity="0.6" />
       <Sparkle x={258} y={50} s={0.8} fill="#fff" /><Sparkle x={222} y={64} s={0.55} fill="#fff" delay={0.9} /><Sparkle x={246} y={44} s={0.5} delay={1.500} />
+      </g>
       {[[190, 26, CLUBS.broncos[0]], [204, 40, CLUBS.broncos[1]], [280, 30, CLUBS.lions[1]], [296, 44, CLUBS.suns[0]], [218, 18, CLUBS.titans[0]], [266, 16, CLUBS.suns[1]], [176, 44, '#f3f4f6'], [306, 24, CLUBS.storm[0]]].map(([x, y, c], i) => <rect key={`${x}${y}`} className="qp-s-twinkle" style={{ animationDelay: `${i * 0.3}s` }} x={x} y={y} width="5" height="2.200" rx="0.6" fill={c} transform={`rotate(${i * 41} ${x} ${y})`} />)}
     </>
   ),
@@ -612,32 +729,32 @@ const SCENES = {
       <circle cx="398" cy="88" r="40" fill={`url(#${u}glow)`} />
       <ellipse cx="398" cy="105" rx="60" ry="3.500" fill="#120a24" opacity="0.6" />
       <Pumpkin x={352} y={94} s={0.95} face="ooh" /><Pumpkin x={446} y={92} s={1.100} face="smile" /><Pumpkin x={398} y={84} s={1.900} face="grin" />
-      <path d="M318 106l5-12 5 12zM322.500 98h1" fill="#f6c945" /><path d="M318 106l1.700-4h6.600l1.700 4z" fill="#f08a24" /><path d="M321.200 98.500l1.800-4.500 1.800 4.500z" fill="#fff" />
     </>
   ),
 
   remembrance: (u) => (
     <>
       <defs>
-        <linearGradient id={`${u}sky`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#dfe7ec" /><stop offset="0.7" stopColor="#f5ecdc" /><stop offset="1" stopColor="#f7e6c9" /></linearGradient>
-        <radialGradient id={`${u}sun`}><stop offset="0" stopColor="#fff4d6" stopOpacity="0.95" /><stop offset="1" stopColor="#fff4d6" stopOpacity="0" /></radialGradient>
+        <linearGradient id={`${u}sky`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#161d28" /><stop offset="0.6" stopColor="#343b4b" /><stop offset="1" stopColor="#8a6c58" /></linearGradient>
+        <radialGradient id={`${u}sun`}><stop offset="0" stopColor="#f3c58a" stopOpacity="0.75" /><stop offset="1" stopColor="#f3c58a" stopOpacity="0" /></radialGradient>
       </defs>
       <rect width="480" height="112" fill={`url(#${u}sky)`} />
-      <circle cx="170" cy="76" r="60" fill={`url(#${u}sun)`} /><circle cx="170" cy="78" r="14" fill="#fff6dd" />
-      <path d="M0 76Q100 60 210 72T400 64 480 70V112H0z" fill="#cdd5c4" /><path d="M0 86Q130 70 260 82T480 78V112H0z" fill="#b4c2a8" />
+      <circle cx="170" cy="76" r="60" fill={`url(#${u}sun)`} /><circle cx="170" cy="80" r="11" fill="#f6dcae" />
+      {[[24, 12], [60, 30], [118, 8], [236, 16], [290, 34], [330, 10], [388, 26], [450, 12], [470, 40]].map(([x, y], i) => <circle key={`${x}${y}`} className="qp-s-glow" style={{ animationDuration: `${7 + (i * 1.7) % 5}s`, animationDelay: `-${(i * 2.3) % 7}s` }} cx={x} cy={y} r={0.6 + (i % 2) * 0.3} fill="#fff" opacity="0.7" />)}
+      <path d="M0 76Q100 60 210 72T400 64 480 70V112H0z" fill="#2d3b34" /><path d="M0 86Q130 70 260 82T480 78V112H0z" fill="#25332c" />
       {/* a plain memorial on the rise */}
-      <path d="M96 78l3-34h6l3 34z" fill="#9aa39a" /><path d="M99 44l3-6 3 6z" fill="#8b948b" /><rect x="90" y="78" width="24" height="4" fill="#8b948b" /><rect x="86" y="82" width="32" height="3" fill="#7d867d" />
-      <path d="M0 96Q150 84 300 92T480 88V112H0z" fill="#8fa581" />
+      <path d="M96 78l3-34h6l3 34z" fill="#76827b" /><path d="M99 44l3-6 3 6z" fill="#69756e" /><rect x="90" y="78" width="24" height="4" fill="#69756e" /><rect x="86" y="82" width="32" height="3" fill="#5c6861" />
+      <path d="M0 96Q150 84 300 92T480 88V112H0z" fill="#1d2b24" />
       {/* poppies, from far to near */}
-      {[[40, 92, 0.3], [70, 96, 0.34], [128, 94, 0.3], [160, 98, 0.36], [196, 92, 0.3], [236, 96, 0.36], [20, 100, 0.36], [108, 100, 0.34]].map(([x, y, s]) => <g key={x}><path d={`M${x} ${y}v8`} stroke="#5f7d55" strokeWidth="0.8" /><Poppy x={x} y={y} s={s} /></g>)}
+      {[[40, 92, 0.3], [70, 96, 0.34], [128, 94, 0.3], [160, 98, 0.36], [196, 92, 0.3], [236, 96, 0.36], [20, 100, 0.36], [108, 100, 0.34]].map(([x, y, s]) => <g key={x}><path d={`M${x} ${y}v8`} stroke="#4a7350" strokeWidth="0.8" /><Poppy x={x} y={y} s={s} /></g>)}
       {[[268, 84, 0.62, 26, 0], [300, 90, 0.5, 20, 0.7], [334, 72, 0.9, 38, 1.300], [372, 82, 0.7, 28, 0.4], [404, 60, 1.250, 50, 1], [444, 74, 1, 36, 1.700], [468, 90, 0.6, 20, 0.2], [352, 96, 0.5, 14, 2]].map(([x, y, s, h, d]) => (
         <g key={x} className="qp-s-sway-base" style={{ animationDelay: `${d}s`, animationDuration: '6s' }}>
           <path d={`M${x} ${y}Q${x - 3} ${y + h / 2} ${x + 1} ${y + h}`} fill="none" stroke="#4f7a4a" strokeWidth={1 + s} strokeLinecap="round" /><Poppy x={x} y={y} s={s} />
         </g>
       ))}
       <g className="qp-s-sway-base" style={{ animationDelay: '0.8s', animationDuration: '6s' }}><path d="M426 112Q424 96 430 86" fill="none" stroke="#4f7a4a" strokeWidth="1.600" strokeLinecap="round" /><ellipse cx="431" cy="82" rx="3.200" ry="5" fill="#5f8a5a" /><path d="M431 78v8" stroke="#c8102e" strokeWidth="1" /></g>
-      <path d="M392 112q-10-14-22-13 6 12 22 13zM418 112q12-12 22-10-6 9-22 10zM330 112q-8-10-17-9 4 8 17 9z" fill="#5f8a5a" />
-      {range(30).map(i => <path key={i} d={`M${i * 16.500} 112l2-7 2.500 4.500 2.500-8 2.500 6 2-3.500 2.500 8z`} fill={i % 2 ? '#7d9870' : '#6f8c63'} />)}
+      <path d="M392 112q-10-14-22-13 6 12 22 13zM418 112q12-12 22-10-6 9-22 10zM330 112q-8-10-17-9 4 8 17 9z" fill="#3a6044" />
+      {range(30).map(i => <path key={i} d={`M${i * 16.500} 112l2-7 2.500 4.500 2.500-8 2.500 6 2-3.500 2.500 8z`} fill={i % 2 ? '#2f4a37' : '#27402f'} />)}
     </>
   ),
 }

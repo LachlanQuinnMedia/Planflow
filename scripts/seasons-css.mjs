@@ -76,7 +76,7 @@ function frame(s, lines, page, pageColour) {
     `  --qp-s-bar: ${css(bar)};`, `  --qp-s-bar-glass: color-mix(in oklab, ${css(solid)} ${GLASS}%, transparent);`, `  --qp-s-bar-text: ${css(barText)};`, `  --qp-s-line: ${css(line)};`,
     `  --qp-s-side-soft: ${css(soft)};`, `  --qp-s-side-muted: ${css(muted)};`,
     `  --qp-s-side-well: ${css(well)};`, `  --qp-s-side-hover: ${css(hover)};`, `  --qp-s-side-dot: ${css(dot)};`, `  --qp-s-side-chip: ${chip};`)
-  need(s.id, 'text on the top bar and menu', contrast(barText, bar))
+  need(s.id, 'text on the top bar and menu', contrast(barText, bar), 4.75) // a margin: the browser blends the see-through bar slightly differently
   need(s.id, 'menu items', contrast(soft, bar))
   need(s.id, 'small labels on the menu', contrast(muted, bar))
   need(s.id, 'text in a box on the menu', contrast(barText, well))

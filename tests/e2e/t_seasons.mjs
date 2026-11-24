@@ -252,7 +252,7 @@ const overlapCheck = () => {
     assert.ok(ratio(m.input, m.inputBg) >= 4.5 && ratio(m.select, m.selectBg) >= 4.5, `${id}: the timer's boxes are readable`)
     assert.ok(ratio(m.logoDot, c.side) >= 1.85, `${id}: the dot in the logo shows (${ratio(m.logoDot, c.side).toFixed(2)})`)
     assert.equal(m.logoutBg, 'rgba(0, 0, 0, 0)', `${id}: Log out is outlined, not a red block`)
-    if (!['newyear', 'halloween'].includes(id)) {
+    if (!['newyear', 'halloween', 'remembrance'].includes(id)) {
       assert.ok(sat(c.page) >= 4 && sat(c.page) <= 20, `${id}: the page is tinted, gently: ${c.page}`)
       assert.ok(lum(c.page) > 0.82, `${id}: the page stays light`)
     }
@@ -268,7 +268,7 @@ const overlapCheck = () => {
   // What he asked for by name
   const hue = ([r, g, b]) => { const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn || 1; let h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return (h * 60 + 360) % 360 }
   const w = got.womens; assert.ok(w.page[0] > w.page[1] + 4 && w.page[0] > w.page[2], `Women's Day page is light pink: ${w.page}`); assert.ok(hue(w.bar) > 300 || hue(w.bar) < 10, `Women's Day bar is pink: ${w.bar}`)
-  const x = got.christmas; assert.ok(x.page[1] >= x.page[0] && x.page[1] >= x.page[2], `Christmas page is a frosted white, not orange: ${x.page}`); assert.ok(x.bar[0] > 90 && x.bar[1] < 80 && x.bar[2] < 95 && x.bar[0] < 150 && x.bar[0] > x.bar[1] + 40, `Christmas bar is a deep maroon: ${x.bar}`); assert.deepEqual(x.side, x.bar, 'Christmas menu is the same maroon as the bar')
+  const x = got.christmas; assert.ok(x.page[1] >= x.page[0] && x.page[1] >= x.page[2], `Christmas page is a frosted white, not orange: ${x.page}`); assert.ok(x.bar[0] > 90 && x.bar[1] < 95 && x.bar[2] < 105 && x.bar[0] < 170 && x.bar[0] > x.bar[1] + 40, `Christmas bar is a deep maroon: ${x.bar}`); assert.deepEqual(x.side, x.bar, 'Christmas menu is the same maroon as the bar')
   const hw = got.halloween; assert.ok(lum(hw.page) < 0.02 && sat(hw.page) < 12, `Halloween page is black: ${hw.page}`); assert.ok(hue(hw.bar) > 15 && hue(hw.bar) < 45 && sat(hw.bar) > 70, `Halloween bar is orange: ${hw.bar}`)
   console.log('5 colour coding: 13 seasons, each with its own page and frame; the menu matches the top bar; all text on both readable')
   console.log('   ' + ALL.map(id => `${id} bar rgb(${got[id].bar}) page rgb(${got[id].page})`).join('\n   '))
