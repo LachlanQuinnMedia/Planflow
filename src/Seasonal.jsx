@@ -8,10 +8,12 @@
 //   SeasonParticles  snow, petals or sparkles drifting BEHIND the page, so cards and text sit over them.
 //
 // Every drawing here is original and generic: no team, league, event or company marks.
+import { lazy, Suspense } from 'react'
 import { brisbaneToday, MONTH_NAMES } from './seasons'
 import { useSeason } from './useSeason'
 import { SeasonScene } from './seasonArt'
-import { SeasonFrieze } from './seasonStrips'
+// The strips are big drawings, so they are only fetched when the Seasonal theme is on
+const SeasonFrieze = lazy(() => import('./seasonStrips').then(m => ({ default: m.SeasonFrieze })))
 
 // ------------------------------------------------------------------
 // Small pieces for the sticker beside the logo, each drawn in a 24 x 24 box.
@@ -169,7 +171,7 @@ export function SeasonStrip() {
   if (!season) return null
   return (
     <div aria-hidden="true" data-testid="season-strip" className="-mx-4 md:-mx-5 -mt-4 md:-mt-5 mb-3 h-9 overflow-hidden pointer-events-none select-none">
-      <SeasonFrieze seasonId={season.id} />
+      <Suspense fallback={null}><SeasonFrieze seasonId={season.id} /></Suspense>
     </div>
   )
 }

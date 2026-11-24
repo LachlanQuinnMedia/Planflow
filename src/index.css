@@ -461,6 +461,9 @@ html[data-app] #root > .qp-site { display: none; }
   15% { opacity: 0.9; }
   100% { transform: translate3d(var(--qp-drift, 12px), -90vh, 0) scale(1); opacity: 0; }
 }
+/* The strip across the top of each page is a still drawing. It is one large picture, and
+   keeping it still means the browser draws it once and never again. */
+[data-testid="season-strip"] * { animation: none !important; }
 @media (prefers-reduced-motion: reduce) {
   .qp-s-twinkle, .qp-s-sway, .qp-s-sway-base, .qp-s-bob, .qp-s-spin, .qp-s-spin-fast, .qp-s-burst,
   .qp-s-flap, .qp-s-flicker, .qp-s-twitch { animation: none; }

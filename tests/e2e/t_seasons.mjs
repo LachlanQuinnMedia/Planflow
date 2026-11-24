@@ -111,8 +111,8 @@ const overlapCheck = () => {
         if (res.order) { assert.equal(res.order.pointer, 'none'); assert.ok(Number(res.order.particles) < 0, 'the drifting pieces sit behind the page'); assert.equal(res.order.rootIsolated, 'isolate'); assert.ok(res.order.pieces >= 8) }
         checked++
       }
-      // a redrawn strip is one long scene: nothing in it is drawn twice on this screen
-      if (['remembrance', 'christmas', 'newyear', 'superbowl'].includes(s.id)) {
+      // every strip is one long hand-drawn scene: nothing in it is drawn twice on this screen
+      {
         const strip = await page.evaluate(() => { const el = document.querySelector('[data-testid=season-strip]'), p = el.querySelector('svg > defs > pattern[patternUnits]'); return { h: el.getBoundingClientRect().height, w: el.getBoundingClientRect().width, tile: p && p.parentElement.parentElement === el.firstElementChild && p.id === el.querySelector('svg > rect:last-child')?.getAttribute('fill')?.slice(5, -1) ? Number(p.getAttribute('width')) : null, pieces: el.querySelectorAll('svg *').length } })
         assert.equal(strip.h, 36); assert.ok(strip.pieces > 60, `${s.id}: the strip is a drawn scene`)
         assert.ok(strip.tile === null || strip.tile > strip.w, `${s.id}: the scene is wider than the screen (${strip.tile} against ${strip.w}), so nothing repeats`)
