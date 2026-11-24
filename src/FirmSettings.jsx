@@ -70,7 +70,7 @@ export default function FirmSettings({ currentUser, onNavigate }) {
   const field = 'w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-400'
 
   return (
-    <div data-testid="firm-settings" className="max-w-3xl">
+    <div data-testid="firm-settings" data-tour="firm-main" className="max-w-3xl">
       <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
         <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Your firm</div>
         <div className="text-sm font-semibold">{currentUser.companyName || 'Your firm'}</div>

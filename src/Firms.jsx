@@ -2,7 +2,7 @@
 // Master account only. Every firm on QPlan, with a button to add one and a button to open one.
 // Opening a firm shows it exactly as that firm's directors see it. Nothing is shared between firms.
 import { useState, useEffect } from 'react'
-import { callFunction } from './supabase'
+import { supabase, callFunction } from './supabase'
 
 const APP_URL = 'https://planflow-beige.vercel.app'
 
@@ -103,8 +103,20 @@ export default function Firms({ currentUser, timerRunning, onSwitched }) {
   const [openCodes, setOpenCodes] = useState(null)
   const [switching, setSwitching] = useState(null)
 
+  const [problems, setProblems] = useState([])
   const [reloads, setReloads] = useState(0)
   const load = () => setReloads(n => n + 1)
+  // What the app has reported about itself, across every firm. Only the master account can read these.
+  useEffect(() => {
+    let cancelled = false
+    supabase.from('client_errors').select('*').order('created_at', { ascending: false }).limit(50).then(({ data }) => { if (!cancelled) setProblems(data || []) })
+    return () => { cancelled = true }
+  }, [reloads])
+  const clearProblems = async () => {
+    if (!window.confirm('Clear every reported problem?')) return
+    await supabase.from('client_errors').delete().gt('id', 0)
+    load()
+  }
   useEffect(() => {
     let cancelled = false
     callFunction('platform', 'list_firms').then((res) => {
@@ -161,6 +173,25 @@ export default function Firms({ currentUser, timerRunning, onSwitched }) {
           {firms.length === 0 && !error && <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-sm text-gray-500">No firms yet.</div>}
         </div>
       )}
+
+      <div data-testid="problems" className="bg-white rounded-xl border border-gray-200 p-4 mt-4">
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Problems the app reported</div>
+            <div className="text-xs text-gray-500">When a screen breaks for someone, QPlan records it here. The latest 50, from every firm.</div>
+          </div>
+          {problems.length > 0 && <button onClick={clearProblems} className="px-2.5 py-1 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 flex-shrink-0">Clear</button>}
+        </div>
+        {problems.length === 0 ? <div className="text-xs text-gray-500 py-2">Nothing reported. Good.</div> : problems.map(p => (
+          <div key={p.id} data-testid="problem-row" className="py-2 border-t border-gray-100">
+            <div className="text-xs font-medium text-red-700 break-words">{p.message}</div>
+            <div className="text-xs text-gray-500">
+              {(firms || []).find(f => f.id === p.company_id)?.name || 'Unknown firm'} · {p.username || 'Unknown'} · {p.page || 'unknown page'} · {formatDate(p.created_at)}
+            </div>
+            {p.detail && <details className="mt-1"><summary className="text-xs text-gray-500 cursor-pointer">Details</summary><pre className="text-[11px] text-gray-600 whitespace-pre-wrap break-words mt-1">{p.detail}</pre></details>}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

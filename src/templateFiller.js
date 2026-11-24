@@ -138,6 +138,12 @@ export async function buildFromTemplate(templateFile, job, planner) {
  */
 export async function generateFromTemplate(templateFile, job, planner) {
   const { blob, filename } = await buildFromTemplate(templateFile, job, planner);
+  downloadBlob(blob, filename);
+  return { blob, filename };
+}
+
+// Hand a finished file to the browser to save on this computer
+export function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -146,6 +152,4 @@ export async function generateFromTemplate(templateFile, job, planner) {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
-
-  return { blob, filename };
 }

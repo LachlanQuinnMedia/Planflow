@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useAutoRefresh } from './useAutoRefresh'
 import { supabase } from './supabase'
 import { jobListName } from './jobMeta'
 
@@ -55,9 +56,11 @@ export default function Workload({ currentUser }) {
   useEffect(() => {
     fetchData()
   }, [currentUser])
+  // Workloads keep themselves up to date (quietly: no "Loading" flash)
+  useAutoRefresh(() => fetchData(true))
 
-  const fetchData = async () => {
-    setLoading(true)
+  const fetchData = async (quiet = false) => {
+    if (!quiet) setLoading(true)
 
     // Fetch all approved users
     const { data: users } = await supabase

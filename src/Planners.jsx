@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { notify } from './notify'
 import { supabase } from './supabase'
 import { IconAlert } from './icons'
 
@@ -380,7 +381,7 @@ export default function Planners({ currentUser }) {
     setActionLoading(true)
     const { error } = await supabase.from('app_users').update({ is_approved: false, is_active: false }).eq('id', deactivating.id)
     setActionLoading(false)
-    if (error) { alert('Could not deactivate: ' + error.message); return }
+    if (error) { notify.error('Could not deactivate: ' + error.message); return }
     setDeactivating(null)
     setSelected(null)
     fetchAll()
@@ -391,7 +392,7 @@ export default function Planners({ currentUser }) {
     setActionLoading(true)
     const { error } = await supabase.from('app_users').update({ is_approved: true, is_active: true }).eq('id', reactivating.id)
     setActionLoading(false)
-    if (error) { alert('Could not reactivate: ' + error.message); return }
+    if (error) { notify.error('Could not reactivate: ' + error.message); return }
     setReactivating(null)
     setSelected(null)
     fetchAll()

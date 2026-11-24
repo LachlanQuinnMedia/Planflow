@@ -15,7 +15,7 @@ const here = fileURLToPath(new URL('.', import.meta.url))
 const root = fileURLToPath(new URL('../..', import.meta.url))
 const ALL = ['t_auth', 't_landing', 't_misc', 't_jobdetail', 't_ms365', 't_docs', 't_newjob', 't_newjob_folder', 't_newjob_docs',
   't_timer_summary', 't_edge', 't_calendar', 't_outlook', 't_dark', 't_dark2', 't_sizes', 't_select', 't_logo', 't_refresh',
-  't_master', 't_firms', 't_import', 't_cal2', 't_tour', 't_seasons', 't_theme_flash']
+  't_master', 't_firms', 't_import', 't_reliability', 't_daily', 't_cal2', 't_tour', 't_seasons', 't_theme_flash']
 const ARGS = { t_theme_flash: ['strict'] }
 const wanted = process.argv.slice(2).map(a => a.replace(/\.mjs$/, ''))
 const tests = wanted.length ? wanted : ALL

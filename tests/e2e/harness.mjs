@@ -122,6 +122,12 @@ export async function installMocks(page) {
       if (action === 'security_question') return body.username.toLowerCase() === 'murray' ? send({ question: 'What city were you born in?' }) : send({ error: 'User not found.' })
       if (action === 'verify_answer') return String(body.answer).toLowerCase().trim() === authState.answer ? send({ success: true }) : send({ error: 'Incorrect answer.' })
       if (action === 'reset_password') { if (String(body.answer).toLowerCase().trim() !== authState.answer) return send({ error: 'Incorrect answer.' }); authState.resets.push(body); return send({ success: true }) }
+      if (action === 'change_password') {
+        if (!/^Bearer .+\..+\./.test(req.headers()['authorization'] || '')) return send({ error: 'Please sign in again.' }, 401)
+        if (body.currentPassword !== authState.password) return send({ error: 'The current password is not right.' })
+        authState.password = body.newPassword; (authState.changed = authState.changed || []).push(body.newPassword)
+        return send({ success: true })
+      }
       return send({ error: 'Unknown action' }, 400)
     }
     if (url.pathname === '/rest/v1/rpc/record_ms_admin_consent') {

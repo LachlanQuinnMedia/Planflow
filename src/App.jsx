@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react'
+import { notify } from './notify'
 import { createPortal } from 'react-dom'
 import { supabase, callFunction } from './supabase'
 import { loadSession, clearSession, hasLiveSignIn } from './auth'
@@ -15,6 +16,9 @@ import { tourSeen } from './tourState'
 import { FirmContext, normaliseFirm, loadFirm, cachedFirm } from './firm'
 import { saveSession } from './auth'
 import { fetchWorkingJobs } from './jobsQuery'
+import { setErrorPage } from './errorReport'
+import PageBoundary from './PageBoundary'
+import GlobalSearch from './GlobalSearch'
 
 // Pages are fetched when first opened (see lazyPage.js). Login stays in the first download.
 const Register = lazyPage(() => import('./Register'))
@@ -37,6 +41,7 @@ const Tour = lazyPage(() => import('./Tour'))
 const Firms = lazyPage(() => import('./Firms'))
 const FirmSettings = lazyPage(() => import('./FirmSettings'))
 const ImportJobs = lazyPage(() => import('./ImportJobs'))
+const ChangePassword = lazyPage(() => import('./ChangePassword'))
 
 // Light / Dark / Seasonal. Seasonal changes its look each month by itself. Remembered on this device.
 function ThemeSwitch() {
@@ -262,7 +267,7 @@ function GlobalTimer({ jobs, currentUser, activeJob, onRunningChange }) {
       busyRef.current = false
       setStarting(false)
     }
-    if (error || !data) { alert('Could not start timer.'); return false }
+    if (error || !data) { notify.error('Could not start timer.'); return false }
     runningJobIdRef.current = String(job.id)
     setSelectedJobId(String(job.id))
     elapsedRef.current = 0
@@ -276,10 +281,10 @@ function GlobalTimer({ jobs, currentUser, activeJob, onRunningChange }) {
 
   const startTimer = async () => {
     if (busyRef.current || intervalRef.current) return
-    if (!selectedJobId) { alert('Please select a job first.'); return }
-    if (!taskName.trim()) { alert('Please enter what you are working on.'); return }
+    if (!selectedJobId) { notify('Please select a job first.'); return }
+    if (!taskName.trim()) { notify('Please enter what you are working on.'); return }
     const job = jobsRef.current.find(j => String(j.id) === String(selectedJobId))
-    if (!job) { alert('Job not found.'); return }
+    if (!job) { notify.error('Job not found.'); return }
     await startTimerFor(job, taskName.trim())
   }
 
@@ -305,7 +310,7 @@ function GlobalTimer({ jobs, currentUser, activeJob, onRunningChange }) {
         duration_seconds: totalSeconds, rate: job.planner_rate || 0,
         log_date: todayLocal(),
       })
-      if (error) alert('Timer stopped but the time could not be saved: ' + error.message)
+      if (error) notify.error('Timer stopped but the time could not be saved: ' + error.message)
     }
     startedAtRef.current = null
     elapsedRef.current = 0
@@ -515,6 +520,7 @@ export default function App() {
   const [refreshing, setRefreshing] = useState(false)
   const [timerRunning, setTimerRunning] = useState(false)
   const [tourOpen, setTourOpen] = useState(false)
+  const [showChangePassword, setShowChangePassword] = useState(false)
   const [isMaster, setIsMaster] = useState(false) // the QPlan master account, not a planner at the firm
   // The firm's own stages, fees and templates (see firm.js). Shown from the copy kept in this
   // browser straight away, then replaced by the latest from the database.
@@ -570,7 +576,7 @@ export default function App() {
         const finish = (notice) => {
           if (loggedIn) { setMsNotice(notice); return }
           sessionStorage.setItem('ms_notice', JSON.stringify(notice))
-          alert(notice.text)
+          if (notice.type === 'success' || notice.ok) notify.success(notice.text); else notify.error(notice.text)
         }
         if (ok) {
           // Recorded with the one-off code the approval link carries, so it works for an admin who has no QPlan login
@@ -641,7 +647,7 @@ export default function App() {
           setMsNotice({ ok: true, text: `Microsoft 365 connected (${data.email || 'signed in'}).` })
           setActivePage(callback.returnTo || 'docs')
         } else {
-          alert('Microsoft 365 connection failed: ' + (data.error || 'Unknown error'))
+          notify.error('Microsoft 365 connection failed: ' + (data.error || 'Unknown error'))
           if (callback.returnTo) setActivePage(callback.returnTo)
         }
       })
@@ -659,7 +665,7 @@ export default function App() {
             setPendingCalendarConnect(true)
           }
         } else {
-          alert('Calendar connection failed: ' + (data.error || 'Unknown error'))
+          notify.error('Calendar connection failed: ' + (data.error || 'Unknown error'))
           if (callback.returnTo) setActivePage(callback.returnTo)
         }
       })
@@ -709,6 +715,9 @@ export default function App() {
   const firm = useMemo(() => ({ ...normaliseFirm(firmRow && firmRow.company_id === companyId ? firmRow : null), reload: reloadFirm }), [firmRow, companyId, reloadFirm])
   // Pages wait for the firm's settings, so nobody sees the wrong stages for a moment
   const firmReady = !!companyId && (firmFor === companyId || firmRow?.company_id === companyId)
+
+  // Error reports say which page the person was on
+  useEffect(() => { setErrorPage(activePage) }, [activePage])
 
   // Once signed in, fetch the other pages in the background so moving between them is instant
   useEffect(() => { if (currentUser?.id) preloadPages() }, [currentUser?.id])
@@ -818,12 +827,12 @@ export default function App() {
       .select()
 
     if (error) {
-      alert(`Could not approve ${username}: ${error.message}`)
+      notify.error(`Could not approve ${username}: ${error.message}`)
       setProcessingNotificationId(null)
       return
     }
     if (!data || data.length === 0) {
-      alert(`Could not find an unapproved account for "${username}". They may have already been processed.`)
+      notify.error(`Could not find an unapproved account for "${username}". They may have already been processed.`)
     }
 
     await supabase.from('notifications').delete().eq('id', notification.id)
@@ -841,7 +850,7 @@ export default function App() {
       .eq('is_approved', false)
 
     if (error) {
-      alert(`Could not reject ${username}: ${error.message}`)
+      notify.error(`Could not reject ${username}: ${error.message}`)
       setProcessingNotificationId(null)
       return
     }
@@ -951,6 +960,13 @@ export default function App() {
     const id = jobId || jobs[0]?.id
     const { data } = id ? await supabase.from('jobs').select('*').eq('id', id).maybeSingle() : { data: null }
     handleNavigate('jobdetail', data || buildDemoJob(currentUser, firm.stages))
+  }
+
+  // Open a job picked in the search box (it may be a past job that no list has loaded)
+  const openJobById = async (id) => {
+    const { data } = await supabase.from('jobs').select('*').eq('id', id).maybeSingle()
+    if (data) handleNavigate('jobdetail', data)
+    else notify.error('That job could not be opened. It may have been deleted.')
   }
 
   // When the tutorial ends: back to the Dashboard, and the example job is forgotten so the
@@ -1108,6 +1124,8 @@ export default function App() {
               <div className="text-xs text-gray-500 capitalize">{isMaster ? 'Master account' : currentUser.role}</div>
             </div>
           </div>
+          <button onClick={() => setShowChangePassword(true)} data-testid="open-change-password"
+            className="w-full text-left px-2 py-1 rounded-lg hover:bg-gray-100 text-xs text-gray-600 transition-colors">Change password</button>
 
           <button onClick={handleLogout}
             className="w-full py-1.5 text-xs bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors">
@@ -1141,6 +1159,7 @@ export default function App() {
           ) : isDirector && currentUser.companyName && (
             <span className="qp-topbar-chip text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-lg hidden sm:block">{currentUser.companyName}</span>
           )}
+          <GlobalSearch jobs={jobs} onOpenJob={openJobById} />
           <button onClick={() => setTourOpen(true)} title="Show the tutorial" aria-label="Show the tutorial" data-tour="help-button"
             className="qp-topbar-btn w-8 h-8 flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 flex-shrink-0 text-sm font-semibold">
             ?
@@ -1157,12 +1176,15 @@ export default function App() {
         <div key={refreshKey} className="flex-1 overflow-y-auto p-4 md:p-5">
           <SeasonStrip />
           <div data-tour="page">
-            <Suspense fallback={<div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-sm text-gray-500">Loading...</div>}>
-              {renderPage()}
-            </Suspense>
+            <PageBoundary resetKey={`${activePage}|${refreshKey}|${selectedJob?.id || ''}`}>
+              <Suspense fallback={<div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-sm text-gray-500">Loading...</div>}>
+                {renderPage()}
+              </Suspense>
+            </PageBoundary>
           </div>
         </div>
       </div>
+      {showChangePassword && <Suspense fallback={null}><ChangePassword onClose={() => setShowChangePassword(false)} /></Suspense>}
       {tourOpen && (
         <Suspense fallback={null}><Tour currentUser={currentUser} isDirector={isDirector} activePage={activePage} hasJobs={jobs.length > 0}
           onNavigate={handleNavigate} onOpenJob={openJobForTour} setSidebarOpen={setSidebarOpen}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef } from 'react'
+import { notify } from './notify'
 import { supabase, SUPABASE_URL, fnHeaders, callFunction } from './supabase'
 import { jobTitle } from './jobMeta'
 import { fetchWorkingJobs } from './jobsQuery'
@@ -209,7 +210,7 @@ function ConnectCalendarModal({ onClose, currentUser, onConnectionChange }) {
 
   const handleConnectGoogle = () => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
-    if (!clientId) { alert('Google Calendar not configured yet.'); return }
+    if (!clientId) { notify('Google Calendar not configured yet.'); return }
     const params = new URLSearchParams({
       client_id: clientId,
       redirect_uri: 'https://planflow-beige.vercel.app',
@@ -226,7 +227,7 @@ function ConnectCalendarModal({ onClose, currentUser, onConnectionChange }) {
 
   const handleConnectCalendly = () => {
     const clientId = import.meta.env.VITE_CALENDLY_CLIENT_ID
-    if (!clientId) { alert('Calendly not configured yet.'); return }
+    if (!clientId) { notify('Calendly not configured yet.'); return }
     const params = new URLSearchParams({
       client_id: clientId,
       redirect_uri: 'https://planflow-beige.vercel.app',
@@ -324,7 +325,7 @@ function EditMeetingModal({ booking, onClose, onSave, staffList, jobs }) {
   )
 
   const handleSave = async () => {
-    if (!title.trim()) { alert('Please enter a title.'); return }
+    if (!title.trim()) { notify('Please enter a title.'); return }
     setSaving(true)
     const selectedJob = jobs.find(j => j.id === jobId)
     const { error } = await supabase.from('bookings').update({
@@ -335,7 +336,7 @@ function EditMeetingModal({ booking, onClose, onSave, staffList, jobs }) {
         ? `Email: ${clientEmail}\nPhone: ${clientPhone}\nAddress: ${clientAddress}\nAgenda: ${agenda}`
         : internalNotes,
     }).eq('id', booking.id)
-    if (error) { alert('Failed to update.'); setSaving(false); return }
+    if (error) { notify.error('Failed to update.'); setSaving(false); return }
     setSaving(false); onSave(); onClose()
   }
 
@@ -582,7 +583,7 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
   const clearAll = () => setSelectedAttendees([currentUser.username])
 
   const handleSave = async () => {
-    if (!title.trim()) { alert('Please enter a title.'); return }
+    if (!title.trim()) { notify('Please enter a title.'); return }
     setSaving(true)
     const selectedJob = jobs.find(j => j.id === jobId)
     const { data: newBooking, error } = await supabase.from('bookings').insert({
@@ -595,7 +596,7 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
       created_by: currentUser.username,
     }).select().single()
 
-    if (error) { alert('Failed to save.'); setSaving(false); return }
+    if (error) { notify.error('Failed to save.'); setSaving(false); return }
 
     if (newBooking && type === 'internal') {
       try {
@@ -624,7 +625,7 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
             body: JSON.stringify({ company_id: currentUser.company_id, username: currentUser.username, booking: newBooking }),
           })
           const sync = await syncRes.json().catch(() => ({}))
-          if (sync?.error === 'reconnect') alert(`The meeting is saved in QPlan, but it could not be added to your ${provider === 'outlook' ? 'Outlook' : provider} calendar. ${(sync.message || '').replace('Settings > Microsoft 365', 'Calendar > Connect calendar') || 'Reconnect it from Calendar > Connect calendar.'}`)
+          if (sync?.error === 'reconnect') notify.error(`The meeting is saved in QPlan, but it could not be added to your ${provider === 'outlook' ? 'Outlook' : provider} calendar. ${(sync.message || '').replace('Settings > Microsoft 365', 'Calendar > Connect calendar') || 'Reconnect it from Calendar > Connect calendar.'}`)
         } catch { /* external calendar sync is optional */ }
       }
     }
@@ -746,6 +747,12 @@ function NewMeetingModal({ onClose, onSave, currentUser, staffList, jobs, defaul
 
 export default function Calendar({ currentUser, showConnectOnMount, onConnectShown }) {
   const [currentWeek, setCurrentWeek] = useState(new Date())
+  // 'day' or 'week'. A phone starts on Day, anything wider on Week. The choice is remembered per device size.
+  const [viewMode, setViewMode] = useState(() => {
+    const narrow = window.innerWidth < 640
+    try { const saved = localStorage.getItem('qplan_cal_view'); if (saved === 'day' || (saved === 'week' && !narrow)) return saved } catch { /* storage unavailable */ }
+    return narrow ? 'day' : 'week'
+  })
   const [bookings, setBookings] = useState([])
   const [staffList, setStaffList] = useState([])
   const [jobs, setJobs] = useState([])
@@ -868,8 +875,13 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
     if (data) setJobs(data)
   }
 
-  const goBack = () => { const d = new Date(currentWeek); d.setDate(d.getDate() - 7); setCurrentWeek(d) }
-  const goForward = () => { const d = new Date(currentWeek); d.setDate(d.getDate() + 7); setCurrentWeek(d) }
+  // Day view shows one day at full width (the default on a phone). Week view shows seven.
+  const step = viewMode === 'day' ? 1 : 7
+  const goBack = () => { const d = new Date(currentWeek); d.setDate(d.getDate() - step); setCurrentWeek(d) }
+  const goForward = () => { const d = new Date(currentWeek); d.setDate(d.getDate() + step); setCurrentWeek(d) }
+  const shownDates = viewMode === 'day' ? [weekDates.find(d => d.toDateString() === new Date(currentWeek).toDateString()) || weekDates[0]] : weekDates
+  const gridColumns = { gridTemplateColumns: viewMode === 'day' ? '60px 1fr' : '60px repeat(7, 1fr)' }
+  const chooseView = (mode) => { setViewMode(mode); try { localStorage.setItem('qplan_cal_view', mode) } catch { /* storage unavailable */ } }
   const goToday = () => setCurrentWeek(new Date())
 
   const outlookItems = outlookToItems(outlookEvents, weekDates, new Set(bookings.map(b => b.external_id).filter(Boolean)))
@@ -946,7 +958,9 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
             <IconRefresh size={14} className={refreshing ? 'animate-spin' : ''} />
           </button>
           <div className="flex items-center gap-1.5 ml-2">
-            <span className="text-sm font-semibold">{formatWeekRange(weekDates)}</span>
+            <span className="text-sm font-semibold" data-testid="calendar-range">{viewMode === 'day'
+              ? shownDates[0].toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+              : formatWeekRange(weekDates)}</span>
             <button onClick={() => setShowDatePicker(true)}
               className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-600 transition-colors" title="Jump to date">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -985,6 +999,12 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
               {staffList.map(s => <option key={s.username} value={s.username}>{s.username}</option>)}
             </select>
           )}
+          <div role="group" aria-label="Calendar view" className="flex border border-gray-200 rounded-lg overflow-hidden text-xs">
+            {['day', 'week'].map(mode => (
+              <button key={mode} onClick={() => chooseView(mode)} aria-pressed={viewMode === mode} data-testid={`cal-view-${mode}`}
+                className={`px-2.5 py-1.5 capitalize ${viewMode === mode ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}>{mode}</button>
+            ))}
+          </div>
           <button onClick={() => setShowConnect(true)} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">
             Connect calendar
           </button>
@@ -1005,9 +1025,31 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-gray-200 sticky top-0 bg-white z-10">
+        {viewMode === 'day' && (
+          <div data-testid="day-strip" className="grid grid-cols-7 border-b border-gray-200">
+            {weekDates.map((date, i) => {
+              const { day, num, isToday } = formatDateHeader(date)
+              const on = date.toDateString() === shownDates[0].toDateString()
+              const busy = [...bookings, ...outlookItems].some(b => b.date === toLocalISODate(date))
+              return (
+                <button key={i} onClick={() => setCurrentWeek(new Date(date))} aria-pressed={on}
+                  className={`py-1.5 text-center border-r border-gray-100 last:border-0 ${on ? 'bg-emerald-50' : 'hover:bg-gray-50'}`}>
+                  <div className="text-[10px] text-gray-500">{day}</div>
+                  <div className={`text-xs font-semibold ${on ? 'text-emerald-700' : isToday ? 'text-emerald-600' : 'text-gray-700'}`}>{num}</div>
+                  <div className={`mx-auto mt-0.5 w-1 h-1 rounded-full ${busy ? 'bg-emerald-500' : 'bg-transparent'}`} />
+                </button>
+              )
+            })}
+          </div>
+        )}
+        {viewMode === 'day' && (() => {
+          const d = toLocalISODate(shownDates[0])
+          const holiday = holidayName(d, null) || holidayName(d, 'Brisbane City Council') || holidayName(d, 'City of Gold Coast')
+          return holiday ? <div className="px-3 py-1 text-[11px] text-red-600 bg-red-50/60 border-b border-gray-200">Public holiday: {holiday}</div> : null
+        })()}
+        <div className={`grid border-b border-gray-200 sticky top-0 bg-white z-10 ${viewMode === 'day' ? 'hidden' : ''}`} style={gridColumns}>
           <div className="border-r border-gray-100" />
-          {weekDates.map((date, i) => {
+          {shownDates.map((date, i) => {
             const { day, num, isToday } = formatDateHeader(date)
             // Queensland public holidays, plus the Brisbane and Gold Coast show days
             const dateStr = toLocalISODate(date)
@@ -1025,11 +1067,11 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
         <div ref={gridRef} data-testid="calendar-grid" data-tour="calendar-grid">
           <div className="relative">
             {hours.map(hour => (
-              <div key={hour} className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-gray-50 last:border-0" style={{ height: `${slotH}px` }}>
+              <div key={hour} className="grid border-b border-gray-50 last:border-0" style={{ height: `${slotH}px`, ...gridColumns }}>
                 <div className="border-r border-gray-100 px-2 pt-0.5 flex-shrink-0">
                   <span className="text-xs text-gray-500 leading-none">{formatTime(hour)}</span>
                 </div>
-                {weekDates.map((date, di) => {
+                {shownDates.map((date, di) => {
                   const dateStr = toLocalISODate(date)
                   const isToday = date.toDateString() === new Date().toDateString()
                   const dayBookings = getBookingsForDayAndHour(date, hour)

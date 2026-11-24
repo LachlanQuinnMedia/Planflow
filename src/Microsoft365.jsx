@@ -4,6 +4,7 @@
 //   Step 2  Connect the firm's OneDrive or SharePoint (director, once) and pick the jobs folder
 //   Step 3  Connect my Outlook calendar (each person, once)
 import { useState, useEffect } from 'react'
+import { notify } from './notify'
 import { supabase, callFunction } from './supabase'
 import { callGraph, OneDriveFolderPicker } from './OneDriveBrowser'
 import { adminConsentUrl, startAdminConsent, connectFirmDrive, connectMyCalendar, isPersonalMicrosoftEmail } from './microsoft'
@@ -145,7 +146,7 @@ export default function Microsoft365({ currentUser, notice, onNoticeShown }) {
       username: currentUser.username,
     })
     setBusy(false)
-    if (!res.success) { alert('Could not save the jobs folder: ' + (res.error || 'Unknown error')); return }
+    if (!res.success) { notify.error('Could not save the jobs folder: ' + (res.error || 'Unknown error')); return }
     setPicker(false)
     setDrive(prev => ({ ...prev, jobsFolder: res.jobsFolder }))
   }

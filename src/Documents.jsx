@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { notify } from './notify'
 import { supabase, openDocument } from './supabase'
 import OneDriveBrowser from './OneDriveBrowser'
 import { jobTitle } from './jobMeta'
@@ -222,14 +223,14 @@ export default function Documents({ currentUser }) {
     }
 
     setTimeout(() => setUploadProgress(null), 1000)
-    if (failed.length) alert('Some files could not be uploaded:\n\n' + failed.join('\n'))
+    if (failed.length) notify.error('Some files could not be uploaded:\n\n' + failed.join('\n'))
     fetchDocs()
   }
 
   const performDelete = async (doc) => {
     await supabase.storage.from('documents').remove([doc.file_path])
     const { error } = await supabase.from('documents').delete().eq('id', doc.id)
-    if (error) { alert('Could not delete: ' + error.message); setDeletingDoc(null); return }
+    if (error) { notify.error('Could not delete: ' + error.message); setDeletingDoc(null); return }
     if (selectedDoc?.id === doc.id) setSelectedDoc(null)
     setDeletingDoc(null)
     fetchDocs()

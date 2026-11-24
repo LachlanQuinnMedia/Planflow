@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { notify } from './notify'
 
 export const SUPABASE_URL = 'https://sltaaiumviyzgdsdkkbe.supabase.co'
 // The public key. It only identifies the project. What a person can see is decided by
@@ -71,7 +72,7 @@ export async function openDocument(doc, { download = false } = {}) {
     .createSignedUrl(doc.file_path, 300, download ? { download: doc.name || true } : undefined)
   if (error || !data?.signedUrl) {
     if (tab) tab.close()
-    alert('Could not open this document: ' + (error?.message || 'Unknown error'))
+    notify.error('Could not open this document: ' + (error?.message || 'Unknown error'))
     return
   }
   if (tab) { tab.location.href = data.signedUrl; return }

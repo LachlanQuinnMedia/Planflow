@@ -54,10 +54,9 @@ const goMs = async (page) => { await page.getByRole('button', { name: 'Microsoft
   {
     const st = b64({ provider: 'msadmin', company_id: COMPANY, username: 'Lachlan Quinn', nonce: db.companies[0].ms_consent_nonce })
     const { browser, page } = await open('/', { loggedIn: false })
-    let said = ''
-    page.on('dialog', d => { said = d.message(); d.accept() })
     await page.goto(`http://localhost:4173/?admin_consent=True&tenant=tenant-123&state=${encodeURIComponent(st)}`, { waitUntil: 'networkidle' })
-    await page.waitForTimeout(400)
+    await page.waitForSelector('[data-testid=notices]')
+    const said = await page.getByTestId('notices').innerText() // a message on screen, not a browser pop-up
     assert.match(said, /approved for the whole firm/)
     assert.equal(db.companies[0].ms_tenant_id, 'tenant-123')
     console.log('admin without a login: recorded')
@@ -68,10 +67,9 @@ const goMs = async (page) => { await page.getByRole('button', { name: 'Microsoft
     db.companies[0].ms_tenant_id = null; db.companies[0].ms_admin_consent_at = null
     const st = b64({ provider: 'msadmin', company_id: COMPANY, username: 'x', nonce: 'made-up-code-0123456789' })
     const { browser, page } = await open('/', { loggedIn: false })
-    let said = ''
-    page.on('dialog', d => { said = d.message(); d.accept() })
     await page.goto(`http://localhost:4173/?admin_consent=True&tenant=evil&state=${encodeURIComponent(st)}`, { waitUntil: 'networkidle' })
-    await page.waitForTimeout(400)
+    await page.waitForSelector('[data-testid=notices]')
+    const said = await page.getByTestId('notices').innerText() // a message on screen, not a browser pop-up
     assert.match(said, /could not record it/)
     assert.equal(db.companies[0].ms_tenant_id, null)
     console.log('made-up code: refused')

@@ -17,9 +17,9 @@ const geometry = (page) => page.evaluate(() => {
 })
 const JOB_STEPS = ['job-header', 'job-overview', 'job-hpc-stages', 'job-da-stages', 'job-documents', 'job-time-budget', 'job-ir-notes', 'job-history']
 const TAB_FOR = { 'job-header': 'Overview', 'job-overview': 'Overview', 'job-hpc-stages': 'HPC Stages', 'job-da-stages': 'DA Stages', 'job-documents': 'Documents', 'job-time-budget': 'Time & Budget', 'job-ir-notes': 'IR & Notes', 'job-history': 'History' }
-const DIRECTOR = ['welcome', 'dashboard', 'jobs', ...JOB_STEPS, 'newjob', 'docs', 'time', 'timer', 'calendar', 'bookings', 'workload', 'xero', 'templates', 'planners', 'microsoft', 'finish']
+const DIRECTOR = ['welcome', 'dashboard', 'jobs', ...JOB_STEPS, 'newjob', 'docs', 'time', 'timer', 'calendar', 'bookings', 'workload', 'xero', 'templates', 'planners', 'firm', 'microsoft', 'finish']
 const STAFF = ['welcome', 'dashboard', 'jobs', ...JOB_STEPS, 'newjob', 'docs', 'time', 'timer', 'calendar', 'xero', 'templates', 'planners', 'outlook', 'finish']
-const PAGE_FOR = { dashboard: 'Dashboard', jobs: 'All Jobs', newjob: 'New Job', docs: 'Documents', time: 'Time & Budget', timer: 'Time & Budget', calendar: 'Calendar', bookings: 'Bookings', workload: 'Team Workloads', xero: 'Xero', templates: 'Templates', planners: 'Planners', microsoft: 'Microsoft 365' }
+const PAGE_FOR = { dashboard: 'Dashboard', jobs: 'All Jobs', newjob: 'New Job', docs: 'Documents', time: 'Time & Budget', timer: 'Time & Budget', calendar: 'Calendar', bookings: 'Bookings', workload: 'Team Workloads', xero: 'Xero', templates: 'Templates', planners: 'Planners', firm: 'Firm settings', microsoft: 'Microsoft 365' }
 
 // Walks every card with Next, checking each one as it goes
 async function walk(page, expected, label, { phone = false } = {}) {

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { notify } from './notify'
 import { supabase } from './supabase'
 import { clientName, jobTitle } from './jobMeta'
 import { fetchWorkingJobs } from './jobsQuery'
@@ -205,8 +206,8 @@ export default function Xero({ currentUser }) {
   }
 
   const handlePushInvoice = async () => {
-    if (!selectedJob) { alert('Please select a job.'); return }
-    if (timeLogs.length === 0) { alert('No time logs found for this job.'); return }
+    if (!selectedJob) { notify('Please select a job.'); return }
+    if (timeLogs.length === 0) { notify('No time logs found for this job.'); return }
     const job = jobs.find(j => j.id === selectedJob)
     if (!job) return
     setPushing(true)
@@ -215,7 +216,7 @@ export default function Xero({ currentUser }) {
       setPushSuccess(invoice)
       fetchInvoices()
     } catch (e) {
-      alert('Failed to push invoice: ' + e.message)
+      notify.error('Failed to push invoice: ' + e.message)
     }
     setPushing(false)
   }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { SeasonBanner } from './Seasonal'
 import SetupChecklist from './SetupChecklist'
 import { fetchWorkingJobs, searchArchive } from './jobsQuery'
+import { useAutoRefresh } from './useAutoRefresh'
 import { supabase } from './supabase'
 import { sendIRDeadlineAlert } from './notifications'
 import { appTypeBadge, jobListName, jobSearchText } from './jobMeta'
@@ -622,6 +623,8 @@ export default function Dashboard({ onNavigate, currentUser }) {
     }
     fetchJobs()
   }, [])
+  // The numbers and lists keep themselves up to date
+  useAutoRefresh(async () => { const { data } = await fetchWorkingJobs('*'); if (data) setAllJobs(data) })
 
   if (loadingJobs) {
     return <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-xs text-gray-500">Loading dashboard...</div>

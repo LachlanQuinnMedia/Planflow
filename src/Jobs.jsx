@@ -1,6 +1,8 @@
 // Jobs.jsx
 import { useState, useEffect } from 'react'
+import { notify } from './notify'
 import { fetchWorkingJobs, countArchive, searchArchive } from './jobsQuery'
+import { useAutoRefresh } from './useAutoRefresh'
 import { supabase } from './supabase'
 import { loadSession } from './auth'
 import { isXeroConnected, pushInvoiceToXero } from './xero'
@@ -239,8 +241,10 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
   const companyId = currentUser?.company_id || loadSession()?.company_id
 
   useEffect(() => { fetchJobs() }, [])
-  const fetchJobs = async () => {
-    setLoading(true)
+  // The list keeps itself up to date (quietly: no "Loading" flash)
+  useAutoRefresh(() => fetchJobs(true))
+  const fetchJobs = async (quiet = false) => {
+    if (!quiet) setLoading(true)
     // Working jobs. A firm's imported archive of old jobs is not loaded here: it is searched (below).
     const [{ data, error }, archived] = await Promise.all([fetchWorkingJobs('*'), countArchive()])
     if (!error && data) {
@@ -273,7 +277,7 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
     await supabase.from('active_timers').delete().eq('job_id', jobToDelete.id)
     await supabase.from('time_logs').delete().eq('job_id', jobToDelete.id)
     const { error } = await supabase.from('jobs').delete().eq('id', jobToDelete.id)
-    if (error) alert('Could not delete job: ' + error.message)
+    if (error) notify.error('Could not delete job: ' + error.message)
     setJobToDelete(null)
     setDeleting(false)
     fetchJobs()

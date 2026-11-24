@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { notify } from './notify'
 import { supabase } from './supabase'
 import { generateFromTemplate, buildFromTemplate } from './templateFiller'
 import { saveDocToJob } from './jobDocs'
@@ -292,10 +293,10 @@ export default function NewJob({ onNavigate, currentUser }) {
         setFolderMode('create')
         setPicker(null)
       } else {
-        alert('Could not save the jobs folder: ' + (res.error || 'Unknown error'))
+        notify.error('Could not save the jobs folder: ' + (res.error || 'Unknown error'))
       }
     } catch (e) {
-      alert('Could not save the jobs folder: ' + e.message)
+      notify.error('Could not save the jobs folder: ' + e.message)
     }
     setSavingRoot(false)
   }

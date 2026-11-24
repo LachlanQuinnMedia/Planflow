@@ -1,4 +1,5 @@
 import { callFunction } from './supabase'
+import { notify } from './notify'
 
 const XERO_CLIENT_ID = import.meta.env.VITE_XERO_CLIENT_ID
 const REDIRECT_URI = 'https://planflow-beige.vercel.app/xero/callback'
@@ -31,7 +32,7 @@ export async function handleXeroCallback(code, companyId) {
   const data = await callFn('callback', { code, company_id: companyId })
   if (!data.success) {
     console.error('Xero callback failed:', data)
-    alert(`Xero connection failed: ${data.error || data.msg || `HTTP ${data.status}`}`)
+    notify.error(`Xero connection failed: ${data.error || data.msg || `HTTP ${data.status}`}`)
   }
   return data
 }

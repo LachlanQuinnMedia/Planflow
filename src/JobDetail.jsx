@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
+import { notify } from './notify'
 import { supabase, openDocument } from './supabase'
-import { generateFromTemplate } from './templateFiller'
+import { buildFromTemplate, downloadBlob } from './templateFiller'
+import { saveDocToJob } from './jobDocs'
 import { useFirm, initialStageState, mergeStageState, templateFileName } from './firm'
 import { DA_STAGES } from './daStages'
 import OneDriveBrowser, { OneDriveFolderPicker } from './OneDriveBrowser'
@@ -691,7 +693,7 @@ function DAStageTracker({ job, currentUser, onHistoryAdd }) {
   const saveStages = async () => {
     setSaving(true)
     const { error } = await supabase.from('jobs').update({ da_stages: stages }).eq('id', job.id)
-    if (error) { setSaving(false); alert('Could not save stages: ' + error.message); return }
+    if (error) { setSaving(false); notify.error('Could not save stages: ' + error.message); return }
     await checkDeadlines(stages)
     setSaving(false); setSaved(true)
     onHistoryAdd('DA stages updated')
@@ -1120,7 +1122,7 @@ function DocumentsTab({ job, currentUser, onHistoryAdd, onJobUpdated }) {
     }
     const { error } = await supabase.from('jobs').update(update).eq('id', job.id)
     setLinking(false)
-    if (error) { alert('Could not link folder: ' + error.message); return }
+    if (error) { notify.error('Could not link folder: ' + error.message); return }
     setShowPicker(false)
     onJobUpdated?.(update)
     await onHistoryAdd(`OneDrive folder linked: ${folder.driveName ? folder.driveName + ' / ' : ''}${folder.path || folder.name}`)
@@ -1133,7 +1135,7 @@ function DocumentsTab({ job, currentUser, onHistoryAdd, onJobUpdated }) {
       onedrive_folder_path: null, onedrive_folder_url: null, onedrive_linked_by: null, onedrive_linked_at: null,
     }
     const { error } = await supabase.from('jobs').update(update).eq('id', job.id)
-    if (error) { alert('Could not unlink: ' + error.message); return }
+    if (error) { notify.error('Could not unlink: ' + error.message); return }
     onJobUpdated?.(update)
     await onHistoryAdd('OneDrive folder unlinked')
   }
@@ -1157,7 +1159,7 @@ function DocumentsTab({ job, currentUser, onHistoryAdd, onJobUpdated }) {
       await onHistoryAdd(`Document uploaded: ${file.name}`)
     }
     setUploading(false)
-    if (failed.length) alert('Some files could not be uploaded:\n\n' + failed.join('\n'))
+    if (failed.length) notify.error('Some files could not be uploaded:\n\n' + failed.join('\n'))
     fetchDocs()
   }
 
@@ -1441,6 +1443,9 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
   const [showShare, setShowShare] = useState(false)
   const [selectedTemplates, setSelectedTemplates] = useState([])
   const [generating, setGenerating] = useState(false)
+  // Where generated documents go, remembered on this device
+  const [genToFolder, setGenToFolder] = useState(() => { try { return localStorage.getItem('qplan_gen_folder') !== '0' } catch { return true } })
+  const [genDownload, setGenDownload] = useState(() => { try { return localStorage.getItem('qplan_gen_download') !== '0' } catch { return true } })
   const [currentPlanner, setCurrentPlanner] = useState(null)
   const [jobStatus, setJobStatus] = useState(job?.status || 'Draft')
   const [statusSaving, setStatusSaving] = useState(false)
@@ -1533,7 +1538,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
     setStatusSaving(true)
     const { error } = await supabase.from('jobs').update({ status: newStatus }).eq('id', job.id)
     setStatusSaving(false)
-    if (error) { setJobStatus(previous); alert('Could not change status: ' + error.message); return }
+    if (error) { setJobStatus(previous); notify.error('Could not change status: ' + error.message); return }
     setJobData(prev => ({ ...prev, status: newStatus }))
     await addHistory(`Status changed to ${newStatus}`)
   }
@@ -1548,7 +1553,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
     setNotesSaving(true)
     const { error } = await supabase.from('jobs').update({ notes }).eq('id', job.id)
     setNotesSaving(false)
-    if (error) { alert('Could not save notes: ' + error.message); return }
+    if (error) { notify.error('Could not save notes: ' + error.message); return }
     setNotesSaved(true)
     await addHistory('Notes updated')
     setTimeout(() => setNotesSaved(false), 2000)
@@ -1567,7 +1572,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
       date_decision: dates.decision || null,
     }).eq('id', job.id)
     setDatesSaving(false)
-    if (error) { alert('Could not save dates: ' + error.message); return }
+    if (error) { notify.error('Could not save dates: ' + error.message); return }
     setEditingDates(false)
     setJobData(prev => ({
       ...prev,
@@ -1601,16 +1606,29 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
   const toggleTemplate = (t) => setSelectedTemplates(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])
 
   const handleGenerate = async () => {
-    if (selectedTemplates.length === 0) { alert('Please select at least one document.'); return }
+    if (selectedTemplates.length === 0) { notify('Please select at least one document.'); return }
     setGenerating(true)
     setShowGenerate(false)
+    // A job with a Microsoft 365 folder gets its documents saved straight into that folder.
+    // A copy can also be downloaded. With no folder, they download as before.
+    const toFolder = hasFolder && genToFolder
+    const download = !toFolder || genDownload
+    try { localStorage.setItem('qplan_gen_folder', genToFolder ? '1' : '0'); localStorage.setItem('qplan_gen_download', genDownload ? '1' : '0') } catch { /* storage unavailable */ }
     const failures = []
+    let inFolder = 0, folderProblem = ''
     for (const sel of selectedTemplates) {
       try {
         if (sel.endsWith('.docx')) {
-          await generateFromTemplate(sel, jobForDocs, currentPlanner || {})
-        } else if (sel.endsWith('.xlsx') || sel.endsWith('.ai')) {
-          await downloadRawTemplate(sel)
+          const { blob, filename } = await buildFromTemplate(sel, jobForDocs, currentPlanner || {})
+          let saved = false
+          if (toFolder) {
+            try { await saveDocToJob({ job: jobData, currentUser, blob, filename }); saved = true; inFolder++ }
+            catch (e) { folderProblem = e.message }
+          }
+          // If the folder would not take it, the document is never lost: it downloads
+          if (download || !saved) downloadBlob(blob, filename)
+        } else {
+          await downloadRawTemplate(sel) // blank tools (Excel, Illustrator and so on) download as they are
         }
       } catch (e) {
         failures.push(`${labelFor(sel)}: ${e.message}`)
@@ -1620,10 +1638,13 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
     for (const sel of succeeded) await addHistory(`Document generated: ${labelFor(sel)}`)
     setSelectedTemplates([])
     setGenerating(false)
-    if (failures.length) alert('Some documents could not be generated:\n\n' + failures.join('\n'))
+    if (inFolder > 0) notify.success(`${inFolder} document${inFolder === 1 ? '' : 's'} saved in the job's folder${download ? ' and downloaded' : ''}.`)
+    if (folderProblem) notify.error(`Microsoft 365 would not take the file, so it was downloaded only: ${folderProblem}`)
+    if (failures.length) notify.error('Some documents could not be generated:\n\n' + failures.join('\n'))
   }
 
   const plannersList = jobData.planners?.length > 0 ? jobData.planners : (jobData.planner ? [jobData.planner] : [])
+  const hasFolder = !!jobData.onedrive_folder_id && !job.demo
 
   const renderTemplateRow = (item) => (
     <div key={item.file} onClick={() => toggleTemplate(item.file)} className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-1 cursor-pointer text-xs transition-colors ${selectedTemplates.includes(item.file) ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-50 hover:bg-gray-100'}`}>
@@ -1704,6 +1725,18 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
               </div>
             ))}
 
+            {hasFolder && (
+              <div data-testid="gen-where" className="mt-4 pt-3 border-t border-gray-100 space-y-1.5">
+                <label className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
+                  <input type="checkbox" checked={genToFolder} onChange={e => setGenToFolder(e.target.checked)} />
+                  Save in the job's folder <span className="text-gray-500 truncate">({jobData.onedrive_folder_name || 'Microsoft 365'})</span>
+                </label>
+                <label className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
+                  <input type="checkbox" checked={genDownload || !genToFolder} disabled={!genToFolder} onChange={e => setGenDownload(e.target.checked)} />
+                  Download a copy to this computer
+                </label>
+              </div>
+            )}
             <div className="flex gap-2 mt-4">
               <button onClick={() => setShowGenerate(false)} className="flex-1 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
               <button onClick={handleGenerate} className="flex-1 py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">Generate {selectedTemplates.length > 0 ? `(${selectedTemplates.length})` : ''}</button>

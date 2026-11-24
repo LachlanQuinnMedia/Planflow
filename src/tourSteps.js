@@ -13,7 +13,7 @@
 export const MENU_LABELS = {
   dashboard: 'Dashboard', jobs: 'Jobs', newjob: 'New Job', docs: 'Documents', time: 'Time & Budget',
   calendly: 'Bookings', calendar: 'Calendar', workload: 'Workloads', xero: 'Xero',
-  templates: 'Templates', planners: 'Planners', microsoft: 'Microsoft 365',
+  templates: 'Templates', planners: 'Planners', firm: 'Firm settings', microsoft: 'Microsoft 365',
 }
 
 export const JOB_TAB_LABELS = {
@@ -123,6 +123,7 @@ const finishCard = (which) => ({
   title: `That is the ${which} tour`,
   body: [
     'This ? button runs it again whenever you want a reminder.',
+    'To find any job from anywhere, use "Find a job" at the top, or press Ctrl+K.',
     'Light, dark and the seasonal theme are at the bottom of the menu.',
   ],
   nextLabel: 'Finish',
@@ -214,6 +215,14 @@ export function directorTour({ firstName, isPhone, hasJobs, stagesTab }) {
       body: [
         'Each person\'s profile, position and hourly rate. As a director you can edit anyone, and deactivate someone who has left.',
         'When a new person signs up, they wait for your approval under Notifications at the bottom of the menu.',
+      ],
+    },
+    {
+      id: 'firm', page: 'firm', chapter: 'Settings', targets: ['firm-main'], maxHeight: 300,
+      title: 'Firm settings: make QPlan yours',
+      body: [
+        'Your own service stages, with the usual fee and scope of works for each. Every new job starts from them.',
+        '"Bring in old jobs" imports your back catalogue from your job folders or a file, with a preview first.',
       ],
     },
     {

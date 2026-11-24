@@ -6,6 +6,8 @@
 //
 // After step 1, nobody at the firm sees a Microsoft "permissions requested" screen again.
 
+import { notify } from './notify'
+
 export const MS_REDIRECT_URI = 'https://planflow-beige.vercel.app'
 export const MS_CLIENT_ID = import.meta.env.VITE_OUTLOOK_CLIENT_ID || ''
 
@@ -30,7 +32,7 @@ function authorizeUrl(scope, state) {
 }
 
 function requireClientId() {
-  if (!MS_CLIENT_ID) { alert('Microsoft 365 is not configured yet.'); return false }
+  if (!MS_CLIENT_ID) { notify('Microsoft 365 is not configured yet.'); return false }
   return true
 }
 
