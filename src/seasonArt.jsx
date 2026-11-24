@@ -1,12 +1,14 @@
 // src/seasonArt.jsx
-// The drawings for the Seasonal theme: one wide scene and one garland per season.
+// The drawings for the Seasonal theme: one wide scene per season, and the small pieces
+// (balls, poppies, pumpkins and so on) that the strip across the top of each page shares.
 // Every drawing is original and generic. There are no team, league, event or company marks:
 // scarves and pennants are plain stripes, balls and helmets carry no badges.
 //
 // SeasonScene    the picture on the Dashboard banner, drawn in a 480 x 112 box with the main
 //                subject on the right (narrow screens show the right-hand part).
-// SeasonGarland  the row across the top of each page: a repeating tile, 30 high.
+// The strip across the top of each page is drawn in src/seasonStrips.jsx.
 import { useId } from 'react'
+import { CLUBS } from './seasonClubs'
 
 const uid = (raw) => `qs${raw.replace(/[^a-zA-Z0-9]/g, '')}`
 const range = (n) => Array.from({ length: n }, (_, i) => i)
@@ -14,20 +16,20 @@ const range = (n) => Array.from({ length: n }, (_, i) => i)
 // ------------------------------------------------------------------
 // Shared pieces
 // ------------------------------------------------------------------
-const Cloud = ({ x, y, s = 1, fill = '#fff', opacity = 0.9 }) => (
+export const Cloud = ({ x, y, s = 1, fill = '#fff', opacity = 0.9 }) => (
   <g transform={`translate(${x} ${y}) scale(${s})`} fill={fill} opacity={opacity}>
     <circle cx="10" cy="10" r="8" /><circle cx="22" cy="7" r="10" /><circle cx="35" cy="11" r="7" /><rect x="6" y="10" width="34" height="8" rx="4" />
   </g>
 )
-const Sparkle = ({ x, y, s = 1, fill = '#f6d77a', className = 'qp-s-twinkle', delay = 0 }) => (
+export const Sparkle = ({ x, y, s = 1, fill = '#f6d77a', className = 'qp-s-twinkle', delay = 0 }) => (
   <path className={className} style={{ animationDelay: `${delay}s` }} transform={`translate(${x} ${y}) scale(${s})`} fill={fill}
     d="M0 -6C.7 -1.6 1.6 -.7 6 0 1.6 .7 .7 1.6 0 6-.7 1.6-1.6 .7-6 0-1.6-.7-.7-1.6 0-6z" />
 )
-const Star5 = ({ x, y, s = 1, fill = '#f6c945' }) => (
+export const Star5 = ({ x, y, s = 1, fill = '#f6c945' }) => (
   <path transform={`translate(${x} ${y}) scale(${s})`} fill={fill} d="M0 -10l2.9 6.3 6.9.8-5.100 4.700 1.400 6.800L0 5.200l-6.100 3.400 1.400-6.800-5.100-4.700 6.900-.8z" />
 )
 // A firework: lines and dots thrown out from a centre
-const Firework = ({ x, y, r = 16, color, n = 12, delay = 0, ring = false }) => (
+export const Firework = ({ x, y, r = 16, color, n = 12, delay = 0, ring = false }) => (
   <g transform={`translate(${x} ${y})`}>
     <g className="qp-s-burst" style={{ animationDelay: `${delay}s` }}>
       <circle r={r * 1.25} fill={color} opacity="0.1" />
@@ -43,21 +45,21 @@ const Firework = ({ x, y, r = 16, color, n = 12, delay = 0, ring = false }) => (
   </g>
 )
 // A rugby-style ball (pale, two bands) and an Australian-rules style ball (red, laced). No maker's marks.
-const BallPale = ({ x, y, s = 1, rot = -24 }) => (
+export const BallPale = ({ x, y, s = 1, rot = -24 }) => (
   <g transform={`translate(${x} ${y}) scale(${s}) rotate(${rot})`}>
     <ellipse rx="11" ry="6.600" fill="#f5eedf" stroke="#cfc4ad" strokeWidth="0.6" />
     <path d="M-6 -5.400Q-7.800 0 -6 5.400M6 -5.400Q7.800 0 6 5.400" fill="none" stroke="#2f6fb5" strokeWidth="1.800" />
     <path d="M-2.500 0h5" stroke="#b9ad97" strokeWidth="0.8" strokeLinecap="round" /><ellipse cx="-2" cy="-3" rx="4" ry="1.300" fill="#fff" opacity="0.6" />
   </g>
 )
-const BallRed = ({ x, y, s = 1, rot = -24 }) => (
+export const BallRed = ({ x, y, s = 1, rot = -24 }) => (
   <g transform={`translate(${x} ${y}) scale(${s}) rotate(${rot})`}>
     <ellipse rx="11" ry="7" fill="#b3372d" stroke="#8a231d" strokeWidth="0.6" />
     <path d="M-10.500 0Q0 -3.200 10.500 0" fill="none" stroke="#8a231d" strokeWidth="0.7" />
     <path d="M-3 -2.800h6M-2 -3.900v2.200M0 -4v2.300M2 -3.900v2.200" stroke="#f5eedf" strokeWidth="0.8" strokeLinecap="round" /><ellipse cx="-3" cy="-4.200" rx="4" ry="1.200" fill="#fff" opacity="0.35" />
   </g>
 )
-const BallBrown = ({ x, y, s = 1, rot = -28 }) => (
+export const BallBrown = ({ x, y, s = 1, rot = -28 }) => (
   <g transform={`translate(${x} ${y}) scale(${s}) rotate(${rot})`}>
     <path d="M-11.500 0Q0 -9.600 11.500 0 0 9.600 -11.500 0z" fill="#8b4a2b" stroke="#6d3519" strokeWidth="0.6" />
     <path d="M-8.500 -1Q0 -6.500 8.500 -1" fill="none" stroke="#b06a45" strokeWidth="0.9" opacity="0.8" />
@@ -65,7 +67,7 @@ const BallBrown = ({ x, y, s = 1, rot = -28 }) => (
     <path d="M-8.800 -2.300V2.300M8.800 -2.300V2.300" stroke="#fff" strokeWidth="1.100" />
   </g>
 )
-const Poppy = ({ x, y, s = 1 }) => (
+export const Poppy = ({ x, y, s = 1 }) => (
   <g transform={`translate(${x} ${y}) scale(${s})`}>
     <ellipse cx="-4.600" cy="-4.200" rx="7" ry="6.400" fill="#b00e28" transform="rotate(-18 -4.600 -4.200)" /><ellipse cx="4.600" cy="-4.200" rx="7" ry="6.400" fill="#c8102e" transform="rotate(18 4.600 -4.200)" />
     <ellipse cx="-4.200" cy="4" rx="7.400" ry="6.200" fill="#d2203a" transform="rotate(14 -4.200 4)" /><ellipse cx="4.200" cy="4" rx="7.400" ry="6.200" fill="#de3149" transform="rotate(-14 4.200 4)" />
@@ -73,7 +75,7 @@ const Poppy = ({ x, y, s = 1 }) => (
     <circle r="3.300" fill="#1d1d1b" /><circle r="1.300" fill="#5d6b3f" />
   </g>
 )
-const Egg = ({ x, y, s = 1, color, mark = '#fff', kind = 'bands', rot = 0 }) => (
+export const Egg = ({ x, y, s = 1, color, mark = '#fff', kind = 'bands', rot = 0 }) => (
   <g transform={`translate(${x} ${y}) scale(${s}) rotate(${rot})`}>
     <path d="M0 -10C-4.400 -10 -7.600 -3.400 -7.600 1.600a7.600 7.600 0 0 0 15.200 0C7.600 -3.400 4.400 -10 0 -10z" fill={color} />
     <path d="M-4.500 -6C-6 -3 -6.500 0 -6 3" fill="none" stroke="#fff" strokeWidth="1.300" strokeLinecap="round" opacity="0.5" />
@@ -82,7 +84,7 @@ const Egg = ({ x, y, s = 1, color, mark = '#fff', kind = 'bands', rot = 0 }) => 
     {kind === 'dots' && [[-3, -3.500], [2.500, -2.500], [-4.500, 1.500], [0, 2], [4.500, 2.500], [-2, 6], [2.500, 6.300]].map(([a, b]) => <circle key={`${a}${b}`} cx={a} cy={b} r="1.100" fill={mark} />)}
   </g>
 )
-const Lantern = ({ x, y, s = 1, glow }) => (
+export const Lantern = ({ x, y, s = 1, glow }) => (
   <g transform={`translate(${x} ${y}) scale(${s})`}>
     {glow && <circle cy="12" r="15" fill={`url(#${glow})`} />}
     <rect x="-3.800" y="2.400" width="7.600" height="2.300" rx="0.9" fill="#f0b840" />
@@ -92,13 +94,13 @@ const Lantern = ({ x, y, s = 1, glow }) => (
     <path d="M0 21.600v2" stroke="#f0b840" strokeWidth="1" /><circle cy="24.500" r="1.300" fill="#d6362f" /><path d="M-1.500 26v4.500M0 26v5.500M1.500 26v4.500" stroke="#f0b840" strokeWidth="0.8" strokeLinecap="round" />
   </g>
 )
-const Blossom = ({ x, y, s = 1, color = '#f6a5c0' }) => (
+export const Blossom = ({ x, y, s = 1, color = '#f6a5c0' }) => (
   <g transform={`translate(${x} ${y}) scale(${s})`}>
     {[0, 72, 144, 216, 288].map(a => <ellipse key={a} cy="-4.600" rx="3" ry="4" fill={color} transform={`rotate(${a})`} />)}
     <circle r="1.800" fill="#f0b840" />
   </g>
 )
-const Bow = ({ x, y, s = 1, a = '#ec5f9c', b = '#c2357a', c = '#f9a8cc' }) => (
+export const Bow = ({ x, y, s = 1, a = '#ec5f9c', b = '#c2357a', c = '#f9a8cc' }) => (
   <g transform={`translate(${x} ${y}) scale(${s})`}>
     <path d="M-1 2L-7 15l4-1.500L-1.500 17 1 3z" fill={b} /><path d="M1 2L7 15l-4-1.500L1.500 17-1 3z" fill={b} />
     <path d="M-1 0C-5 -8 -13 -9 -15 -6c-1.800 2.800-1 9 .5 11C-12 8 -5 6 -1 0z" fill={a} /><path d="M1 0C5 -8 13 -9 15 -6c1.800 2.800 1 9-.5 11C12 8 5 6 1 0z" fill={a} />
@@ -107,10 +109,10 @@ const Bow = ({ x, y, s = 1, a = '#ec5f9c', b = '#c2357a', c = '#f9a8cc' }) => (
     <rect x="-2.800" y="-3" width="5.600" height="6" rx="2.200" fill={b} /><rect x="-1.600" y="-2.200" width="1.400" height="4.400" rx="0.7" fill={c} opacity="0.6" />
   </g>
 )
-const Heart = ({ x, y, s = 1, fill = '#ec5f9c' }) => (
+export const Heart = ({ x, y, s = 1, fill = '#ec5f9c' }) => (
   <path transform={`translate(${x} ${y}) scale(${s})`} fill={fill} d="M0 8C-7 3 -9.500 -.5 -9.500 -4a4.700 4.700 0 0 1 9.500-1 4.700 4.700 0 0 1 9.500 1C9.500 -.5 7 3 0 8z" />
 )
-const Pumpkin = ({ x, y, s = 1, face = 'grin' }) => (
+export const Pumpkin = ({ x, y, s = 1, face = 'grin' }) => (
   <g transform={`translate(${x} ${y}) scale(${s})`}>
     <path d="M-.800 -9.500c0-2.500 1.200-4 3.200-4.300l.6 2c-1.100.3-1.700 1-1.700 2.300z" fill="#5f8a3a" />
     <ellipse cx="-7" cy="0" rx="6" ry="9" fill="#cf6717" /><ellipse cx="7" cy="0" rx="6" ry="9" fill="#cf6717" />
@@ -123,13 +125,13 @@ const Pumpkin = ({ x, y, s = 1, face = 'grin' }) => (
     </g>
   </g>
 )
-const Bat = ({ x, y, s = 1, fill = '#b79cf0', delay = 0 }) => (
+export const Bat = ({ x, y, s = 1, fill = '#b79cf0', delay = 0 }) => (
   <g transform={`translate(${x} ${y}) scale(${s})`}>
     <path className="qp-s-flap" style={{ animationDelay: `${delay}s` }} fill={fill}
       d="M0 -3c1-1.500 2-1.500 2.400.2C5 -5 8 -4.800 11 -2c-2.200-.3-3.300.5-3.800 2-1.300-1.300-2.500-1.300-3.300 0-.9-.9-1.700-.6-2.300 1.200L0 4l-1.600-2.800c-.6-1.800-1.400-2.100-2.300-1.200-.8-1.300-2-1.300-3.300 0C-7.700 -1.500-8.800 -2.300-11 -2c3-2.800 6-3 8.600-.8C-2 -4.500-1 -4.500 0 -3z" />
   </g>
 )
-const Ghost = ({ x, y, s = 1, delay = 0 }) => (
+export const Ghost = ({ x, y, s = 1, delay = 0 }) => (
   <g transform={`translate(${x} ${y}) scale(${s})`}>
     <g className="qp-s-bob" style={{ animationDelay: `${delay}s` }}>
       <path d="M-8 11V-1a8 8 0 0 1 16 0v12l-2.700-2.200L2.700 11 0 8.800-2.700 11l-2.600-2.200z" fill="#f4f1ff" opacity="0.95" />
@@ -138,7 +140,7 @@ const Ghost = ({ x, y, s = 1, delay = 0 }) => (
   </g>
 )
 // A rider on a bike. Wheels turn. jersey sets the top's colour; dots adds red spots.
-const Cyclist = ({ x, y, s = 1, jersey = '#f6cf2f', dots = false, helmet = '#e23b3b', delay = 0 }) => (
+export const Cyclist = ({ x, y, s = 1, jersey = '#f6cf2f', dots = false, helmet = '#e23b3b', delay = 0 }) => (
   <g transform={`translate(${x} ${y}) scale(${s})`}>
     <g className="qp-s-bob" style={{ animationDelay: `${delay}s` }}>
       {[-11, 11].map(cx => (
@@ -152,7 +154,7 @@ const Cyclist = ({ x, y, s = 1, jersey = '#f6cf2f', dots = false, helmet = '#e23
     </g>
   </g>
 )
-const Tulip = ({ x, y, s = 1, color = '#ec5f9c', h = 22 }) => (
+export const Tulip = ({ x, y, s = 1, color = '#ec5f9c', h = 22 }) => (
   <g transform={`translate(${x} ${y}) scale(${s})`}>
     <path d={`M0 0V${h}`} stroke="#5aa15f" strokeWidth="1.600" strokeLinecap="round" /><path d={`M0 ${h * 0.75}C-6 ${h * 0.6} -7 ${h * 0.25} -5 ${h * 0.15} -2 ${h * 0.35} 0 ${h * 0.55} 0 ${h * 0.75}z`} fill="#6fba73" />
     <path d="M-5 -8C-5 -1 -2 1 0 1s5-2 5-9l-2.500 3L0 -9l-2.500 4z" fill={color} />
@@ -625,166 +627,6 @@ export function SeasonScene({ seasonId, year, className, style }) {
   return (
     <svg aria-hidden="true" viewBox="0 0 480 112" preserveAspectRatio="xMaxYMid slice" className={className} style={style}>
       {draw(u, year)}
-    </svg>
-  )
-}
-
-// ------------------------------------------------------------------
-// The garlands. Each is one tile, 30 high, repeated across the page.
-// ------------------------------------------------------------------
-// Footy finals: real club colours, Queensland's clubs first. Colours only: no names, logos or badges.
-// [main, stripe, second stripe]
-const CLUBS = {
-  broncos: ['#6f1d3b', '#f8b416', '#ffffff'],   // maroon, gold and white
-  lions: ['#7a0c3e', '#0054a4', '#fdbe57'],     // maroon, blue and gold
-  titans: ['#1695d3', '#f9a51a', '#0b2a55'],    // blue, gold and navy
-  suns: ['#e21e31', '#ffd200', '#e21e31'],      // red and gold
-  dolphins: ['#e0121d', '#f6b21b', '#ffffff'],  // red, gold and white
-  cowboys: ['#12284c', '#ffd100', '#ffffff'],   // navy, yellow and white
-  storm: ['#4f2683', '#f8c300', '#1b1b5e'],     // purple, gold and navy
-  rabbitohs: ['#c8102e', '#00693e', '#c8102e'], // cardinal red and myrtle green
-}
-const rope = (w, dip) => `M0 4Q${w / 2} ${4 + dip * 2} ${w} 4`
-const pennant = (x, y, a, b, c) => (
-  <g key={x} transform={`translate(${x} ${y})`}>
-    <path d="M0 0h16l-8 17z" fill={a} />{b && <path d="M3.300 0h3.200l-1.300 11.500z" fill={b} />}{b && <path d="M9.500 0h3.200L10.800 11.500z" fill={c || b} />}
-  </g>
-)
-const bulb = (x, y, c, i) => (
-  <g key={x} className="qp-s-twinkle" style={{ animationDelay: `${(i % 4) * 0.5}s` }}>
-    <rect x={x - 1.300} y={y - 3} width="2.600" height="2.600" rx="0.5" fill="#5b6470" /><ellipse cx={x} cy={y + 2.600} rx="2.900" ry="3.900" fill={c} /><ellipse cx={x - 0.9} cy={y + 1.300} rx="0.8" ry="1.300" fill="#fff" opacity="0.6" />
-  </g>
-)
-const GARLANDS = {
-  christmas: { w: 120, tile: (
-    <>
-      <path d={rope(120, 8)} fill="none" stroke="#145c39" strokeWidth="7" strokeLinecap="round" />
-      <path d={rope(120, 8)} fill="none" stroke="#2a9460" strokeWidth="7" strokeDasharray="2 3" />
-      <path d={rope(120, 8)} fill="none" stroke="#57b784" strokeWidth="3" strokeDasharray="1 4" />
-      <path d="M0 6Q60 28 120 6" fill="none" stroke="#f0c75e" strokeWidth="1.300" strokeDasharray="4 3" strokeLinecap="round" />
-      {[[30, 14, '#d6362f'], [60, 18, '#f0b840'], [90, 14, '#d6362f']].map(([x, y, c]) => (
-        <g key={x}><path d={`M${x} ${y - 5}v3`} stroke="#b8862b" strokeWidth="0.8" /><rect x={x - 1.500} y={y - 2.500} width="3" height="2.400" rx="0.6" fill="#d9a521" /><circle cx={x} cy={y + 4} r="4.600" fill={c} /><circle cx={x - 1.500} cy={y + 2.500} r="1.200" fill="#fff" opacity="0.6" /></g>
-      ))}
-      <g transform="translate(0 4)"><path d="M0 0C-4 -6 -10 -5 -10 -1s6 4 10 1zM0 0C4 -6 10 -5 10 -1s-6 4-10 1zM-1 0l-4 9 3.500-1.500L0 10l1.500-2.500L5 9 1 0z" fill="#d6362f" /><circle r="2.200" fill="#b92a26" /></g>
-      <g transform="translate(120 4)"><path d="M0 0C-4 -6 -10 -5 -10 -1s6 4 10 1zM0 0C4 -6 10 -5 10 -1s-6 4-10 1zM-1 0l-4 9 3.500-1.500L0 10l1.500-2.500L5 9 1 0z" fill="#d6362f" /><circle r="2.200" fill="#b92a26" /></g>
-      {[[15, 9], [45, 14], [75, 14], [105, 9]].map(([x, y], i) => <circle key={x} className="qp-s-twinkle" style={{ animationDelay: `${i * 0.5}s` }} cx={x} cy={y} r="1.600" fill="#ffe9a0" />)}
-    </>
-  ) },
-  newyear: { w: 132, tile: (
-    <>
-      <path d={rope(132, 5)} fill="none" stroke="#6f6aa8" strokeWidth="0.9" />
-      {[[16, 8, '#f2c94c'], [50, 12, '#f472b6'], [82, 12, '#67e8f9'], [116, 8, '#a78bfa']].map(([x, y, c], i) => bulb(x, y, c, i))}
-      <Star5 x={66} y={22} s={0.5} fill="#f2c94c" /><Sparkle x={33} y={22} s={0.6} fill="#f7e3a1" /><Sparkle x={100} y={23} s={0.5} fill="#fff" delay={1} />
-      <path d="M0 16q4 4 0 8t0 6M132 16q4 4 0 8t0 6" fill="none" stroke="#f472b6" strokeWidth="1.200" strokeLinecap="round" opacity="0.8" />
-    </>
-  ) },
-  superbowl: { w: 200, tile: (
-    <>
-      <rect x="0" y="6" width="200" height="18" rx="2" fill="#3a9f5b" /><rect x="0" y="6" width="100" height="18" fill="#fff" opacity="0.06" />
-      <path d="M0 7.500h200M0 22.500h200" stroke="#fff" strokeWidth="1" opacity="0.9" />
-      {range(11).map(i => <path key={i} d={`M${i * 20} 7.500v15`} stroke="#fff" strokeWidth={i % 5 === 0 ? 1.300 : 0.7} opacity="0.9" />)}
-      {range(40).map(i => <path key={i} d={`M${i * 5 + 2.500} 9v1.800M${i * 5 + 2.500} 19.200v1.800`} stroke="#fff" strokeWidth="0.5" opacity="0.8" />)}
-      {[[40, '2 0'], [80, '4 0'], [140, '4 0'], [180, '2 0']].map(([x, t]) => <text key={x} x={x} y="18.200" textAnchor="middle" fontSize="7.500" fontWeight="700" fill="#fff" opacity="0.92" fontFamily="inherit">{t}</text>)}
-      <BallBrown x={110} y={15} s={0.62} rot={-18} />
-    </>
-  ) },
-  lunar: { w: 132, tile: (
-    <>
-      <path d={rope(132, 4)} fill="none" stroke="#b8862b" strokeWidth="1" />
-      <Lantern x={33} y={3} s={0.72} /><Lantern x={99} y={3} s={0.72} />
-      {[0, 66, 132].map(x => (
-        <g key={x} transform={`translate(${x} ${x === 66 ? 9 : 5})`}><path d="M0 -4v3" stroke="#b8862b" strokeWidth="0.8" /><path d="M0 -1l4.500 4.500L0 8l-4.500-4.500z" fill="#d6362f" /><path d="M0 1.200l2.300 2.300L0 5.800l-2.300-2.300z" fill="#f0b840" /><path d="M0 8v3M-1.300 9v4M1.300 9v4" stroke="#f0b840" strokeWidth="0.8" strokeLinecap="round" /></g>
-      ))}
-    </>
-  ) },
-  womens: { w: 132, tile: (
-    <>
-      <path d="M0 11Q33 3 66 11T132 11" fill="none" stroke="#c2357a" strokeWidth="4.500" strokeLinecap="round" opacity="0.3" transform="translate(0 2)" />
-      <path d="M0 11Q33 3 66 11T132 11" fill="none" stroke="#f08ab8" strokeWidth="4.500" strokeLinecap="round" /><path d="M0 9.800Q33 1.800 66 9.800T132 9.800" fill="none" stroke="#fff" strokeWidth="0.9" opacity="0.6" />
-      <Bow x={66} y={12} s={0.85} /><Bow x={0} y={12} s={0.6} a="#b98be0" b="#8e5bd0" c="#dcc7f5" /><Bow x={132} y={12} s={0.6} a="#b98be0" b="#8e5bd0" c="#dcc7f5" />
-      <Heart x={33} y={20} s={0.42} fill="#f49ac1" /><Heart x={99} y={20} s={0.42} fill="#c9a4ee" />
-    </>
-  ) },
-  easter: { w: 176, tile: (
-    <>
-      <Egg x={22} y={16} s={0.95} color="#f7b6cf" kind="zigzag" rot={-8} /><Egg x={66} y={17} s={0.85} color="#a9d3f5" kind="dots" rot={10} />
-      <Egg x={110} y={16} s={0.95} color="#f9e08a" mark="#f2a65a" kind="bands" rot={-6} /><Egg x={154} y={17} s={0.85} color="#c9b3f0" kind="zigzag" rot={8} />
-      <Tulip x={44} y={12} s={0.55} color="#f49ac1" h={26} /><Tulip x={132} y={12} s={0.55} color="#b98be0" h={26} />
-      {[[88, 20], [0, 20], [176, 20]].map(([x, y]) => <g key={x}>{[0, 60, 120, 180, 240, 300].map(a => <ellipse key={a} cx={x} cy={y - 3.200} rx="1.400" ry="2.800" fill="#fff" stroke="#ead9b5" strokeWidth="0.2" transform={`rotate(${a} ${x} ${y})`} />)}<circle cx={x} cy={y} r="1.700" fill="#f6c945" /></g>)}
-      {range(16).map(i => <path key={i} d={`M${i * 11} 30l2-6 2 4 2.500-7 2 5 2-3.500 1.500 7.500z`} fill={i % 2 ? '#8fcf9c' : '#7cc48b'} />)}
-    </>
-  ) },
-  labour: { w: 132, tile: (
-    <>
-      <path d={rope(132, 3)} fill="none" stroke="#8793a6" strokeWidth="1" />
-      {[[3, 5, '#3d5a8a'], [25, 7, '#f08a24'], [47, 8, '#f6c93a'], [69, 8, '#3d5a8a'], [91, 7, '#f08a24'], [113, 5, '#f6c93a']].map(([x, y, c]) => pennant(x, y, c))}
-      {[[33, 13, '#fff'], [77, 14, '#fff']].map(([x, y, c]) => <g key={x} transform={`translate(${x} ${y})`}>{range(6).map(i => <rect key={i} x="-0.9" y="-4.200" width="1.800" height="2" fill={c} transform={`rotate(${i * 60})`} />)}<circle r="2.700" fill={c} /><circle r="1.100" fill={x === 33 ? '#f08a24' : '#3d5a8a'} /></g>)}
-    </>
-  ) },
-  environment: { w: 144, tile: (
-    <>
-      <path d="M0 12Q36 2 72 12T144 12" fill="none" stroke="#3f8f4a" strokeWidth="1.800" />
-      {[[14, 8, -50, '#3fa34d'], [30, 6, 130, '#8fd18a'], [50, 9, -40, '#62b96a'], [86, 15, 140, '#3fa34d'], [104, 17, -50, '#8fd18a'], [124, 14, 130, '#62b96a']].map(([x, y, r, c]) => (
-        <g key={x} transform={`translate(${x} ${y}) rotate(${r})`}><path d="M0 0C-5 -3 -6 -10 0 -15 6 -10 5 -3 0 0z" fill={c} /><path d="M0 -1v-11" stroke="#2c7d39" strokeWidth="0.6" /></g>
-      ))}
-      {[[68, 12], [140, 11]].map(([x, y]) => <g key={x}>{[0, 72, 144, 216, 288].map(a => <ellipse key={a} cx={x} cy={y - 3.300} rx="2" ry="3" fill="#fff" stroke="#e6e0cf" strokeWidth="0.3" transform={`rotate(${a} ${x} ${y})`} />)}<circle cx={x} cy={y} r="1.700" fill="#f6c445" /></g>)}
-      <g transform="translate(36 20)"><ellipse rx="3.600" ry="2.900" fill="#e23b3b" /><path d="M0 -2.900v5.800" stroke="#1d1d1b" strokeWidth="0.6" /><circle cx="-3.800" cy="0" r="1.500" fill="#1d1d1b" /><circle cx="-1" cy="-1" r="0.6" fill="#1d1d1b" /><circle cx="1.500" cy="1" r="0.6" fill="#1d1d1b" /></g>
-    </>
-  ) },
-  tour: { w: 168, tile: (
-    <>
-      <path d={rope(168, 3)} fill="none" stroke="#8b94a1" strokeWidth="1" />
-      {[[10, 6, '#f6cf2f', false], [52, 8, '#2f9b5c', false], [94, 8, '#fff', true], [136, 6, '#f3f4f6', false]].map(([x, y, c, dots], i) => (
-        <g key={x} transform={`translate(${x} ${y})`}>
-          <path d="M5 0L0 3l2 3.600 2-1V17h14V5.600l2 1L22 3 17 0c-.6 1.500-2.300 2.500-6 2.500S5.600 1.500 5 0z" fill={c} stroke="#c9d2dc" strokeWidth="0.5" />
-          {dots && [[7, 6], [14, 5.500], [10.500, 9.500], [6.500, 13], [15, 13]].map(([a, b]) => <circle key={`${a}${b}`} cx={a} cy={b} r="1.300" fill="#e23b3b" />)}
-          {i === 3 && <path d="M4 9h14M4 12h14" stroke="#1f4fa3" strokeWidth="1.400" />}
-          <rect x="3.500" y="-1.200" width="1.800" height="3" rx="0.6" fill="#c98f45" /><rect x="16.700" y="-1.200" width="1.800" height="3" rx="0.6" fill="#c98f45" />
-        </g>
-      ))}
-    </>
-  ) },
-  ekka: { w: 132, tile: (
-    <>
-      <path d={rope(132, 5)} fill="none" stroke="#7d8794" strokeWidth="1" />
-      {[[11, 7, '#e8475f'], [33, 11, '#f6c445'], [55, 13, '#9fd4f5'], [77, 13, '#f7a8cf'], [99, 11, '#e8475f'], [121, 7, '#f6c445']].map(([x, y, c], i) => bulb(x, y, c, i))}
-      <path d="M0 2h132" stroke="#9b8f7a" strokeWidth="0.8" />
-      {[[14, '#1f8aa3'], [58, '#f7a8cf'], [102, '#e8475f']].map(([x, c]) => <path key={x} d={`M${x} 2h14l-7 9z`} fill={c} opacity="0.85" />)}
-    </>
-  ) },
-  footy: { w: 180, tile: (
-    <>
-      <path d={rope(180, 3)} fill="none" stroke="#8b94a1" strokeWidth="1" />
-      {[[2, 5, 'broncos'], [22, 6.500, 'lions'], [42, 7.500, 'titans'], [100, 7.500, 'suns'], [120, 7.500, 'dolphins'], [140, 6.500, 'cowboys'], [160, 5, 'storm']].map(([x, y, club]) => pennant(x, y, ...CLUBS[club]))}
-      <path d="M80 8v4" stroke="#8b94a1" strokeWidth="0.8" /><BallPale x={80} y={18} s={0.62} rot={-20} />
-    </>
-  ) },
-  halloween: { w: 144, tile: (
-    <>
-      <path d={rope(144, 5)} fill="none" stroke="#6a5a8c" strokeWidth="0.9" />
-      {[[18, 9], [72, 13.500], [126, 9]].map(([x, y]) => <g key={x}><path d={`M${x} ${y - 3}v3`} stroke="#6a5a8c" strokeWidth="0.8" /><Pumpkin x={x} y={y + 8} s={0.52} face="grin" /></g>)}
-      <Bat x={45} y={18} s={0.8} /><Bat x={99} y={18} s={0.8} fill="#8f7cc4" delay={0.3} />
-      <g className="qp-s-bob"><path d="M0 4v8M144 4v8" stroke="#b7a6d9" strokeWidth="0.5" /><circle cx="0" cy="14" r="2.200" fill="#b7a6d9" /><circle cx="144" cy="14" r="2.200" fill="#b7a6d9" /></g>
-    </>
-  ) },
-  remembrance: { w: 180, tile: (
-    <>
-      <path d="M0 24h180" stroke="#9aa697" strokeWidth="0.9" />
-      <path d="M90 24V14" stroke="#4f7a4a" strokeWidth="1.300" /><Poppy x={90} y={12} s={0.6} />
-      <path d="M90 24q-7-6-12-4 4 4 12 4z" fill="#5f8a5a" />
-      <path d="M30 24v-5M150 24v-5" stroke="#4f7a4a" strokeWidth="1" /><Poppy x={30} y={18} s={0.34} /><Poppy x={150} y={18} s={0.34} />
-    </>
-  ) },
-}
-
-export function SeasonGarland({ seasonId }) {
-  const id = uid(useId())
-  const g = GARLANDS[seasonId]
-  if (!g) return null
-  return (
-    <svg width="100%" height="30" aria-hidden="true">
-      <defs><pattern id={id} width={g.w} height="30" patternUnits="userSpaceOnUse">{g.tile}</pattern></defs>
-      <rect width="100%" height="30" fill={`url(#${id})`} />
     </svg>
   )
 }

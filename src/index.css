@@ -242,6 +242,7 @@ html[data-season] body { background-color: var(--qp-s-page); }
      900 to 700  the text colour        600  menu items        500  small labels
      400, 300    dimmer still (icons, switched-off arrows)     200  lines and box edges
      100         under the pointer      50   a well (text boxes, the timer read-out) */
+:root[data-season] .qp-app { --qp-s-rule: color-mix(in oklab, var(--qp-s-bar-text) 22%, var(--qp-s-bar)); }
 :root[data-season] .qp-sidebar {
   background-color: var(--qp-s-bar);
   color: var(--qp-s-bar-text);
@@ -257,8 +258,8 @@ html[data-season] body { background-color: var(--qp-s-page); }
   --color-emerald-400: var(--qp-s-bar-text);
   --logo-pin: var(--qp-s-bar-text); --logo-text: var(--qp-s-bar-text); --logo-dot: var(--qp-s-side-dot);
 }
-/* The season's trim runs under the logo too, level with the trim under the top bar */
-:root[data-season] .qp-sidebar > .qp-sidebar-head { border-bottom: 3px solid var(--qp-s-line); }
+/* One thin, quiet line runs under the logo and on under the top bar, as it does on Light and Dark */
+:root[data-season] .qp-sidebar > .qp-sidebar-head { border-bottom: 1px solid var(--qp-s-rule); }
 :root[data-season] .qp-sidebar .qp-sticker { background-color: var(--qp-s-side-chip); border-radius: 999px; padding: 3px; box-sizing: content-box; }
 /* Boxes on the menu are wells: text boxes, drop-downs, the timer read-out, the theme switch */
 :root[data-season] .qp-sidebar :is(.bg-white, .bg-emerald-50, .bg-emerald-100, select, input):not(.qp-plain, .qp-plain *) { background-color: var(--qp-s-side-well); color: var(--qp-s-bar-text); }
@@ -278,7 +279,7 @@ html[data-season] body { background-color: var(--qp-s-page); }
 :root[data-season] .qp-topbar {
   background-color: var(--qp-s-bar);
   color: var(--qp-s-bar-text);
-  border-bottom: 3px solid var(--qp-s-line);
+  border-bottom: 1px solid var(--qp-s-rule);
 }
 :root[data-season] .qp-topbar .qp-topbar-btn { color: var(--qp-s-bar-text); }
 :root[data-season] .qp-topbar .qp-topbar-btn:hover { background-color: color-mix(in oklab, var(--qp-s-bar-text) 16%, transparent); color: var(--qp-s-bar-text); }
@@ -314,6 +315,10 @@ html:has(.qp-app) #root, html:has(.qp-app) .qp-app { height: 100%; }
 
 /* The page area and the menu scroll up and down only. A little bounce at the top and bottom
    is fine. Sideways there is nowhere to go. */
+/* Menu section headings (Main, Tools, Settings): small, heavy and wide-spaced, with a line above
+   each group after the first, so they read as headings and not as one more menu item */
+.qp-nav-label { font-size: 0.6875rem; line-height: 1rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-gray-900); padding: 0.25rem 0.5rem 0.375rem; }
+.qp-nav-section + .qp-nav-section { margin-top: 0.625rem; padding-top: 0.625rem; border-top: 1px solid var(--color-gray-200); }
 .qp-scroll { overflow-x: hidden; overscroll-behavior-y: contain; overscroll-behavior-x: none; -webkit-overflow-scrolling: touch; }
 
 /* On phones a row of drop-downs or text boxes shrinks to fit. iPhones give these a minimum

@@ -2,7 +2,7 @@
 // The pictures for the Seasonal theme. One set per season in seasons.js.
 //
 // Four places show them, and none of them can cover text:
-//   SeasonStrip      a garland across the top of the page. It has its own row.
+//   SeasonStrip      a picture across the top of the page. It has its own row. (Drawings: seasonStrips.jsx)
 //   SeasonBanner     a card at the top of the Dashboard with the season's scene. (Drawings: seasonArt.jsx)
 //   SeasonSticker    a small picture beside the logo, in space that was empty.
 //   SeasonParticles  snow, petals or sparkles drifting BEHIND the page, so cards and text sit over them.
@@ -10,7 +10,8 @@
 // Every drawing here is original and generic: no team, league, event or company marks.
 import { brisbaneToday, MONTH_NAMES } from './seasons'
 import { useSeason } from './useSeason'
-import { SeasonScene, SeasonGarland } from './seasonArt'
+import { SeasonScene } from './seasonArt'
+import { SeasonFrieze } from './seasonStrips'
 
 // ------------------------------------------------------------------
 // Small pieces for the sticker beside the logo, each drawn in a 24 x 24 box.
@@ -118,14 +119,14 @@ const Poppy = (p) => (
 )
 
 // ------------------------------------------------------------------
-// The garland across the top of the page. It has a row to itself, so it never sits on text.
+// The strip across the top of the page. It has a row to itself, so it never sits on text.
 // ------------------------------------------------------------------
 export function SeasonStrip() {
   const season = useSeason()
   if (!season) return null
   return (
-    <div aria-hidden="true" data-testid="season-strip" className="-mx-4 md:-mx-5 -mt-4 md:-mt-5 mb-3 h-[30px] overflow-hidden pointer-events-none select-none">
-      <SeasonGarland seasonId={season.id} />
+    <div aria-hidden="true" data-testid="season-strip" className="-mx-4 md:-mx-5 -mt-4 md:-mt-5 mb-3 h-9 overflow-hidden pointer-events-none select-none">
+      <SeasonFrieze seasonId={season.id} />
     </div>
   )
 }

@@ -380,7 +380,7 @@ function GlobalTimer({ jobs, currentUser, activeJob, onRunningChange }) {
         aria-label={collapsed ? 'Show time tracker' : 'Hide time tracker'}
         title={collapsed ? (isRunning && selectedJob ? `Recording ${selectedJob.code}. Show time tracker` : 'Show time tracker') : 'Hide time tracker'}
         className="w-full flex items-center gap-2 text-left rounded-md -mx-1 px-1 py-0.5 hover:bg-gray-50">
-        <span className="text-xs text-gray-500 uppercase tracking-wider font-semibold whitespace-nowrap">{collapsed && isRunning ? 'Timer' : 'Time tracker'}</span>
+        <span className="text-[11px] leading-4 text-gray-900 uppercase tracking-[0.14em] font-bold whitespace-nowrap">{collapsed && isRunning ? 'Timer' : 'Time tracker'}</span>
         {isRunning && <span className="qp-rec" data-testid="timer-rec" role="img" aria-label="Recording" />}
         {isRunning && collapsed && <span className="font-mono text-xs font-semibold text-gray-700">{formatTimer(displaySeconds)}</span>}
         <IconChevronDown size={14} className={`ml-auto text-gray-500 transition-transform ${collapsed ? 'rotate-180' : ''}`} />
@@ -1089,8 +1089,8 @@ export default function App() {
 
         <div className="qp-scroll flex-1 overflow-y-auto py-2">
           {['main', 'tools', 'settings'].map(section => (
-            <div key={section} data-tour={`nav-section-${section}`} className="px-2 mb-2">
-              <div className="text-xs text-gray-500 uppercase tracking-wider px-2 py-1">{section}</div>
+            <div key={section} data-tour={`nav-section-${section}`} className="qp-nav-section px-2 mb-2">
+              <div className="qp-nav-label">{section}</div>
               {visibleNavItems.filter(i => i.section === section).map(item => (
                 <button key={item.id} data-tour={`nav-${item.id}`} onClick={() => handleNavigate(item.id)}
                   className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-sm mb-0.5 transition-colors ${activePage === item.id ? 'qp-nav-on bg-emerald-50 text-emerald-700 font-medium' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-800'}`}>
