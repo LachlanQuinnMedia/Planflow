@@ -91,7 +91,7 @@ async function deadlinesFor(companyId: string) {
 async function recipientsFor(companyId: string) {
   const [{ data: company }, { data: directors }] = await Promise.all([
     db.from('companies').select('name, director_emails').eq('id', companyId).maybeSingle(),
-    db.from('app_users').select('id').eq('company_id', companyId).eq('role', 'director').eq('is_approved', true).not('is_platform_admin', 'is', true),
+    db.from('app_users').select('id').eq('company_id', companyId).eq('role', 'director').eq('is_approved', true).not('is_active', 'is', false).not('is_platform_admin', 'is', true),
   ])
   const ids = (directors || []).map((d: any) => d.id)
   const { data: profiles } = ids.length ? await db.from('planner_profiles').select('email').in('user_id', ids) : { data: [] as any[] }
