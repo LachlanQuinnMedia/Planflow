@@ -1,0 +1,28 @@
+# Runs the browser tests on every push. They use a fake database, so nothing live is touched.
+name: Tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: pip install pillow
+      - run: npm run build
+        env:
+          VITE_OUTLOOK_CLIENT_ID: test-client
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-logs
+          path: tests/e2e/out/logs

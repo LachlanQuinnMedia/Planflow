@@ -1,33 +1,36 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase, callFunction } from './supabase'
 import { loadSession, clearSession, hasLiveSignIn } from './auth'
 import Login from './Login'
-import Register from './Register'
-import ForgotPassword from './ForgotPassword'
-import Dashboard from './Dashboard'
-import Jobs from './Jobs'
-import NewJob from './NewJob'
-import JobDetail from './JobDetail'
-import Workload from './Workload'
-import Bookings from './Bookings'
-import Calendar from './Calendar'
-import Templates from './Templates'
-import Documents from './Documents'
-import TimeBudget from './TimeBudget'
-import Planners from './Planners'
-import Xero from './XeroPage'
-import Microsoft365 from './Microsoft365'
+import { lazyPage, preloadPages } from './lazyPage'
 import Logo from './Logo'
 import { timerLabel } from './jobMeta'
 import { IconPlay, IconStop, IconSun, IconMoon, IconSparkle, IconRefresh, IconChevronDown } from './icons'
 import { getThemeChoice, setThemeChoice, watchSeason } from './theme'
 import { InstallAppButton } from './install'
-import Landing from './Landing'
-import Tour from './Tour'
 import { SeasonStrip, SeasonSticker, SeasonParticles } from './Seasonal'
 import { buildDemoJob } from './tourDemoJob'
 import { tourSeen } from './tourState'
+
+// Pages are fetched when first opened (see lazyPage.js). Login stays in the first download.
+const Register = lazyPage(() => import('./Register'))
+const ForgotPassword = lazyPage(() => import('./ForgotPassword'))
+const Landing = lazyPage(() => import('./Landing'))
+const Dashboard = lazyPage(() => import('./Dashboard'))
+const Jobs = lazyPage(() => import('./Jobs'))
+const NewJob = lazyPage(() => import('./NewJob'))
+const JobDetail = lazyPage(() => import('./JobDetail'))
+const Workload = lazyPage(() => import('./Workload'))
+const Bookings = lazyPage(() => import('./Bookings'))
+const Calendar = lazyPage(() => import('./Calendar'))
+const Templates = lazyPage(() => import('./Templates'))
+const Documents = lazyPage(() => import('./Documents'))
+const TimeBudget = lazyPage(() => import('./TimeBudget'))
+const Planners = lazyPage(() => import('./Planners'))
+const Xero = lazyPage(() => import('./XeroPage'))
+const Microsoft365 = lazyPage(() => import('./Microsoft365'))
+const Tour = lazyPage(() => import('./Tour'))
 
 // Light / Dark / Seasonal. Seasonal changes its look each month by itself. Remembered on this device.
 function ThemeSwitch() {
@@ -680,6 +683,9 @@ export default function App() {
     return () => clearTimeout(t)
   }, [currentUser?.id, currentUser?.role, jobsLoaded])
 
+  // Once signed in, fetch the other pages in the background so moving between them is instant
+  useEffect(() => { if (currentUser?.id) preloadPages() }, [currentUser?.id])
+
   // Remember the page for the next refresh. Also stamped when the app goes to the background,
   // so a phone that closes the app behind the scenes reopens it in the same place.
   useEffect(() => {
@@ -927,9 +933,10 @@ export default function App() {
   if (!authReady) return <div className="min-h-screen bg-gray-50" />
 
   if (!currentUser) {
-    if (authPage === 'landing') return <Landing onLogin={() => setAuthPage('login')} />
-    if (authPage === 'register') return <Register onBack={() => setAuthPage('login')} onSuccess={() => setAuthPage('login')} />
-    if (authPage === 'forgot') return <ForgotPassword onBack={() => setAuthPage('login')} />
+    const blank = <div className="min-h-screen bg-gray-50" />
+    if (authPage === 'landing') return <Suspense fallback={blank}><Landing onLogin={() => setAuthPage('login')} /></Suspense>
+    if (authPage === 'register') return <Suspense fallback={blank}><Register onBack={() => setAuthPage('login')} onSuccess={() => setAuthPage('login')} /></Suspense>
+    if (authPage === 'forgot') return <Suspense fallback={blank}><ForgotPassword onBack={() => setAuthPage('login')} /></Suspense>
     return <Login onLogin={handleLogin} onRegister={() => setAuthPage('register')} onForgotPassword={() => setAuthPage('forgot')} onAbout={() => setAuthPage('landing')} />
   }
 
@@ -1098,13 +1105,17 @@ export default function App() {
 
         <div key={refreshKey} className="flex-1 overflow-y-auto p-4 md:p-5">
           <SeasonStrip />
-          <div data-tour="page">{renderPage()}</div>
+          <div data-tour="page">
+            <Suspense fallback={<div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-sm text-gray-500">Loading...</div>}>
+              {renderPage()}
+            </Suspense>
+          </div>
         </div>
       </div>
       {tourOpen && (
-        <Tour currentUser={currentUser} isDirector={isDirector} activePage={activePage} hasJobs={jobs.length > 0}
+        <Suspense fallback={null}><Tour currentUser={currentUser} isDirector={isDirector} activePage={activePage} hasJobs={jobs.length > 0}
           onNavigate={handleNavigate} onOpenJob={openJobForTour} setSidebarOpen={setSidebarOpen}
-          onClose={closeTour} />
+          onClose={closeTour} /></Suspense>
       )}
     </div>
   )

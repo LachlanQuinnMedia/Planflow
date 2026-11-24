@@ -30,3 +30,8 @@ dist-ssr
 
 # Update bundles dropped into the project folder
 *.zip
+
+# Test output
+tests/e2e/out
+tests/e2e/seasons
+tests/e2e/tour

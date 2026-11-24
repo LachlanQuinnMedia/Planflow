@@ -1,0 +1,17 @@
+import { open, shot } from './harness.mjs'
+const { browser, page, errors } = await open('/')
+await page.getByRole('button', { name: '+ New Job', exact: true }).click()
+await page.waitForSelector('text=Create a new folder for this job')
+await page.getByPlaceholder('First name').fill('Josh')
+await page.getByPlaceholder('Last name').fill('Richards')
+await page.getByPlaceholder('12 Marine Parade, Southport QLD 4215').fill('18 Parma Court, Mount Nathan QLD 4211')
+await page.locator('text=Job folder · Microsoft 365').scrollIntoViewIfNeeded()
+await page.mouse.wheel(0, 300)
+await page.waitForTimeout(300)
+await shot(page, 'newjob-4-folder')
+// open the "existing folder" picker
+await page.getByText('Link a folder that already exists').click()
+await page.waitForSelector('text=Use this folder')
+await shot(page, 'newjob-5-picker')
+console.log('ERRORS:', errors)
+await browser.close()
