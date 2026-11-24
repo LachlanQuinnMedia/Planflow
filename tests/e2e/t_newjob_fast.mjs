@@ -83,6 +83,11 @@ const lastInsert = (from) => calls.slice(from).find(c => c.method === 'POST' && 
   await page.getByTestId('client-option').first().click()
   assert.equal(await page.locator('#client-type').inputValue(), 'individual')
   assert.equal(await page.getByPlaceholder('First name').inputValue(), 'Josh'); assert.equal(await page.getByPlaceholder('client@email.com.au').inputValue(), 'josh@example.com')
+  // leaving the box and coming straight back keeps the list open
+  await page.getByLabel('Worked with this client before?').fill('k'); await page.getByPlaceholder('Last name').focus()
+  await page.getByLabel('Worked with this client before?').focus(); await page.waitForTimeout(350)
+  assert.ok(await page.getByTestId('client-option').count() >= 1, 'the list is still there after a quick click away and back')
+  await page.keyboard.press('Escape'); await page.getByLabel('Worked with this client before?').fill('')
   // picking a client is a head start, not a lock: the details can still be changed
   await page.getByPlaceholder('04XX XXX XXX').fill('0411 222 333')
   assert.equal(await page.getByPlaceholder('04XX XXX XXX').inputValue(), '0411 222 333')
