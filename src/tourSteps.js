@@ -17,7 +17,8 @@ export const MENU_LABELS = {
 }
 
 export const JOB_TAB_LABELS = {
-  overview: 'Overview', 'hpc stages': 'HPC Stages', 'da stages': 'DA Stages', documents: 'Documents',
+  overview: 'Overview', 'hpc stages': 'Service Stages', // Tour.jsx swaps in the firm's own name for its stages
+  'da stages': 'DA Stages', documents: 'Documents',
   'time & budget': 'Time & Budget', 'ir & notes': 'IR & Notes', history: 'History',
 }
 
@@ -35,7 +36,7 @@ const tabCard = (tab, title, body) => ({
 
 // A firm with no jobs yet still gets every card: the tour opens a built-in example job
 // (src/tourDemoJob.js) and says so on the first card.
-function jobCards(hasJobs) {
+function jobCards(hasJobs, stagesTab = 'Service Stages') {
   return [
     {
       id: 'job-header', page: 'jobdetail', jobTab: 'overview', chapter: 'Inside a job', targets: ['job-header'],
@@ -54,7 +55,7 @@ function jobCards(hasJobs) {
       'The client, the site and the application details, as entered when the job was created.',
       'Key dates are here too. Click "Edit dates" to change one, then save.',
     ]),
-    tabCard('hpc stages', 'HPC Stages tab: your stages and fees', [
+    tabCard('hpc stages', `${stagesTab} tab: your stages and fees`, [
       'Your firm\'s own stages for the job. Open a stage to see its scope of works, and tick items off as they are done.',
       'Each stage has a fee. Set a stage to in progress, or to invoiced and complete. The fee summary adds it up with GST.',
     ]),
@@ -131,7 +132,7 @@ const finishCard = (which) => ({
 // The director tutorial
 // ------------------------------------------------------------------
 
-export function directorTour({ firstName, isPhone, hasJobs }) {
+export function directorTour({ firstName, isPhone, hasJobs, stagesTab }) {
   return [
     {
       id: 'welcome', page: 'dashboard', chapter: 'Director tour',
@@ -161,7 +162,7 @@ export function directorTour({ firstName, isPhone, hasJobs }) {
         'Overdue jobs are marked in red, and jobs due soon in amber.',
       ],
     },
-    ...jobCards(hasJobs),
+    ...jobCards(hasJobs, stagesTab),
     {
       id: 'newjob', page: 'newjob', chapter: 'Jobs', targets: ['newjob-form'], maxHeight: 320,
       title: 'New Job: set a job up once',
@@ -231,7 +232,7 @@ export function directorTour({ firstName, isPhone, hasJobs }) {
 // The staff tutorial
 // ------------------------------------------------------------------
 
-export function staffTour({ firstName, isPhone, hasJobs }) {
+export function staffTour({ firstName, isPhone, hasJobs, stagesTab }) {
   return [
     {
       id: 'welcome', page: 'dashboard', chapter: 'Staff tour',
@@ -261,7 +262,7 @@ export function staffTour({ firstName, isPhone, hasJobs }) {
         'Overdue jobs are marked in red, and jobs due soon in amber.',
       ],
     },
-    ...jobCards(hasJobs),
+    ...jobCards(hasJobs, stagesTab),
     {
       id: 'newjob', page: 'newjob', chapter: 'Jobs', targets: ['newjob-form'], maxHeight: 320,
       title: 'New Job: set a job up once',

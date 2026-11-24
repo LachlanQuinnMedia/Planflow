@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase, openDocument } from './supabase'
 import { generateFromTemplate } from './templateFiller'
+import { useFirm, initialStageState, mergeStageState, templateFileName } from './firm'
+import { DA_STAGES } from './daStages'
 import OneDriveBrowser, { OneDriveFolderPicker } from './OneDriveBrowser'
 import { APP_TYPES, appTypeBadge, appTypeFull, buildJobName, clientName, contactName, isCompanyClient, jobTitle } from './jobMeta'
 import { addBusinessDays, deadlineStatus, skippedHolidays, beyondHolidayData, hasShowHoliday, stageDayRules } from './businessDays'
@@ -32,80 +34,6 @@ const COUNCILS = [
   'Townsville City Council', 'Western Downs Regional Council', 'Whitsunday Regional Council', 'Other',
 ]
 
-export const DA_STAGES = [
-  { id: 'application', label: 'Application stage', description: 'Application lodged, confirmation notice issued', statutory_days: 5, hpc_stage: 'Stage 2', color: 'bg-blue-100 text-blue-700' },
-  { id: 'referral', label: 'Referral stage', description: 'Referral to state government / Energex / other agencies', statutory_days: 10, hpc_stage: 'Stage 3', color: 'bg-purple-100 text-purple-700' },
-  { id: 'information', label: 'Information request stage', description: 'Council information request and response window', statutory_days: 10, hpc_stage: 'Stage 3', color: 'bg-amber-100 text-amber-700' },
-  { id: 'notification', label: 'Public notification stage', description: 'Public notification & submissions period', statutory_days: 15, hpc_stage: 'Stage 3', color: 'bg-pink-100 text-pink-700' },
-  { id: 'decision', label: 'Decision stage', description: 'Assessment and decision by Council', statutory_days: 20, hpc_stage: 'Stage 3', color: 'bg-emerald-100 text-emerald-700' },
-]
-
-export const HPC_STAGES = [
-  {
-    id: 'stage1',
-    label: 'Stage 1: Preliminary Planning Investigations',
-    shortLabel: 'Stage 1',
-    color: 'bg-blue-100 text-blue-700',
-    defaultFee: 500,
-    description: 'Pre-start meeting, desktop analysis, legislative assessment, development potential advice.',
-    items: [
-      'Attend one (1) pre-start meeting with client and any other relevant consultants',
-      'Desktop analysis of site and surrounding uses',
-      'Assess proposed development against local and state government legislation',
-      'Identify zone, overlays and local plan requirements',
-      'Advise on the site\'s development potential and constraints',
-      'Identify and review relevant adjoining / nearby development approvals',
-      'Advise client of necessary external consultants for supporting information',
-      'Determine application type/s and council lodgement fees',
-      'Provide advice to client on development potential and progressing with a development application',
-    ],
-  },
-  {
-    id: 'stage2',
-    label: 'Stage 2: Prepare and Lodge Development Application',
-    shortLabel: 'Stage 2',
-    color: 'bg-purple-100 text-purple-700',
-    defaultFee: 3000,
-    description: 'Prepare design brief, engage consultants, prepare planning report, lodge with council.',
-    items: [
-      'Prepare design brief for the architect/draftsman',
-      'Obtain quote/s, engage and co-ordinate external consultants (if required)',
-      'Review draft architectural plans and provide advice on any changes required',
-      'Review external consultant\'s reports and coordinate information',
-      'Prepare land owner\'s consent form for signing',
-      'Prepare Town Planning Report and Code Compliance Statements',
-      'Complete statutory application forms',
-      'Collate and lodge application with Council in compliance with the Planning Act 2016',
-      'Ensure application has been \'properly made\' in accordance with the Planning Act 2016',
-    ],
-  },
-  {
-    id: 'stage3',
-    label: 'Stage 3: Manage and Coordinate Post Lodgement Services',
-    shortLabel: 'Stage 3',
-    color: 'bg-emerald-100 text-emerald-700',
-    defaultFee: 2000,
-    description: 'Project manage application through to decision notice.',
-    items: [
-      'Project manage the development application with regards to the confirmation notice and information requests',
-      'Obtain quotes, engage and co-ordinate external consultants for amended or additional supporting information',
-      'Review and provide written responses to Council information request',
-      'Review and provide written responses to Council\'s further advice notice(s)',
-      'Ensure application is managed in accordance with the Planning Act 2016 and Development Assessment Rules',
-      'Attend one (1) meeting with consultants (if required) and one (1) meeting with council (if required)',
-      'Respond to Assessment Manager queries',
-      'Review and negotiate draft conditions',
-      'Provide client with digital copy of the Decision Notice',
-      'Advise client on approval conditions and/or appeal rights',
-    ],
-  },
-]
-
-const initialHPCStages = {
-  stage1: { status: 'pending', fee: 500, notes: '', completedDate: '', checkedItems: [] },
-  stage2: { status: 'pending', fee: 3000, notes: '', completedDate: '', checkedItems: [] },
-  stage3: { status: 'pending', fee: 2000, notes: '', completedDate: '', checkedItems: [] },
-}
 
 const initialStageData = {
   application: { status: 'pending', startDate: '', endDate: '', stoppedDays: 0, stopReason: '', isStopped: false },
@@ -117,7 +45,7 @@ const initialStageData = {
 
 const TABS = [
   { id: 'overview', label: 'Overview' },
-  { id: 'hpc stages', label: 'HPC Stages' },
+  { id: 'hpc stages', label: 'Service Stages' }, // shown under the firm's own name for its stages
   { id: 'da stages', label: 'DA Stages' },
   { id: 'documents', label: 'Documents' },
   { id: 'time & budget', label: 'Time & Budget' },
@@ -133,87 +61,6 @@ const statusColors = {
   Complete: 'bg-green-100 text-green-700',
 }
 
-const STAGE1_TEMPLATES = [
-  { group: 'Fee Proposals', items: [
-    { file: 'Fee_Proposal_Code.docx',         label: 'Fee Proposal - Code Assessable' },
-    { file: 'Fee_Proposal_Impact.docx',       label: 'Fee Proposal - Impact Assessable' },
-    { file: 'Fee_Proposal_Minor_Change.docx', label: 'Fee Proposal - Minor Change' },
-    { file: 'Fee_Proposal_RAA.docx',          label: 'Fee Proposal - Referral Agency Assessment' },
-  ]},
-  { group: "Owner's Consent", items: [
-    { file: 'Consent_Individual.docx', label: "Owner's Consent - Individual" },
-    { file: 'Consent_Company.docx',    label: "Owner's Consent - Company" },
-  ]},
-]
-
-const STAGE2_TEMPLATES = [
-  { group: 'Action Notice', items: [
-    { file: 'Action_Notice_Response.docx', label: 'Action Notice Response' },
-  ]},
-  { group: 'Planning Reports', items: [
-    { file: 'Town_Planning_Assessment.docx',         label: 'Town Planning Assessment (generic)' },
-    { file: 'DA_Report_Brisbane.docx',               label: 'DA Report - Brisbane' },
-    { file: 'DA_Report_Brisbane_RiskSmart.docx',     label: 'DA Report - Brisbane RiskSmart' },
-    { file: 'DA_Report_Express_Code.docx',           label: 'DA Report - Express DA (Code)' },
-    { file: 'DA_Report_Express_Accepted.docx',       label: 'DA Report - Express DA (Accepted to Code)' },
-    { file: 'DA_Report_Gold_Coast.docx',             label: 'DA Report - Gold Coast' },
-    { file: 'DA_Report_Gold_Coast_RAA.docx',         label: 'DA Report - Gold Coast RAA' },
-    { file: 'DA_Report_Gold_Coast_Sch6_RAA.docx',    label: 'DA Report - Gold Coast Sch6 RAA' },
-    { file: 'DA_Report_OPW.docx',                    label: 'DA Report - Operational Works' },
-  ]},
-  { group: 'Referrals', items: [
-    { file: 'Referral_Cover_Letter.docx',      label: 'Referral Cover Letter' },
-    { file: 'Missed_Referral_Letter.docx',     label: 'Missed Referral Letter' },
-    { file: 'Referral_Compliance_Letter.docx', label: 'Referral Compliance Letter' },
-    { file: 'Early_Concurrence_Request.docx',  label: 'Early Concurrence Request' },
-    { file: 'RAA_Application.docx',            label: 'RAA Application' },
-  ]},
-  { group: 'Change Applications', items: [
-    { file: 'Minor_Change_Application.docx',                 label: 'Minor Change Application' },
-    { file: 'Minor_Change_Application_Affected_Entity.docx', label: 'Minor Change - Affected Entity Notice' },
-    { file: 'Other_Change_Application.docx',                 label: 'Other Change Application' },
-  ]},
-]
-
-const STAGE3_TEMPLATES = [
-  { group: 'Information Request', items: [
-    { file: 'IR_Response.docx',                    label: 'IR Response' },
-    { file: 'Extend_Response_Period.docx',         label: 'Extend Response Period' },
-    { file: 'Initial_Response_and_Direction.docx', label: 'Initial Response & Direction' },
-  ]},
-  { group: 'Public Notification', items: [
-    { file: 'Notice_of_Commencement.docx',         label: 'Notice of Commencement' },
-    { file: 'Notice_of_Compliance_to_Council.docx',label: 'Notice of Compliance to Council' },
-    { file: 'Notify_Adjoining_Owner_Letter.docx',  label: 'Notify Adjoining Owner Letter' },
-    { file: 'Newspaper_Template.docx',             label: 'Newspaper Notice Template' },
-  ]},
-  { group: 'Waive Appeal Rights', items: [
-    { file: 'Waive_Appeal_Rights.docx',            label: 'Waive Appeal Rights' },
-    { file: 'Waive_ICN_Appeal_Rights.docx',        label: 'Waive ICN Appeal Rights' },
-    { file: 'Suspend_Applicant_Appeal_Period.docx',label: 'Suspend Applicant Appeal Period' },
-  ]},
-  { group: 'Tools & Forms', items: [
-    { file: 'Adjoining_Owners_Contact_List.xlsx',   label: "Adjoining Owners Contact List (Excel)" },
-    { file: 'Advertising_Register.xlsx',            label: 'Advertising Register (Excel)' },
-    { file: 'Calendar_2023.xlsx',                   label: 'Calendar (Excel)' },
-    { file: 'DA_Sign_Template.ai',                  label: 'DA Sign Template (Illustrator)' },
-    { file: 'Change_Application_Sign_Template.ai',  label: 'Change Application Sign Template (Illustrator)' },
-  ]},
-]
-
-const MISC_TEMPLATES = [
-  { group: 'Miscellaneous', items: [
-    { file: 'Lodgement_Cover_Letter.docx',         label: 'Lodgement Cover Letter' },
-    { file: 'Withdraw_Application.docx',           label: 'Withdraw Application' },
-    { file: 'Notice_to_Revive_Application.docx',   label: 'Notice to Revive Application' },
-    { file: 'Notice_to_Stop_Current_Period.docx',  label: 'Notice to Stop Current Period' },
-    { file: 'Quote_Request.docx',                  label: 'Quote Request' },
-    { file: 'Generic_Letterhead.docx',             label: 'Generic Letterhead (blank)' },
-  ]},
-]
-
-const ALL_DOCX_ITEMS = [...STAGE1_TEMPLATES, ...STAGE2_TEMPLATES, ...STAGE3_TEMPLATES, ...MISC_TEMPLATES].flatMap(g => g.items)
-
 // For .xlsx and .ai (and any other non-docx Storage template), just download the
 // raw file from the templates bucket. No placeholder filling - these are blank
 // tools the planner opens in Excel / Illustrator and fills manually.
@@ -222,7 +69,7 @@ async function downloadRawTemplate(filename) {
   if (error) throw new Error(`Could not download ${filename}: ${error.message}`)
   const link = document.createElement('a')
   link.href = URL.createObjectURL(data)
-  link.download = filename
+  link.download = templateFileName(filename)
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
@@ -294,8 +141,12 @@ async function sendStageNotifications(job, stageId, stageLabel, status, companyI
   } catch (e) {}
 }
 
+// A job's progress through the firm's own service stages (the firm sets them on Firm settings)
 function HPCStagesTab({ job, onHistoryAdd }) {
-  const [stages, setStages] = useState(initialHPCStages)
+  const firm = useFirm()
+  const STAGES = firm.stages
+  const [stages, setStages] = useState(() => initialStageState(STAGES))
+  const savedRef = useRef({}) // what is stored on the job, including any stage the firm has since removed
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [expandedStage, setExpandedStage] = useState(null)
@@ -305,15 +156,8 @@ function HPCStagesTab({ job, onHistoryAdd }) {
       // The tutorial's example job is not in the database: its stages come with it
       const { data } = job.demo ? { data: job } : await supabase.from('jobs').select('hpc_stages').eq('id', job.id).maybeSingle()
       if (data?.hpc_stages && Object.keys(data.hpc_stages).length > 0) {
-        const merged = {}
-        for (const s of HPC_STAGES) {
-          merged[s.id] = {
-            ...initialHPCStages[s.id],
-            ...data.hpc_stages[s.id],
-            checkedItems: data.hpc_stages[s.id]?.checkedItems || [],
-          }
-        }
-        setStages(merged)
+        savedRef.current = data.hpc_stages
+        setStages(mergeStageState(STAGES, data.hpc_stages))
       }
     }
     load()
@@ -339,15 +183,17 @@ function HPCStagesTab({ job, onHistoryAdd }) {
 
   const saveStages = async () => {
     setSaving(true)
-    await supabase.from('jobs').update({ hpc_stages: stages }).eq('id', job.id)
+    const toSave = { ...savedRef.current, ...stages }
+    await supabase.from('jobs').update({ hpc_stages: toSave }).eq('id', job.id)
+    savedRef.current = toSave
     setSaving(false)
     setSaved(true)
-    onHistoryAdd('HPC stages updated')
+    onHistoryAdd(`${firm.stagesName} updated`)
     setTimeout(() => setSaved(false), 2000)
   }
 
-  const totalFees = Object.values(stages).reduce((sum, s) => sum + (parseFloat(s.fee) || 0), 0)
-  const completedFees = HPC_STAGES.filter(s => stages[s.id]?.status === 'complete')
+  const totalFees = STAGES.reduce((sum, s) => sum + (parseFloat(stages[s.id]?.fee) || 0), 0)
+  const completedFees = STAGES.filter(s => stages[s.id]?.status === 'complete')
     .reduce((sum, s) => sum + (parseFloat(stages[s.id]?.fee) || 0), 0)
   const gst = totalFees * 0.1
   const totalWithGST = totalFees + gst
@@ -369,7 +215,7 @@ function HPCStagesTab({ job, onHistoryAdd }) {
         <div className="bg-emerald-50 rounded-xl border border-emerald-100 p-4">
           <div className="text-xs text-emerald-600 mb-1">Invoiced / complete</div>
           <div className="text-xl font-semibold text-emerald-700">${completedFees.toLocaleString()}</div>
-          <div className="text-xs text-emerald-500 mt-0.5">{HPC_STAGES.filter(s => stages[s.id]?.status === 'complete').length} of 3 stages complete</div>
+          <div className="text-xs text-emerald-500 mt-0.5">{STAGES.filter(s => stages[s.id]?.status === 'complete').length} of {STAGES.length} stages complete</div>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="text-xs text-gray-500 mb-1">Remaining</div>
@@ -380,14 +226,14 @@ function HPCStagesTab({ job, onHistoryAdd }) {
 
       <div className="bg-white rounded-xl border border-gray-200 p-4">
         <div className="flex items-center justify-between mb-3">
-          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">HPC stage progress</div>
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{firm.stagesName.replace(/s$/, '')} progress</div>
           <button onClick={saveStages} disabled={saving} className="px-3 py-1 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50">
             {saving ? 'Saving...' : saved ? '✓ Saved' : 'Save stages'}
           </button>
         </div>
         <div className="flex gap-2">
-          {HPC_STAGES.map(stage => {
-            const data = stages[stage.id]
+          {STAGES.map(stage => {
+            const data = stages[stage.id] || initialStageState([stage])[stage.id]
             const checkedCount = (data.checkedItems || []).length
             const totalItems = stage.items.length
             const pct = Math.round((checkedCount / totalItems) * 100)
@@ -409,8 +255,8 @@ function HPCStagesTab({ job, onHistoryAdd }) {
         </div>
       </div>
 
-      {HPC_STAGES.map((stage, index) => {
-        const data = stages[stage.id]
+      {STAGES.map((stage, index) => {
+        const data = stages[stage.id] || initialStageState([stage])[stage.id]
         const isExpanded = expandedStage === stage.id
         const isComplete = data.status === 'complete'
         const isActive = data.status === 'active'
@@ -529,7 +375,7 @@ function HPCStagesTab({ job, onHistoryAdd }) {
 
       <div className="bg-white rounded-xl border border-gray-200 p-4">
         <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Fee summary</div>
-        {HPC_STAGES.map(stage => (
+        {STAGES.map(stage => (
           <div key={stage.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
             <div className="flex items-center gap-2">
               <div className="text-xs text-gray-600">{stage.label}</div>
@@ -782,6 +628,7 @@ function StopClockModal({ stage, stageData, onSave, onClose }) {
 }
 
 function DAStageTracker({ job, currentUser, onHistoryAdd }) {
+  const firm = useFirm()
   const [stages, setStages] = useState(initialStageData)
   const [stopClockStage, setStopClockStage] = useState(null)
   const [expandedStage, setExpandedStage] = useState(null)
@@ -1007,7 +854,9 @@ function DAStageTracker({ job, currentUser, onHistoryAdd }) {
                   </div>
                 </div>
                 <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
-                  <span className="text-xs text-gray-500">HPC internal stage: <span className="font-medium text-gray-600">{stage.hpc_stage}</span></span>
+                  {firm.stages.some(fs => fs.shortLabel === stage.service_stage)
+                    ? <span className="text-xs text-gray-500">{firm.stageLabel ? `${firm.stageLabel} internal stage` : 'Service stage'}: <span className="font-medium text-gray-600">{stage.service_stage}</span></span>
+                    : <span />}
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${stage.color}`}>{stage.label}</span>
                 </div>
               </div>
@@ -1546,7 +1395,7 @@ function ShareSummaryModal({ job, currentUser, onClose, onJobUpdated, onHistoryA
                 <label className="flex items-start gap-2 text-xs text-gray-600 cursor-pointer">
                   <input type="checkbox" className="mt-0.5" checked={includeBudget}
                     onChange={e => toggle('share_include_budget', e.target.checked)} />
-                  <span>Hours and budget <span className="text-gray-500">(hours logged against the budget, and HPC stage fees)</span></span>
+                  <span>Hours and budget <span className="text-gray-500">(hours logged against the budget, and stage fees)</span></span>
                 </label>
                 <label className="flex items-start gap-2 text-xs text-gray-600 cursor-pointer">
                   <input type="checkbox" className="mt-0.5" checked={includeNotes}
@@ -1602,7 +1451,8 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
   const [notesSaved, setNotesSaved] = useState(false)
   const [history, setHistory] = useState([])
   const [jobData, setJobData] = useState(job)
-  const [hpcStages, setHpcStages] = useState(initialHPCStages)
+  const firm = useFirm()
+  const [hpcStages, setHpcStages] = useState(() => initialStageState(firm.stages))
   const [dates, setDates] = useState({
     confirmation: job?.date_confirmation || '',
     irResponse: job?.date_ir_response || '',
@@ -1625,17 +1475,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
       const { data } = job.demo ? { data: job } : await supabase.from('jobs').select('job_history, hpc_stages').eq('id', job.id).maybeSingle()
       if (data?.job_history && data.job_history.length > 0) setHistory(data.job_history)
       else setHistory([{ text: 'Job created', time: job.created_at }])
-      if (data?.hpc_stages && Object.keys(data.hpc_stages).length > 0) {
-        const merged = {}
-        for (const s of HPC_STAGES) {
-          merged[s.id] = {
-            ...initialHPCStages[s.id],
-            ...data.hpc_stages[s.id],
-            checkedItems: data.hpc_stages[s.id]?.checkedItems || [],
-          }
-        }
-        setHpcStages(merged)
-      }
+      if (data?.hpc_stages && Object.keys(data.hpc_stages).length > 0) setHpcStages(mergeStageState(firm.stages, data.hpc_stages))
     }
     loadHistory()
   }, [job?.id])
@@ -1757,7 +1597,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
     hpc_stages: hpcStages,
   }
 
-  const labelFor = (id) => ALL_DOCX_ITEMS.find(i => i.file === id)?.label || id
+  const labelFor = (id) => firm.allTemplates.find(i => i.file === id)?.label || templateFileName(id)
   const toggleTemplate = (t) => setSelectedTemplates(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])
 
   const handleGenerate = async () => {
@@ -1847,34 +1687,20 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
               {jobData.code}. Filled from this job{currentPlanner?.full_name ? ` & ${currentPlanner.full_name}` : ''}. Anything not on file is left as an editable placeholder.
             </div>
 
-            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Stage 1</div>
-            {STAGE1_TEMPLATES.map(group => (
-              <div key={group.group} className="mb-3">
-                <div className="text-xs font-medium text-gray-600 mb-1">{group.group}</div>
-                {group.items.map(renderTemplateRow)}
+            {firm.templates.length === 0 && (
+              <div className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg p-3">
+                Your firm has no templates yet. A director can add them on the Templates page.
               </div>
-            ))}
-
-            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-4">Stage 2</div>
-            {STAGE2_TEMPLATES.map(group => (
-              <div key={group.group} className="mb-3">
-                <div className="text-xs font-medium text-gray-600 mb-1">{group.group}</div>
-                {group.items.map(renderTemplateRow)}
-              </div>
-            ))}
-
-            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-4">Stage 3</div>
-            {STAGE3_TEMPLATES.map(group => (
-              <div key={group.group} className="mb-3">
-                <div className="text-xs font-medium text-gray-600 mb-1">{group.group}</div>
-                {group.items.map(renderTemplateRow)}
-              </div>
-            ))}
-
-            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-4">Miscellaneous</div>
-            {MISC_TEMPLATES.map(group => (
-              <div key={group.group} className="mb-3">
-                {group.items.map(renderTemplateRow)}
+            )}
+            {firm.templates.map((cat, catIndex) => (
+              <div key={cat.stage}>
+                <div className={`text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 ${catIndex > 0 ? 'mt-4' : ''}`}>{cat.stage}</div>
+                {cat.groups.map(group => (
+                  <div key={group.name} className="mb-3">
+                    {cat.groups.length > 1 && <div className="text-xs font-medium text-gray-600 mb-1">{group.name}</div>}
+                    {group.items.map(renderTemplateRow)}
+                  </div>
+                ))}
               </div>
             ))}
 
@@ -1891,7 +1717,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
             data-active={activeTab === tab.id} data-tour={`jobtab-${tab.id.replace(/[^a-z]+/g, '-')}`}
             className={`px-4 py-2 text-xs border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id ? 'border-emerald-500 text-emerald-600 font-medium' : 'border-transparent text-gray-600 hover:text-gray-700'}`}>
-            {tab.label}
+            {tab.id === 'hpc stages' ? firm.stagesTab : tab.label}
           </button>
         ))}
       </div>
@@ -1995,7 +1821,7 @@ export default function JobDetail({ job, onNavigate, currentUser }) {
                   h.text.includes('generated') ? 'bg-purple-500' :
                   h.text.includes('uploaded') ? 'bg-blue-500' :
                   h.text.includes('Notes') ? 'bg-amber-500' :
-                  h.text.includes('HPC stages') ? 'bg-blue-500' :
+                  /stages updated/i.test(h.text) && !h.text.startsWith('DA ') ? 'bg-blue-500' :
                   h.text.includes('DA stages') ? 'bg-pink-500' :
                   h.text.includes('Time log') ? 'bg-teal-500' :
                   h.text.includes('Status changed') ? 'bg-emerald-500' :

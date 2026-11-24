@@ -9,7 +9,7 @@ const activeTab = (page) => page.evaluate(() => document.querySelector('[data-to
 // Opening any job tidies an old-style stored name into the standard format. That is the app's normal
 // behaviour on opening a job (not the tour's), so the name is left out of the comparison and checked on its own.
 const snapshotDb = () => JSON.stringify({ jobs: db.jobs.map(({ name, ...rest }) => rest), logs: db.time_logs.length, timers: db.active_timers.length, bookings: db.bookings.length, docs: db.documents.length })
-const isWrite = c => c.method !== 'GET' && c.method !== 'OPTIONS' && c.path.startsWith('/rest/v1/')
+const isWrite = c => !['GET', 'HEAD', 'OPTIONS'].includes(c.method) && c.path.startsWith('/rest/v1/')
 const geometry = (page) => page.evaluate(() => {
   const c = document.querySelector('[data-testid=tour-card]').getBoundingClientRect(); const s = document.querySelector('[data-testid=tour-skip]').getBoundingClientRect(); const n = document.querySelector('[data-testid=tour-next]').getBoundingClientRect()
   const sp = document.querySelector('[data-testid=tour-spot]')?.getBoundingClientRect()

@@ -10,6 +10,13 @@ const OUT = process.env.OUT || 'out/shots'
 fs.mkdirSync(OUT, { recursive: true })
 
 const COMPANY = 'b14f0515-8538-4356-aa0c-9f828058e744'
+// The first firm's own stages and template list, as stored in firm_settings
+const HPC_FIRM = JSON.parse(fs.readFileSync(new URL('./fixtures/hpc_firm.json', import.meta.url), 'utf8'))
+export const hpcFirmRow = () => ({ company_id: COMPANY, stage_label: 'HPC', stages: structuredClone(HPC_FIRM.stages), templates: structuredClone(HPC_FIRM.templates), legacy_templates: true, setup: { hidden: true } })
+// Other firms the master account can open (the platform function)
+export const platformState = { firms: [], switched: [] }
+// The firm's job folders in Microsoft 365, by parent folder id (the job-import function)
+export const importState = { folders: {}, pageSize: 200, calls: [] }
 const ME = { id: 'u-quinn', username: 'Lachlan Quinn', role: 'director', company_id: COMPANY, company_code: '0000', companyName: 'HPC Planning' }
 
 export const db = {
@@ -35,6 +42,7 @@ export const db = {
   ],
   active_timers: [], notifications: [], documents: [], bookings: [], stage_notifications: [], xero_tokens: [], calendar_connections: [],
   companies: [{ id: COMPANY, name: 'HPC Planning', company_code: '0000' }],
+  firm_settings: [hpcFirmRow()], import_batches: [], client_errors: [],
 }
 export const calls = []
 const b64u = (o) => Buffer.from(JSON.stringify(o)).toString('base64url')
@@ -44,18 +52,41 @@ export const authState = { password: 'Right-Pass-1', answer: 'brisbane', registe
 export const msState = { connected: true, jobsFolder: { driveId: 'd1', folderId: 'f-jobs', name: 'Jobs', path: 'HPC / Jobs', webUrl: 'https://example.sharepoint.com/jobs' }, createFails: false, email: 'office@hpc.example' }
 export const calState = { me: { connected: false }, team: [] }
 
+// One condition as PostgREST writes it: column, then "eq.x", "not.is.null", "ilike.*x*", "in.(a,b)" ...
+function matches(row, k, v) {
+  if (v === 'not.is.true') return row[k] !== true
+  if (v === 'not.is.null') return row[k] != null
+  const m = /^(eq|neq|like|ilike|gte|lte|is|in)\.(.*)$/s.exec(v)
+  if (!m) return true
+  const [, op, raw] = m
+  const cell = String(row[k] ?? '')
+  if (op === 'eq') return cell === raw
+  if (op === 'neq') return cell !== raw
+  if (op === 'is') return raw === 'null' ? row[k] == null : true
+  if (op === 'in') return raw.replace(/^\(|\)$/g, '').split(',').map(x => x.replace(/^"|"$/g, '')).includes(cell)
+  if (op === 'ilike' || op === 'like') {
+    const lower = (x) => (op === 'ilike' ? x.toLowerCase() : x)
+    if (/[*%]/.test(raw)) {
+      const core = raw.replace(/^[*%]|[*%]$/g, '')
+      if (/^[*%]/.test(raw) && /[*%]$/.test(raw)) return lower(cell).includes(lower(core))
+      if (/[*%]$/.test(raw)) return lower(cell).startsWith(lower(core))
+      return lower(cell).endsWith(lower(core))
+    }
+    return lower(cell) === lower(raw)
+  }
+  return true
+}
 function filterRows(rows, params) {
   let out = rows
   for (const [k, v] of params) {
-    if (['select', 'order', 'limit', 'offset'].includes(k)) continue
-    if (v === 'not.is.true') { out = out.filter(r => r[k] !== true); continue }
-    const m = /^(eq|neq|like|ilike|gte|lte|is|in)\.(.*)$/s.exec(v)
-    if (!m) continue
-    const [, op, raw] = m
-    if (op === 'eq') out = out.filter(r => String(r[k]) === raw)
-    else if (op === 'ilike') out = out.filter(r => String(r[k] ?? '').toLowerCase() === raw.toLowerCase())
-    else if (op === 'like') { const pre = raw.replace(/%$/, ''); out = out.filter(r => String(r[k] ?? '').startsWith(pre)) }
-    else if (op === 'is') out = out.filter(r => (raw === 'null' ? r[k] == null : true))
+    if (['select', 'order', 'limit', 'offset', 'on_conflict', 'columns'].includes(k)) continue
+    if (k === 'or') {
+      // or=(a.is.null,b.neq.X): any one of them
+      const parts = v.replace(/^\(|\)$/g, '').split(',').map(p => { const i = p.indexOf('.'); return [p.slice(0, i), p.slice(i + 1)] })
+      out = out.filter(r => parts.some(([col, cond]) => matches(r, col, cond)))
+      continue
+    }
+    out = out.filter(r => matches(r, k, v))
   }
   return out
 }
@@ -102,6 +133,46 @@ export async function installMocks(page) {
     }
     if (url.pathname.startsWith('/storage/v1/object/sign/')) return send({ signedURL: url.pathname.replace('/storage/v1', '') + '?token=signed' })
     if (url.pathname.startsWith('/storage/v1/object/documents/') && method === 'POST') return send({ Key: url.pathname.replace('/storage/v1/object/', '') })
+    if (url.pathname.startsWith('/storage/v1/object/templates/') && method === 'POST') { (authState.templateUploads = authState.templateUploads || []).push(url.pathname.replace('/storage/v1/object/templates/', '')); return send({ Key: url.pathname.replace('/storage/v1/object/', '') }) }
+    if (url.pathname === '/storage/v1/object/templates' && method === 'DELETE') { (authState.templateRemovals = authState.templateRemovals || []).push(...(body?.prefixes || [])); return send([]) }
+    if (url.pathname.startsWith('/functions/v1/platform')) {
+      const action = url.searchParams.get('action')
+      if (!ME.is_platform_admin) return send({ error: 'Not available.' }, 403)
+      const row = (c) => ({ id: c.id, name: c.name, company_code: c.company_code, director_code: c.director_code || 'HPCDIR22', created_at: c.created_at || '2026-06-01T00:00:00Z', staff: db.app_users.filter(u => u.company_id === c.id && u.is_approved && !u.is_platform_admin).length, pending: 0, jobs: db.jobs.filter(j => j.company_id === c.id).length, current: c.id === (db.app_users.find(u => u.id === ME.id)?.company_id || ME.company_id), home: c.id === COMPANY })
+      const all = () => [...db.companies, ...platformState.firms]
+      if (action === 'list_firms') return send({ firms: all().map(row) })
+      if (action === 'create_firm') {
+        const name = String(body.name || '').trim()
+        if (name.length < 2) return send({ error: "Enter the firm's name." })
+        if (all().some(c => c.name.toLowerCase() === name.toLowerCase())) return send({ error: 'There is already a firm with that name.' })
+        const firm = { id: `firm-${platformState.firms.length + 2}`, name, company_code: String(482930 + platformState.firms.length), director_code: 'K7M2PQ9X', created_at: new Date().toISOString() }
+        platformState.firms.push(firm); db.firm_settings.push({ company_id: firm.id, stage_label: null, stages: null, templates: null, legacy_templates: false, setup: {} })
+        return send({ firm: row(firm) })
+      }
+      if (action === 'switch_firm') {
+        const c = all().find(f => f.id === body.company_id)
+        if (!c) return send({ error: 'That firm was not found.' })
+        platformState.switched.push(c.id)
+        const me = db.app_users.find(u => u.id === ME.id); if (me) { me.company_id = c.id; me.company_code = c.company_code }
+        return send({ user: { id: ME.id, username: ME.username, role: 'director', company_id: c.id, company_code: c.company_code, companyName: c.name } })
+      }
+      return send({ error: 'Unknown action' }, 400)
+    }
+    if (url.pathname === '/rest/v1/rpc/get_job_summary_stages') {
+      const j = db.jobs.find(x => x.share_token && x.share_token === body.p_token)
+      const fs2 = j && db.firm_settings.find(f => f.company_id === j.company_id)
+      return send(fs2?.stages ? { stage_label: fs2.stage_label, stage_defs: fs2.stages.map(({ defaultFee, ...rest }) => rest) } : null)
+    }
+    if (url.pathname.startsWith('/functions/v1/job-import')) {
+      // Folders are handed out a page at a time, like Microsoft does
+      const all = importState.folders[body.next ? body.next.split('#')[1] : (body.folder_id || 'root')] || []
+      const from = body.next ? Number(body.next.split('#')[2]) : 0
+      if (body.next && !body.next.startsWith('https://graph.microsoft.com/v1.0/')) return send({ success: false, error: 'That page could not be loaded.' }, 400)
+      importState.calls.push({ ...body })
+      const pageOf = all.slice(from, from + importState.pageSize)
+      const more = from + importState.pageSize < all.length
+      return send({ success: true, folders: pageOf, next: more ? `https://graph.microsoft.com/v1.0/x#${body.next ? body.next.split('#')[1] : (body.folder_id || 'root')}#${from + importState.pageSize}` : null })
+    }
     if (url.pathname.startsWith('/functions/v1/leads')) { authState.leads = authState.leads || []; if (!/@/.test(body.email || '')) return send({ error: 'Please enter a valid email address.' }); authState.leads.push(body); return send({ success: true }) }
     if (url.pathname.startsWith('/functions/v1/xero-auth')) {
       const action = url.searchParams.get('action')
@@ -118,7 +189,7 @@ export async function installMocks(page) {
         const user = db.app_users.find(a => a.username === u); const p = db.planner_profiles.find(pp => pp.user_id === user?.id)
         return { username: u, name: p?.full_name || u, position: p?.position || null, email: p?.email || null, phone: p?.phone || null, lead: i === 0 }
       })
-      return send({ company: 'HPC Planning', ...j, key_dates: { confirmation: j.date_confirmation || null, ir_response: j.date_ir_response || null, referral: null, public_notice_start: null, public_notice_end: null, decision: j.date_decision || null }, da_stages: j.da_stages || {}, hpc_stages: j.hpc_stages || {}, team, include_budget: j.share_include_budget, include_notes: j.share_include_notes, hours_logged: 12.5, generated_at: new Date().toISOString() })
+      return send({ company: (db.companies.find(c => c.id === j.company_id) || db.companies[0])?.name || 'HPC Planning', ...j, key_dates: { confirmation: j.date_confirmation || null, ir_response: j.date_ir_response || null, referral: null, public_notice_start: null, public_notice_end: null, decision: j.date_decision || null }, da_stages: j.da_stages || {}, hpc_stages: j.hpc_stages || {}, team, include_budget: j.share_include_budget, include_notes: j.share_include_notes, hours_logged: 12.5, generated_at: new Date().toISOString() })
     }
 
     // Edge functions
@@ -151,16 +222,34 @@ export async function installMocks(page) {
     if (!m) return send([])
     const table = m[1]
     db[table] = db[table] || []
+    if (method === 'HEAD') {
+      // a count: supabase-js reads the total from the content-range header
+      const n = filterRows(db[table], url.searchParams).length
+      return route.fulfill({ status: 200, headers: { ...cors, 'content-type': 'application/json', 'content-range': n ? `0-${n - 1}/${n}` : '*/0' } })
+    }
     if (method === 'GET') {
-      const rows = filterRows(db[table], url.searchParams)
+      let rows = filterRows(db[table], url.searchParams)
+      // the slice asked for (.range() and .limit()). Rows stay in the order they were added.
+      const offset = Number(url.searchParams.get('offset') || 0), limit = url.searchParams.get('limit')
+      if (offset || limit) rows = rows.slice(offset, limit ? offset + Number(limit) : undefined)
       if (wantObject) return rows.length ? send(rows[0]) : send({ code: 'PGRST116', message: 'no rows' }, 406)
       return send(rows)
     }
-    if (method === 'POST') {
-      const row = { id: `${table}-${db[table].length + 1}`, created_at: new Date().toISOString(), ...(Array.isArray(body) ? body[0] : body) }
-      if (table === 'jobs' && db.jobs.some(j => j.code === row.code)) return send({ code: '23505', message: 'duplicate key' }, 409)
-      db[table].push(row)
+    if (method === 'POST' && url.searchParams.get('on_conflict')) {
+      // upsert: merge into the row with the same key, or add it
+      const key = url.searchParams.get('on_conflict'); const incoming = Array.isArray(body) ? body[0] : body
+      let row = db[table].find(r => String(r[key]) === String(incoming[key]))
+      if (row) Object.assign(row, incoming); else { row = { ...incoming }; db[table].push(row) }
       return wantObject ? send(row, 201) : send([row], 201)
+    }
+    if (method === 'POST') {
+      // one row, or many at once (an import). Job numbers are unique within a firm.
+      const incoming = Array.isArray(body) ? body : [body]
+      const made = incoming.map((b, i) => ({ id: `${table}-${db[table].length + 1 + i}`, created_at: new Date().toISOString(), ...b }))
+      const clash = (row) => db.jobs.some(j => j.code === row.code && (j.company_id || null) === (row.company_id || null))
+      if (table === 'jobs' && (made.some(clash) || new Set(made.map(r => r.code)).size !== made.length)) return send({ code: '23505', message: 'duplicate key' }, 409)
+      db[table].push(...made)
+      return wantObject ? send(made[0], 201) : send(made, 201)
     }
     if (method === 'PATCH') {
       const rows = filterRows(db[table], url.searchParams)

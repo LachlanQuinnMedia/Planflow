@@ -3,7 +3,7 @@
 // Behind the scenes each person gets a real Supabase Auth session, which is what the
 // database rules check. Passwords and security answers never reach the browser.
 //
-// Actions: login, register, security_question, verify_answer, reset_password
+// Actions: login, register, security_question, verify_answer, reset_password, change_password
 //
 // Existing accounts are moved across the first time each person signs in. They notice nothing.
 
@@ -113,7 +113,13 @@ async function findUser(companyId: string, username: string) {
     .select('id, username, role, company_id, company_code, is_approved, is_active')
     .eq('company_id', companyId)
   const wanted = username.toLowerCase()
-  return (data || []).find((u: any) => String(u.username).toLowerCase() === wanted) || null
+  const found = (data || []).find((u: any) => String(u.username).toLowerCase() === wanted)
+  if (found) return found
+  // The QPlan master account signs in with its home firm's code, whichever firm it is looking at
+  const { data: masters } = await db.from('app_users')
+    .select('id, username, role, company_id, company_code, is_approved, is_active')
+    .eq('is_platform_admin', true).eq('home_company_id', companyId)
+  return (masters || []).find((u: any) => String(u.username).toLowerCase() === wanted) || null
 }
 async function getSecrets(userId: string) {
   const { data } = await db.from('user_secrets').select('*').eq('user_id', userId).maybeSingle()
@@ -202,10 +208,16 @@ Deno.serve(async (req) => {
         })
       }
 
+      // The master account may be looking at a different firm from the one whose code it signed in with
+      let companyName = company.name || ''
+      if (user.company_id !== company.id) {
+        const { data: viewing } = await db.from('companies').select('name').eq('id', user.company_id).maybeSingle()
+        companyName = viewing?.name || ''
+      }
       return json({
         user: {
           id: user.id, username: user.username, role: user.role,
-          company_id: user.company_id, company_code: user.company_code, companyName: company.name || '',
+          company_id: user.company_id, company_code: user.company_code, companyName,
         },
         session,
       })
@@ -295,6 +307,38 @@ Deno.serve(async (req) => {
         legacy_password_sha256: null, password_ci: false,
         security_answer_hash: await hashAnswer(answer), updated_at: new Date().toISOString(),
       }).eq('user_id', user.id)
+      return json({ success: true })
+    }
+
+    // ---------------- change password (signed in) ----------------
+    if (action === 'change_password') {
+      const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim()
+      const { data: who } = token ? await db.auth.getUser(token) : { data: null as any }
+      const userId = who?.user?.id
+      if (!userId) return json({ error: 'Please sign in again.' }, 401)
+      const { data: me } = await db.from('app_users').select('id, is_approved, is_active').eq('id', userId).maybeSingle()
+      if (!me || !me.is_approved || me.is_active === false) return json({ error: 'Please sign in again.' }, 401)
+
+      const current = str(body.currentPassword, 300)
+      const next = str(body.newPassword, 300)
+      if (!current || !next) return json({ error: 'Please fill in all fields.' })
+      if (next.length < MIN_PASSWORD) return json({ error: `The new password must be at least ${MIN_PASSWORD} characters.` })
+      if (next === current) return json({ error: 'The new password is the same as the current one.' })
+      const pwKey = `pw|${userId}`
+      if (await tooMany(pwKey, MAX_USER_FAILS) || await tooMany(ipKey, MAX_IP_FAILS)) return json({ error: TOO_MANY })
+
+      const secrets = await getSecrets(userId)
+      const ok = secrets?.legacy_password_sha256
+        ? sameText(await sha256Hex(oldStyle(current)), secrets.legacy_password_sha256)
+        : !!(await passwordSignIn(userId, await authPassword(secrets?.password_ci ? oldStyle(current) : current)))
+      if (!ok) { await note(pwKey, ipKey); return json({ error: 'The current password is not right.' }) }
+
+      const failed = await setAuthPassword(userId, await authPassword(next))
+      if (failed) return json({ error: 'Could not change the password. Please try again.' })
+      // New passwords are case sensitive
+      await db.from('user_secrets').upsert(
+        { user_id: userId, legacy_password_sha256: null, password_ci: false, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id' })
       return json({ success: true })
     }
 

@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { SeasonBanner } from './Seasonal'
+import SetupChecklist from './SetupChecklist'
+import { fetchWorkingJobs, searchArchive } from './jobsQuery'
 import { supabase } from './supabase'
 import { sendIRDeadlineAlert } from './notifications'
 import { appTypeBadge, jobListName, jobSearchText } from './jobMeta'
@@ -301,9 +303,19 @@ function JobSearchPanel({ onNavigate, isDirector, jobs }) {
   const [statusFilter, setStatusFilter] = useState('All')
   const [plannerFilter, setPlannerFilter] = useState('All')
 
+  // Past jobs brought in by an import are not loaded with the rest. They are looked up as you type.
+  const [archive, setArchive] = useState([])
+  useEffect(() => {
+    const term = search.trim()
+    if (term.length < 2) { const clear = setTimeout(() => setArchive([]), 0); return () => clearTimeout(clear) }
+    let cancelled = false
+    const wait = setTimeout(async () => { const { data } = await searchArchive(term, 50); if (!cancelled) setArchive(data) }, 300)
+    return () => { cancelled = true; clearTimeout(wait) }
+  }, [search])
+  const everything = archive.length ? [...jobs, ...archive.filter(a => !jobs.some(j => j.id === a.id))] : jobs
   const uniquePlanners = [...new Set(jobs.map(j => j.planner).filter(Boolean))].sort()
 
-  const filtered = jobs.filter(j => {
+  const filtered = everything.filter(j => {
     const matchSearch = search === '' || jobSearchText(j).includes(search.toLowerCase().trim())
     const matchType = typeFilter === 'All' || j.app_type === typeFilter
     const matchStatus = statusFilter === 'All' || j.status === statusFilter
@@ -604,10 +616,7 @@ export default function Dashboard({ onNavigate, currentUser }) {
   useEffect(() => {
     const fetchJobs = async () => {
       setLoadingJobs(true)
-      const { data } = await supabase
-        .from('jobs')
-        .select('*')
-        .order('created_at', { ascending: false })
+      const { data } = await fetchWorkingJobs('*')
       if (data) setAllJobs(data)
       setLoadingJobs(false)
     }
@@ -620,6 +629,7 @@ export default function Dashboard({ onNavigate, currentUser }) {
   return (
     <>
       <SeasonBanner />
+      {isDirector && <SetupChecklist currentUser={currentUser} onNavigate={onNavigate} />}
       {isDirector
         ? <DirectorView onNavigate={onNavigate} allJobs={allJobs} viewingAs={me} />
         : <PlannerView planner={me} onNavigate={onNavigate} allJobs={allJobs} />}

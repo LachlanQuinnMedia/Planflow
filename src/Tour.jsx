@@ -13,14 +13,15 @@ import { useState, useEffect, useLayoutEffect, useRef, useMemo, useId } from 're
 import { createPortal } from 'react-dom'
 import { markTourSeen } from './tourState'
 import { directorTour, staffTour, MENU_LABELS, JOB_TAB_LABELS, jobTabAnchor } from './tourSteps'
+import { useFirm } from './firm'
 
 // What lights up to be clicked next, if anything: the next page in the menu, the first job in the
 // list, or the next tab on the job page. Not on a phone, where the menu is tucked away.
-function clickNext(step, next, isPhone) {
+function clickNext(step, next, isPhone, stagesTab) {
   if (!next || isPhone) return null
   if (next.page === 'jobdetail') {
     if (step.page !== 'jobdetail') return { name: 'jobs-first', kind: 'row', label: 'the first job', where: 'in the list' }
-    if (next.jobTab && next.jobTab !== step.jobTab) return { name: jobTabAnchor(next.jobTab), kind: 'tab', label: JOB_TAB_LABELS[next.jobTab], where: 'tab' }
+    if (next.jobTab && next.jobTab !== step.jobTab) return { name: jobTabAnchor(next.jobTab), kind: 'tab', label: next.jobTab === 'hpc stages' ? stagesTab : JOB_TAB_LABELS[next.jobTab], where: 'tab' }
     return null
   }
   if (next.page && next.page !== step.page && MENU_LABELS[next.page]) return { name: `nav-${next.page}`, kind: 'menu', label: MENU_LABELS[next.page], where: 'in the menu' }
@@ -126,17 +127,18 @@ export default function Tour({ currentUser, isDirector, activePage, hasJobs, onN
   const jobIdRef = useRef(null) // the job the tour was pointing at in the list, which is the one it opens
   // Fixed when the tour starts, so the number of cards cannot change half way through
   const [withJobs] = useState(hasJobs)
+  const { stagesTab } = useFirm() // what this firm calls its service stages
   const maskId = `qp-tour-mask-${useId().replace(/[^a-zA-Z0-9]/g, '')}`
 
   const isPhone = vp.w < 1024 // below this the menu is tucked away
   const firstName = String(currentUser?.username || '').trim().split(/\s+/)[0] || ''
   const steps = useMemo(
-    () => (isDirector ? directorTour : staffTour)({ firstName, isPhone, hasJobs: withJobs }),
-    [firstName, isDirector, isPhone, withJobs])
+    () => (isDirector ? directorTour : staffTour)({ firstName, isPhone, hasJobs: withJobs, stagesTab }),
+    [firstName, isDirector, isPhone, withJobs, stagesTab])
   const step = steps[index]
   const nextStep = steps[index + 1]
   const isLast = index === steps.length - 1
-  const click = clickNext(step, nextStep, isPhone)
+  const click = clickNext(step, nextStep, isPhone, stagesTab)
   const clickName = click?.name || null
 
   const finish = () => { markTourSeen(currentUser.id, currentUser.role); onClose() }

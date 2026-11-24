@@ -136,7 +136,8 @@ function EditProfileModal({ staffUser, profile, currentUser, takenColors = {}, o
     if (!file) return
     setUploading(true)
     const ext = file.name.split('.').pop()
-    const path = `${staffUser.id}.${ext}`
+    // Kept in the firm's own folder, so one firm can never replace another firm's photo
+    const path = `${currentUser.company_id}/${staffUser.id}.${ext}`
     const { error } = await supabase.storage.from('avatars').upload(path, file, { upsert: true })
     if (!error) {
       const { data } = supabase.storage.from('avatars').getPublicUrl(path)

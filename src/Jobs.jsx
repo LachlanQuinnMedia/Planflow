@@ -1,5 +1,6 @@
 // Jobs.jsx
 import { useState, useEffect } from 'react'
+import { fetchWorkingJobs, countArchive, searchArchive } from './jobsQuery'
 import { supabase } from './supabase'
 import { loadSession } from './auth'
 import { isXeroConnected, pushInvoiceToXero } from './xero'
@@ -228,6 +229,8 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
   const [typeFilter, setTypeFilter] = useState('All')
   const [plannerFilter, setPlannerFilter] = useState('All')
   const [statusFilter, setStatusFilter] = useState('All')
+  const [archiveCount, setArchiveCount] = useState(0) // old jobs brought in by an import, still Complete
+  const [archive, setArchive] = useState([])           // the ones matching the search
   const [jobToDelete, setJobToDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [xeroJob, setXeroJob] = useState(null)
@@ -238,16 +241,25 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
   useEffect(() => { fetchJobs() }, [])
   const fetchJobs = async () => {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('jobs')
-      .select('*')
-      .order('created_at', { ascending: false })
+    // Working jobs. A firm's imported archive of old jobs is not loaded here: it is searched (below).
+    const [{ data, error }, archived] = await Promise.all([fetchWorkingJobs('*'), countArchive()])
     if (!error && data) {
       setJobs(data)
       onJobCountChange?.(data.length)
     }
+    setArchiveCount(archived)
     setLoading(false)
   }
+
+  // The archive: looked up as you type, or its newest 100 when the status filter is Complete
+  useEffect(() => {
+    const term = search.trim()
+    const wanted = archiveCount > 0 && (term.length >= 2 || statusFilter === 'Complete')
+    if (!wanted) { const clear = setTimeout(() => setArchive([]), 0); return () => clearTimeout(clear) }
+    let cancelled = false
+    const wait = setTimeout(async () => { const { data } = await searchArchive(term.length >= 2 ? term : '', 100); if (!cancelled) setArchive(data) }, 300)
+    return () => { cancelled = true; clearTimeout(wait) }
+  }, [search, statusFilter, archiveCount])
   const handleDelete = async () => {
     if (!jobToDelete) return
     setDeleting(true)
@@ -266,7 +278,8 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
     setDeleting(false)
     fetchJobs()
   }
-  const filtered = jobs.filter(j => {
+  const everything = archive.length ? [...jobs, ...archive.filter(a => !jobs.some(j => j.id === a.id))] : jobs
+  const filtered = everything.filter(j => {
     const matchSearch = !search || jobSearchText(j).includes(search.toLowerCase().trim())
     const matchType = typeFilter === 'All' || j.app_type === typeFilter
     const matchPlanner = plannerFilter === 'All' || j.planner === plannerFilter
@@ -324,6 +337,11 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
         </div>
       )}
 
+      {archiveCount > 0 && (
+        <div data-testid="archive-note" className="text-xs text-gray-500 mb-2">
+          {archiveCount.toLocaleString()} past job{archiveCount === 1 ? '' : 's'} from your import {archiveCount === 1 ? 'is' : 'are'} kept out of this list. Search to find one, or set Status to Complete to see the newest.
+        </div>
+      )}
       <div data-tour="jobs-search" className="flex flex-col sm:flex-row gap-2 mb-4 sm:items-end">
         <div className="flex-1">
           <input
@@ -415,7 +433,7 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
         })}
         {!loading && (
           <div className="text-xs text-gray-500 text-center py-2">
-            Showing {sorted.length} of {jobs.length} jobs
+            Showing {sorted.length} of {everything.length} jobs
           </div>
         )}
       </div>
@@ -500,7 +518,7 @@ export default function Jobs({ onNavigate, onJobCountChange, currentUser }) {
           })
         )}
         <div className="px-4 py-2 text-xs text-gray-500 border-t border-gray-100">
-          {loading ? 'Loading...' : `Showing ${sorted.length} of ${jobs.length} jobs · ${overdueCount} overdue`}
+          {loading ? 'Loading...' : `Showing ${sorted.length} of ${everything.length} jobs · ${overdueCount} overdue`}
         </div>
       </div>
     </div>

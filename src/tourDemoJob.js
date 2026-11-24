@@ -10,7 +10,8 @@ export const DEMO_JOB_ID = '00000000-0000-4000-8000-0000000000aa'
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 const daysFrom = (now, n) => { const d = new Date(now); d.setDate(d.getDate() + n); return d }
 
-export function buildDemoJob(currentUser, now = new Date()) {
+// `stages` are the firm's own service stages: the first shows as complete, the second as under way
+export function buildDemoJob(currentUser, stages = [], now = new Date()) {
   const planner = String(currentUser?.username || '').trim() || 'You'
   const year = now.getFullYear()
   const at = (n, hour = 9) => { const d = daysFrom(now, n); d.setHours(hour, 15, 0, 0); return d.toISOString() }
@@ -40,18 +41,18 @@ export function buildDemoJob(currentUser, now = new Date()) {
     created_at: at(-20),
     notes: 'Example note: council asked for an updated stormwater plan. Engineer is preparing it.',
     share_token: null, share_include_budget: true, share_include_notes: false,
-    hpc_stages: {
-      stage1: { status: 'complete', fee: 500, notes: '', completedDate: iso(daysFrom(now, -14)), checkedItems: [0, 1, 2, 3, 4, 5] },
-      stage2: { status: 'active', fee: 3000, notes: '', completedDate: '', checkedItems: [0, 1] },
-      stage3: { status: 'pending', fee: 2000, notes: '', completedDate: '', checkedItems: [] },
-    },
+    hpc_stages: Object.fromEntries(stages.map((st, i) => [st.id, {
+      status: i === 0 ? 'complete' : i === 1 ? 'active' : 'pending', fee: st.defaultFee || [500, 3000, 2000][i] || 1000, notes: '',
+      completedDate: i === 0 ? iso(daysFrom(now, -14)) : '',
+      checkedItems: i === 0 ? st.items.map((_, n) => n) : i === 1 ? [0, 1].filter(n => n < st.items.length) : [],
+    }])),
     da_stages: {
       application: { status: 'complete', startDate: iso(daysFrom(now, -12)), endDate: iso(daysFrom(now, -5)), stoppedDays: 0, stopReason: '', isStopped: false, endDateManual: true },
       information: { status: 'active', startDate: iso(daysFrom(now, -5)), endDate: iso(daysFrom(now, 9)), stoppedDays: 0, stopReason: '', isStopped: false, endDateManual: true },
     },
     job_history: [
       { text: 'Time logged: Planning report (2h 30m)', time: at(-1, 15) },
-      { text: 'HPC stages updated', time: at(-3, 11) },
+      { text: 'Stages updated', time: at(-3, 11) },
       { text: 'Document generated: Fee proposal', time: at(-13, 10) },
       { text: 'Status changed to Active', time: at(-14, 9) },
       { text: 'Job created', time: at(-20) },

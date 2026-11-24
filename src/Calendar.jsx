@@ -1,6 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import { supabase, SUPABASE_URL, fnHeaders, callFunction } from './supabase'
 import { jobTitle } from './jobMeta'
+import { fetchWorkingJobs } from './jobsQuery'
 import { holidayName } from './businessDays'
 import { connectMyCalendar } from './microsoft'
 import { IconCalendar, IconPeople, IconFolder, IconLink, IconRefresh } from './icons'
@@ -863,7 +864,7 @@ export default function Calendar({ currentUser, showConnectOnMount, onConnectSho
   }
 
   const fetchJobs = async () => {
-    const { data } = await supabase.from('jobs').select('id, code, name, address, client_type, client_company, client_first_name, client_last_name').order('created_at', { ascending: false })
+    const { data } = await fetchWorkingJobs('id, code, name, address, client_type, client_company, client_first_name, client_last_name')
     if (data) setJobs(data)
   }
 

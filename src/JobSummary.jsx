@@ -5,7 +5,8 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
-import { DA_STAGES, HPC_STAGES } from './JobDetail'
+import { DA_STAGES } from './daStages'
+import { normaliseFirm } from './firm'
 import { appTypeFull, buildJobName, clientName, contactName, isCompanyClient } from './jobMeta'
 import { deadlineStatus, stageDayRules } from './businessDays'
 
@@ -75,14 +76,19 @@ function Shell({ company, children }) {
 export default function JobSummary({ token }) {
   const [state, setState] = useState('loading') // loading | ready | missing | error
   const [job, setJob] = useState(null)
+  const [stageDefs, setStageDefs] = useState(null) // the firm's own stage names, when it has set them
 
   useEffect(() => {
     let cancelled = false
     const load = async () => {
-      const { data, error } = await supabase.rpc('get_job_summary', { p_token: token })
+      const [{ data, error }, stagesRes] = await Promise.all([
+        supabase.rpc('get_job_summary', { p_token: token }),
+        supabase.rpc('get_job_summary_stages', { p_token: token }),
+      ])
       if (cancelled) return
       if (error) { setState('error'); return }
       if (!data) { setState('missing'); return }
+      if (Array.isArray(stagesRes?.data?.stage_defs)) setStageDefs(stagesRes.data.stage_defs)
       setJob(data)
       setState('ready')
       document.title = `${buildJobName(data) || data.code} · Job summary`
@@ -112,12 +118,13 @@ export default function JobSummary({ token }) {
     )
   }
 
+  const serviceStages = normaliseFirm({ stages: stageDefs }).stages
   const council = job.council
   const company = isCompanyClient(job)
   const daStages = job.da_stages || {}
   const hpcStages = job.hpc_stages || {}
   const hasDa = DA_STAGES.some(s => daStages[s.id] && (daStages[s.id].status !== 'pending' || daStages[s.id].startDate || daStages[s.id].endDate))
-  const hasHpc = HPC_STAGES.some(s => hpcStages[s.id])
+  const hasHpc = serviceStages.some(s => hpcStages[s.id])
   const keyDates = [
     ['Lodged', job.lodgement_date],
     ['Confirmation notice', job.key_dates?.confirmation],
@@ -198,7 +205,7 @@ export default function JobSummary({ token }) {
 
         {hasHpc && (
           <Card title="Service stages">
-            {HPC_STAGES.map(stage => {
+            {serviceStages.map(stage => {
               const data = hpcStages[stage.id] || {}
               const tone = stageTone[data.status] || stageTone.pending
               const total = stage.items?.length || 0

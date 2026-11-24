@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
+import { fetchWorkingJobs } from './jobsQuery'
 import { jobListName, timerLabel } from './jobMeta'
 
 // Today's date as YYYY-MM-DD in Brisbane time (not UTC)
@@ -29,7 +30,7 @@ export default function TimeBudget({ currentUser }) {
   const fetchData = async () => {
     setLoading(true)
     const [jobsRes, logsRes, staffRes] = await Promise.all([
-      supabase.from('jobs').select('*').order('created_at', { ascending: false }),
+      fetchWorkingJobs('*'),
       supabase.from('time_logs').select('*').order('created_at', { ascending: false }),
       currentUser?.company_id
         ? supabase.from('app_users').select('id, username, role').eq('company_id', currentUser.company_id).eq('is_approved', true).not('is_platform_admin', 'is', true).order('username', { ascending: true })

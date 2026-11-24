@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, Suspense } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase, callFunction } from './supabase'
 import { loadSession, clearSession, hasLiveSignIn } from './auth'
@@ -12,6 +12,9 @@ import { InstallAppButton } from './install'
 import { SeasonStrip, SeasonSticker, SeasonParticles } from './Seasonal'
 import { buildDemoJob } from './tourDemoJob'
 import { tourSeen } from './tourState'
+import { FirmContext, normaliseFirm, loadFirm, cachedFirm } from './firm'
+import { saveSession } from './auth'
+import { fetchWorkingJobs } from './jobsQuery'
 
 // Pages are fetched when first opened (see lazyPage.js). Login stays in the first download.
 const Register = lazyPage(() => import('./Register'))
@@ -31,6 +34,9 @@ const Planners = lazyPage(() => import('./Planners'))
 const Xero = lazyPage(() => import('./XeroPage'))
 const Microsoft365 = lazyPage(() => import('./Microsoft365'))
 const Tour = lazyPage(() => import('./Tour'))
+const Firms = lazyPage(() => import('./Firms'))
+const FirmSettings = lazyPage(() => import('./FirmSettings'))
+const ImportJobs = lazyPage(() => import('./ImportJobs'))
 
 // Light / Dark / Seasonal. Seasonal changes its look each month by itself. Remembered on this device.
 function ThemeSwitch() {
@@ -68,13 +74,16 @@ const navItems = [
   { id: 'xero', label: 'Xero', section: 'tools' },
   { id: 'templates', label: 'Templates', section: 'settings' },
   { id: 'planners', label: 'Planners', section: 'settings' },
+  { id: 'firm', label: 'Firm settings', section: 'settings', directorOnly: true },
   { id: 'microsoft', label: 'Microsoft 365', section: 'settings', directorOnly: true },
   // Staff do not see the firm's Microsoft 365 set-up, but each person can still connect their own Outlook
   { id: 'connectoutlook', label: 'Connect my Outlook', section: 'settings', staffOnly: true },
+  // The QPlan master account only: every firm, add a firm, open a firm
+  { id: 'firms', label: 'Firms', section: 'settings', masterOnly: true },
 ]
 
 const pageTitles = {
-  dashboard: 'Dashboard', jobs: 'All Jobs', newjob: 'New Job',
+  dashboard: 'Dashboard', jobs: 'All Jobs', newjob: 'New Job', firm: 'Firm settings', firms: 'Firms', import: 'Import jobs',
   docs: 'Documents', time: 'Time & Budget', calendly: 'Bookings',
   calendar: 'Calendar', workload: 'Team Workloads', xero: 'Xero',
   templates: 'Templates', planners: 'Planners', jobdetail: 'Job Detail', microsoft: 'Microsoft 365',
@@ -97,7 +106,10 @@ function readLastPage(userId, role) {
   }
 }
 
+// Set just before the app reloads into another firm, so the page being left is not remembered
+let lastPageFrozen = false
 function writeLastPage(userId, page, jobId) {
+  if (lastPageFrozen) return
   try {
     localStorage.setItem(LAST_PAGE_KEY, JSON.stringify({ userId, page, jobId: jobId || null, at: Date.now() }))
   } catch { /* storage unavailable */ }
@@ -504,6 +516,10 @@ export default function App() {
   const [timerRunning, setTimerRunning] = useState(false)
   const [tourOpen, setTourOpen] = useState(false)
   const [isMaster, setIsMaster] = useState(false) // the QPlan master account, not a planner at the firm
+  // The firm's own stages, fees and templates (see firm.js). Shown from the copy kept in this
+  // browser straight away, then replaced by the latest from the database.
+  const [firmRow, setFirmRow] = useState(() => { const s = loadSession(); return s?.company_id ? cachedFirm(s.company_id) : null })
+  const [firmFor, setFirmFor] = useState(null) // the company the firm settings have been loaded for
   const [jobCount, setJobCount] = useState(0)
   const [jobs, setJobs] = useState([])
   const [jobsLoaded, setJobsLoaded] = useState(false)
@@ -683,6 +699,17 @@ export default function App() {
     return () => clearTimeout(t)
   }, [currentUser?.id, currentUser?.role, jobsLoaded])
 
+  const companyId = currentUser?.company_id || null
+  const reloadFirm = useCallback(async () => {
+    if (!companyId) return
+    const row = await loadFirm(companyId)
+    setFirmRow(row); setFirmFor(companyId)
+  }, [companyId])
+  useEffect(() => { reloadFirm() }, [reloadFirm])
+  const firm = useMemo(() => ({ ...normaliseFirm(firmRow && firmRow.company_id === companyId ? firmRow : null), reload: reloadFirm }), [firmRow, companyId, reloadFirm])
+  // Pages wait for the firm's settings, so nobody sees the wrong stages for a moment
+  const firmReady = !!companyId && (firmFor === companyId || firmRow?.company_id === companyId)
+
   // Once signed in, fetch the other pages in the background so moving between them is instant
   useEffect(() => { if (currentUser?.id) preloadPages() }, [currentUser?.id])
 
@@ -715,10 +742,8 @@ export default function App() {
   useEffect(() => {
     if (!currentUser) return
     const fetchJobs = async () => {
-      const { data } = await supabase
-        .from('jobs')
-        .select('id, code, name, address, planner, planner_rate, budget_hours, client_type, client_company, client_first_name, client_last_name')
-        .order('created_at', { ascending: false })
+      // Working jobs only: an imported archive of old jobs is not offered in the time tracker
+      const { data } = await fetchWorkingJobs('id, code, name, address, planner, planner_rate, budget_hours, client_type, client_company, client_first_name, client_last_name')
       if (data) { setJobs(data); setJobCount(data.length) }
       setJobsLoaded(true)
     }
@@ -729,10 +754,15 @@ export default function App() {
   useEffect(() => {
     if (!currentUser?.id) return
     const checkAccount = async () => {
-      const { data, error } = await supabase.from('app_users').select('is_approved, is_platform_admin').eq('id', currentUser.id).maybeSingle()
+      const { data, error } = await supabase.from('app_users').select('is_approved, is_platform_admin, company_id, company_code').eq('id', currentUser.id).maybeSingle()
       if (error) return
       if (!data || data.is_approved === false) { handleLogout(); return }
       setIsMaster(data.is_platform_admin === true)
+      // The master account opened a different firm on another device: follow it here too
+      if (data.is_platform_admin === true && data.company_id && data.company_id !== currentUser.company_id) {
+        const { data: company } = await supabase.from('companies').select('name').eq('id', data.company_id).maybeSingle()
+        applyFirmSwitch({ ...currentUser, company_id: data.company_id, company_code: data.company_code, companyName: company?.name || '' })
+      }
     }
     checkAccount()
     const interval = setInterval(checkAccount, 5 * 60 * 1000)
@@ -847,6 +877,17 @@ export default function App() {
     })
   }
 
+  // The master account has opened another firm. Keep the sign-in, swap the firm, and start
+  // again from that firm's Dashboard so nothing from the last firm is left on screen.
+  const applyFirmSwitch = (user) => {
+    let stay = false
+    try { stay = !!localStorage.getItem('pf_session') } catch { /* storage unavailable */ }
+    saveSession(user, stay, false)
+    lastPageFrozen = true
+    try { localStorage.removeItem(LAST_PAGE_KEY); sessionStorage.removeItem('qplan_job_tab') } catch { /* storage unavailable */ }
+    window.location.assign('/')
+  }
+
   const handleLogout = () => {
     clearSession()
     try { localStorage.removeItem(LAST_PAGE_KEY) } catch { /* storage unavailable */ }
@@ -909,7 +950,7 @@ export default function App() {
   const openJobForTour = async (jobId) => {
     const id = jobId || jobs[0]?.id
     const { data } = id ? await supabase.from('jobs').select('*').eq('id', id).maybeSingle() : { data: null }
-    handleNavigate('jobdetail', data || buildDemoJob(currentUser))
+    handleNavigate('jobdetail', data || buildDemoJob(currentUser, firm.stages))
   }
 
   // When the tutorial ends: back to the Dashboard, and the example job is forgotten so the
@@ -940,9 +981,10 @@ export default function App() {
     return <Login onLogin={handleLogin} onRegister={() => setAuthPage('register')} onForgotPassword={() => setAuthPage('forgot')} onAbout={() => setAuthPage('landing')} />
   }
 
-  const visibleNavItems = navItems.filter(item => (!item.directorOnly || isDirector) && (!item.staffOnly || !isDirector))
+  const visibleNavItems = navItems.filter(item => (!item.directorOnly || isDirector) && (!item.staffOnly || !isDirector) && (!item.masterOnly || isMaster))
 
   const renderPage = () => {
+    if (!firmReady) return <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-sm text-gray-500">Loading...</div>
     switch (activePage) {
       case 'dashboard': return <Dashboard onNavigate={handleNavigate} currentUser={currentUser} />
       case 'jobs': return <Jobs onNavigate={handleNavigate} onJobCountChange={setJobCount} currentUser={currentUser} />
@@ -973,6 +1015,11 @@ export default function App() {
       case 'microsoft': return !isDirector
         ? <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-sm text-gray-500">Microsoft 365 is set up by a director. To connect your own Outlook, open Calendar and choose Connect calendar.</div>
         : <Microsoft365 currentUser={currentUser} notice={msNotice} onNoticeShown={() => setMsNotice(null)} />
+      case 'firm': return <FirmSettings currentUser={currentUser} onNavigate={handleNavigate} />
+      case 'import': return <ImportJobs currentUser={currentUser} onNavigate={handleNavigate} />
+      case 'firms': return isMaster
+        ? <Firms currentUser={currentUser} timerRunning={timerRunning} onSwitched={applyFirmSwitch} />
+        : <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-sm text-gray-500">This page is not available.</div>
       default: return <div className="bg-white rounded-xl border border-gray-200 p-6"><p className="text-sm text-gray-500">This page is coming soon.</p></div>
     }
   }
@@ -980,6 +1027,7 @@ export default function App() {
   const initials = currentUser.username.slice(0, 2).toUpperCase()
 
   return (
+    <FirmContext.Provider value={firm}>
     <div className="qp-app isolate flex h-dvh bg-gray-100 dark:bg-[var(--qp-page)] font-sans overflow-hidden qp-safe-x qp-safe-bottom">
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/30 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />
@@ -1087,7 +1135,10 @@ export default function App() {
             </svg>
           </button>
           <div className="flex-1 text-sm font-medium truncate">{pageTitles[activePage]}</div>
-          {isDirector && currentUser.companyName && (
+          {isMaster && currentUser.companyName ? (
+            <button onClick={() => handleNavigate('firms')} title="You are looking at this firm. Click to open another."
+              className="qp-topbar-chip text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-lg hidden sm:block hover:underline">{currentUser.companyName} ▾</button>
+          ) : isDirector && currentUser.companyName && (
             <span className="qp-topbar-chip text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-lg hidden sm:block">{currentUser.companyName}</span>
           )}
           <button onClick={() => setTourOpen(true)} title="Show the tutorial" aria-label="Show the tutorial" data-tour="help-button"
@@ -1118,5 +1169,6 @@ export default function App() {
           onClose={closeTour} /></Suspense>
       )}
     </div>
+    </FirmContext.Provider>
   )
 }

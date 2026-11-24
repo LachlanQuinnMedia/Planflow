@@ -4,85 +4,7 @@ import { generateFromTemplate, buildFromTemplate } from './templateFiller'
 import { saveDocToJob } from './jobDocs'
 import { APP_TYPES, buildJobName, jobTitle, oneDriveFolderName } from './jobMeta'
 import { callGraph, OneDriveFolderPicker } from './OneDriveBrowser'
-
-const STAGE1_TEMPLATES = [
-  { group: 'Fee Proposals', items: [
-    { file: 'Fee_Proposal_Code.docx',         label: 'Fee Proposal - Code Assessable' },
-    { file: 'Fee_Proposal_Impact.docx',       label: 'Fee Proposal - Impact Assessable' },
-    { file: 'Fee_Proposal_Minor_Change.docx', label: 'Fee Proposal - Minor Change' },
-    { file: 'Fee_Proposal_RAA.docx',          label: 'Fee Proposal - Referral Agency Assessment' },
-  ]},
-  { group: "Owner's Consent", items: [
-    { file: 'Consent_Individual.docx', label: "Owner's Consent - Individual" },
-    { file: 'Consent_Company.docx',    label: "Owner's Consent - Company" },
-  ]},
-]
-
-const STAGE2_TEMPLATES = [
-  { group: 'Action Notice', items: [
-    { file: 'Action_Notice_Response.docx', label: 'Action Notice Response' },
-  ]},
-  { group: 'Planning Reports', items: [
-    { file: 'Town_Planning_Assessment.docx',         label: 'Town Planning Assessment (generic)' },
-    { file: 'DA_Report_Brisbane.docx',               label: 'DA Report - Brisbane' },
-    { file: 'DA_Report_Brisbane_RiskSmart.docx',     label: 'DA Report - Brisbane RiskSmart' },
-    { file: 'DA_Report_Express_Code.docx',           label: 'DA Report - Express DA (Code)' },
-    { file: 'DA_Report_Express_Accepted.docx',       label: 'DA Report - Express DA (Accepted to Code)' },
-    { file: 'DA_Report_Gold_Coast.docx',             label: 'DA Report - Gold Coast' },
-    { file: 'DA_Report_Gold_Coast_RAA.docx',         label: 'DA Report - Gold Coast RAA' },
-    { file: 'DA_Report_Gold_Coast_Sch6_RAA.docx',    label: 'DA Report - Gold Coast Sch6 RAA' },
-    { file: 'DA_Report_OPW.docx',                    label: 'DA Report - Operational Works' },
-  ]},
-  { group: 'Referrals', items: [
-    { file: 'Referral_Cover_Letter.docx',      label: 'Referral Cover Letter' },
-    { file: 'Missed_Referral_Letter.docx',     label: 'Missed Referral Letter' },
-    { file: 'Referral_Compliance_Letter.docx', label: 'Referral Compliance Letter' },
-    { file: 'Early_Concurrence_Request.docx',  label: 'Early Concurrence Request' },
-    { file: 'RAA_Application.docx',            label: 'RAA Application' },
-  ]},
-  { group: 'Change Applications', items: [
-    { file: 'Minor_Change_Application.docx',                 label: 'Minor Change Application' },
-    { file: 'Minor_Change_Application_Affected_Entity.docx', label: 'Minor Change - Affected Entity Notice' },
-    { file: 'Other_Change_Application.docx',                 label: 'Other Change Application' },
-  ]},
-]
-
-const STAGE3_TEMPLATES = [
-  { group: 'Information Request', items: [
-    { file: 'IR_Response.docx',                    label: 'IR Response' },
-    { file: 'Extend_Response_Period.docx',         label: 'Extend Response Period' },
-    { file: 'Initial_Response_and_Direction.docx', label: 'Initial Response & Direction' },
-  ]},
-  { group: 'Public Notification', items: [
-    { file: 'Notice_of_Commencement.docx',         label: 'Notice of Commencement' },
-    { file: 'Notice_of_Compliance_to_Council.docx',label: 'Notice of Compliance to Council' },
-    { file: 'Notify_Adjoining_Owner_Letter.docx',  label: 'Notify Adjoining Owner Letter' },
-    { file: 'Newspaper_Template.docx',             label: 'Newspaper Notice Template' },
-  ]},
-  { group: 'Waive Appeal Rights', items: [
-    { file: 'Waive_Appeal_Rights.docx',            label: 'Waive Appeal Rights' },
-    { file: 'Waive_ICN_Appeal_Rights.docx',        label: 'Waive ICN Appeal Rights' },
-    { file: 'Suspend_Applicant_Appeal_Period.docx',label: 'Suspend Applicant Appeal Period' },
-  ]},
-  { group: 'Tools & Forms', items: [
-    { file: 'Adjoining_Owners_Contact_List.xlsx',   label: 'Adjoining Owners Contact List (Excel)' },
-    { file: 'Advertising_Register.xlsx',            label: 'Advertising Register (Excel)' },
-    { file: 'Calendar_2023.xlsx',                   label: 'Calendar (Excel)' },
-    { file: 'DA_Sign_Template.ai',                  label: 'DA Sign Template (Illustrator)' },
-    { file: 'Change_Application_Sign_Template.ai',  label: 'Change Application Sign Template (Illustrator)' },
-  ]},
-]
-
-const MISC_TEMPLATES = [
-  { group: 'Miscellaneous', items: [
-    { file: 'Lodgement_Cover_Letter.docx',         label: 'Lodgement Cover Letter' },
-    { file: 'Withdraw_Application.docx',           label: 'Withdraw Application' },
-    { file: 'Notice_to_Revive_Application.docx',   label: 'Notice to Revive Application' },
-    { file: 'Notice_to_Stop_Current_Period.docx',  label: 'Notice to Stop Current Period' },
-    { file: 'Quote_Request.docx',                  label: 'Quote Request' },
-    { file: 'Generic_Letterhead.docx',             label: 'Generic Letterhead (blank)' },
-  ]},
-]
+import { useFirm, templateFileName } from './firm'
 
 const COUNCILS = [
   'Balina Shire Council', 'Banana Shire Council', 'Brisbane City Council',
@@ -112,7 +34,7 @@ async function downloadRawTemplate(filename) {
   if (error) throw new Error(`Could not download ${filename}: ${error.message}`)
   const link = document.createElement('a')
   link.href = URL.createObjectURL(data)
-  link.download = filename
+  link.download = templateFileName(filename)
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
@@ -120,6 +42,7 @@ async function downloadRawTemplate(filename) {
 }
 
 function DocGenerateModal({ job, planner, folderResult, docResults, onClose, onNavigate }) {
+  const firm = useFirm()
   const [selected, setSelected] = useState(new Set())
   const [generating, setGenerating] = useState(false)
   const [done, setDone] = useState(false)
@@ -175,34 +98,20 @@ function DocGenerateModal({ job, planner, folderResult, docResults, onClose, onN
         <div className="px-5 py-4 overflow-y-auto">
           <FolderResultNote result={folderResult} />
           <DocResultsNote results={docResults} />
-          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Stage 1</div>
-          {STAGE1_TEMPLATES.map(group => (
-            <div key={group.group} className="mb-3">
-              <div className="text-xs font-medium text-gray-600 mb-1">{group.group}</div>
-              {group.items.map(renderRow)}
+          {firm.templates.length === 0 && (
+            <div className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg p-3">
+              Your firm has no templates yet. A director can add them on the Templates page.
             </div>
-          ))}
-
-          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-4">Stage 2</div>
-          {STAGE2_TEMPLATES.map(group => (
-            <div key={group.group} className="mb-3">
-              <div className="text-xs font-medium text-gray-600 mb-1">{group.group}</div>
-              {group.items.map(renderRow)}
-            </div>
-          ))}
-
-          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-4">Stage 3</div>
-          {STAGE3_TEMPLATES.map(group => (
-            <div key={group.group} className="mb-3">
-              <div className="text-xs font-medium text-gray-600 mb-1">{group.group}</div>
-              {group.items.map(renderRow)}
-            </div>
-          ))}
-
-          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-4">Miscellaneous</div>
-          {MISC_TEMPLATES.map(group => (
-            <div key={group.group} className="mb-3">
-              {group.items.map(renderRow)}
+          )}
+          {firm.templates.map((cat, catIndex) => (
+            <div key={cat.stage}>
+              <div className={`text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 ${catIndex > 0 ? 'mt-4' : ''}`}>{cat.stage}</div>
+              {cat.groups.map(group => (
+                <div key={group.name} className="mb-3">
+                  {cat.groups.length > 1 && <div className="text-xs font-medium text-gray-600 mb-1">{group.name}</div>}
+                  {group.items.map(renderRow)}
+                </div>
+              ))}
             </div>
           ))}
 
@@ -226,9 +135,6 @@ function DocGenerateModal({ job, planner, folderResult, docResults, onClose, onN
     </div>
   )
 }
-
-// Every template, in the order they are listed on the form
-const ALL_TEMPLATES = [...STAGE1_TEMPLATES, ...STAGE2_TEMPLATES, ...STAGE3_TEMPLATES, ...MISC_TEMPLATES].flatMap(g => g.items)
 
 // What happened to the documents ticked on the form, shown on the "Job created" dialog
 function DocResultsNote({ results }) {
@@ -272,6 +178,8 @@ function FolderResultNote({ result }) {
 }
 
 export default function NewJob({ onNavigate, currentUser }) {
+  const firm = useFirm()
+  const ALL_TEMPLATES = firm.allTemplates // every template, in the order the firm lists them
   const [clientType, setClientType] = useState('individual') // 'individual' | 'company'
   const [form, setForm] = useState({
     company: '', firstName: '', lastName: '', email: '', phone: '',

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
 import { clientName, jobTitle } from './jobMeta'
+import { fetchWorkingJobs } from './jobsQuery'
 import {
   getXeroAuthUrl,
   isXeroConnected,
@@ -158,7 +159,7 @@ export default function Xero({ currentUser }) {
   }
 
   const fetchJobs = async () => {
-    const { data } = await supabase.from('jobs').select('*').order('created_at', { ascending: false })
+    const { data } = await fetchWorkingJobs('*')
     if (data) setJobs(data)
   }
 

@@ -53,7 +53,9 @@ export function buildTemplateData(job = {}, planner = {}) {
     month_year: d.month_year,
     year: d.year,
     // auto-filled from the job
-    hpc_ref: job.code,
+    hpc_ref: job.code,   // the first firm's templates use this name
+    job_ref: job.code,
+    job_number: job.code,
     site_address: job.address,
     lot_reference: job.lot_reference,
     app_type: job.app_type,
@@ -124,8 +126,9 @@ export async function buildFromTemplate(templateFile, job, planner) {
   });
 
   const safe = (s) => (s || '').replace(/[^\w.-]+/g, '_').replace(/^_+|_+$/g, '');
-  const base = templateFile.replace(/\.docx$/i, '');
-  const filename = `${safe(job?.code) || 'HPC'}_${base}.docx`;
+  // A firm's own template is stored as "<firm id>/<timestamp>_<name>.docx". Only the name is kept.
+  const base = templateFile.split('/').pop().replace(/^\d{10,}_/, '').replace(/\.docx$/i, '');
+  const filename = `${safe(job?.code) || 'QPlan'}_${base}.docx`;
   return { blob, filename };
 }
 
