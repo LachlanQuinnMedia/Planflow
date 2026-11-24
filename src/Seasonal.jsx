@@ -143,7 +143,7 @@ export function SeasonSticker({ size = 20 }) {
   const season = useSeason()
   if (!season || !STICKERS[season.id]) return null
   return (
-    <svg data-testid="season-sticker" width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" className="flex-shrink-0 pointer-events-none">
+    <svg data-testid="season-sticker" width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" className="qp-sticker flex-shrink-0 pointer-events-none">
       <title>{season.name}</title>
       {STICKERS[season.id]}
     </svg>

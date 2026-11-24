@@ -179,6 +179,25 @@ const overlapCheck = () => {
       page: bg('.qp-app'), side: bg('.qp-sidebar'), bar: bg('.qp-topbar'), title: fg('.qp-topbar .truncate'), help: fg('[data-tour=help-button]'),
       cta: bg('.qp-topbar-cta'), ctaText: fg('.qp-topbar-cta'), chip: fg('.qp-topbar-chip'), line: rgb(getComputedStyle(bar).borderBottomColor),
       barH: bar.getBoundingClientRect().height, card: bg('[data-tour=dash-stats] > *'), body: rgb(getComputedStyle(document.body).backgroundColor),
+      // the menu down the left: every kind of text on it, and what it sits on
+      menu: (() => {
+        const side = document.querySelector('.qp-sidebar'), head = side.querySelector('.qp-sidebar-head')
+        const el = (sel) => side.querySelector(sel)
+        const item = [...side.querySelectorAll('[data-tour^="nav-"]:not([data-tour^="nav-section"])')].find(b => !b.classList.contains('qp-nav-on'))
+        const on = el('.qp-nav-on'), seg = el('.qp-seg-on'), segOff = [...side.querySelectorAll('button')].find(b => b.textContent.trim() === 'Light')
+        const byText = (t) => [...side.querySelectorAll('button, div, span')].filter(e => e.children.length === 0 && e.textContent.trim() === t)[0]
+        const c = (e) => rgb(getComputedStyle(e).color), b = (e) => rgb(getComputedStyle(e).backgroundColor)
+        const logo = side.querySelectorAll('svg[aria-label=QPlan] path')
+        const input = side.querySelector('input[placeholder="What are you working on?"]'), select = side.querySelector('select')
+        return {
+          item: c(item), section: c(byText('main')), on: c(on), onBg: b(on), seg: c(seg), segBg: b(seg), segOff: c(segOff), segTrack: b(seg.parentElement),
+          notifications: c(byText('Notifications')), name: c(byText('Lachlan Quinn')), role: c(byText('director')), password: c(byText('Change password')),
+          logout: c(byText('Log out')), logoutBg: getComputedStyle(byText('Log out')).backgroundColor, tracker: c(byText('Time tracker')),
+          logoPin: rgb(getComputedStyle(logo[0]).fill), logoText: rgb(getComputedStyle(logo[1]).fill), logoDot: rgb(getComputedStyle(side.querySelector('svg[aria-label=QPlan] circle')).fill),
+          input: c(input), inputBg: b(input), select: c(select), selectBg: b(select),
+          headLine: rgb(getComputedStyle(head).borderBottomColor), headBottom: Math.round(head.getBoundingClientRect().bottom), barBottom: Math.round(bar.getBoundingClientRect().bottom),
+        }
+      })(),
     }
   })
   const lum = ([r, g, b]) => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4 }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b) }
@@ -199,6 +218,21 @@ const overlapCheck = () => {
     assert.ok(dist(c.line, c.bar) > 40, `${id}: the trim under the top bar shows`)
     assert.equal(c.barH, 48, `${id}: the top bar keeps its height`)
     assert.deepEqual(c.body, c.page, `${id}: nothing shows a different colour behind the app`)
+    // The menu down the left is the same colour as the top bar, with the same trim, level with it
+    const m = c.menu
+    assert.deepEqual(c.side, c.bar, `${id}: the menu is the same colour as the top bar`)
+    assert.deepEqual(m.headLine, c.line, `${id}: the trim runs under the logo too`)
+    assert.equal(m.headBottom, m.barBottom, `${id}: the trim under the logo lines up with the trim under the top bar`)
+    for (const [what, colour] of Object.entries({ 'a menu item': m.item, 'a section label': m.section, 'Notifications': m.notifications, 'the person\'s name': m.name, 'their role': m.role, 'Change password': m.password, 'Log out': m.logout, 'the Time tracker label': m.tracker, 'the logo\'s pin': m.logoPin, 'the logo\'s lettering': m.logoText, 'the unselected theme buttons': m.segOff })) {
+      assert.ok(ratio(colour, c.side) >= 4.5, `${id}: ${what} is readable on the menu (${ratio(colour, c.side).toFixed(2)})`)
+    }
+    assert.ok(ratio(m.on, m.onBg) >= 4.5, `${id}: the selected menu item is readable (${ratio(m.on, m.onBg).toFixed(2)})`)
+    assert.ok(ratio(m.onBg, c.side) >= 3, `${id}: the selected menu item stands out`)
+    assert.ok(ratio(m.seg, m.segBg) >= 4.5, `${id}: the selected theme button is readable`)
+    assert.ok(ratio(m.segOff, m.segTrack) >= 4.5, `${id}: the other theme buttons are readable on their track`)
+    assert.ok(ratio(m.input, m.inputBg) >= 4.5 && ratio(m.select, m.selectBg) >= 4.5, `${id}: the timer's boxes are readable`)
+    assert.ok(ratio(m.logoDot, c.side) >= 1.85, `${id}: the dot in the logo shows (${ratio(m.logoDot, c.side).toFixed(2)})`)
+    assert.equal(m.logoutBg, 'rgba(0, 0, 0, 0)', `${id}: Log out is outlined, not a red block`)
     if (!['newyear', 'halloween'].includes(id)) {
       assert.ok(sat(c.page) >= 9, `${id}: the page is tinted, not grey: ${c.page}`)
       assert.ok(lum(c.page) > 0.82, `${id}: the page stays light`)
@@ -215,10 +249,26 @@ const overlapCheck = () => {
   // What he asked for by name
   const hue = ([r, g, b]) => { const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn || 1; let h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return (h * 60 + 360) % 360 }
   const w = got.womens; assert.ok(w.page[0] > w.page[1] + 8 && w.page[0] > w.page[2], `Women's Day page is light pink: ${w.page}`); assert.ok(hue(w.bar) > 300 || hue(w.bar) < 10, `Women's Day bar is pink: ${w.bar}`)
-  const x = got.christmas; assert.ok(x.bar[0] > 90 && x.bar[1] < 45 && x.bar[2] < 60 && x.bar[0] < 150, `Christmas bar is a deep maroon: ${x.bar}`); assert.ok(x.side[1] > x.side[0] && x.side[1] > x.side[2], `Christmas menu is green: ${x.side}`)
+  const x = got.christmas; assert.ok(x.bar[0] > 90 && x.bar[1] < 45 && x.bar[2] < 60 && x.bar[0] < 150, `Christmas bar is a deep maroon: ${x.bar}`); assert.deepEqual(x.side, x.bar, 'Christmas menu is the same maroon as the bar')
   const hw = got.halloween; assert.ok(lum(hw.page) < 0.02 && sat(hw.page) < 12, `Halloween page is black: ${hw.page}`); assert.ok(hue(hw.bar) > 15 && hue(hw.bar) < 45 && sat(hw.bar) > 120, `Halloween bar is orange: ${hw.bar}`)
-  console.log('5 colour coding: 13 seasons, each with its own page, menu and top bar; all top-bar text readable')
+  console.log('5 colour coding: 13 seasons, each with its own page and frame; the menu matches the top bar; all text on both readable')
   console.log('   ' + ALL.map(id => `${id} bar rgb(${got[id].bar}) page rgb(${got[id].page})`).join('\n   '))
+  // A pop-up that opens from the menu is an ordinary card, not the menu's colour
+  for (const id of ['tour', 'remembrance', 'halloween']) {
+    const { browser, page } = await open(`/?season=${id}`, { theme: 'seasonal' })
+    await page.waitForSelector('[data-testid=season-banner]')
+    await page.getByTestId('notifications-button').click(); await page.waitForSelector('text=No notifications')
+    const pop = await page.evaluate(() => {
+      const cv = document.createElement('canvas'); cv.width = cv.height = 1; const ctx = cv.getContext('2d', { willReadFrequently: true })
+      const rgb = (c) => { ctx.clearRect(0, 0, 1, 1); ctx.fillStyle = '#000'; ctx.fillStyle = c; ctx.fillRect(0, 0, 1, 1); return [...ctx.getImageData(0, 0, 1, 1).data].slice(0, 3) }
+      const panel = document.querySelector('.qp-sidebar .qp-plain'), words = [...panel.querySelectorAll('div')].find(d => d.textContent.trim() === 'No notifications')
+      return { panel: rgb(getComputedStyle(panel).backgroundColor), words: rgb(getComputedStyle(words).color), heading: rgb(getComputedStyle(panel.querySelector('.font-semibold')).color), side: rgb(getComputedStyle(document.querySelector('.qp-sidebar')).backgroundColor), card: rgb(getComputedStyle(document.querySelector('[data-tour=dash-stats]').parentElement.querySelector('.bg-white') || document.body).backgroundColor) }
+    })
+    assert.ok(dist(pop.panel, pop.side) > 60, `${id}: the Notifications box is a card, not the menu colour`)
+    assert.ok(ratio(pop.words, pop.panel) >= 4.5 && ratio(pop.heading, pop.panel) >= 4.5, `${id}: its words are readable (${ratio(pop.words, pop.panel).toFixed(2)})`)
+    await browser.close()
+  }
+  console.log('5 pop-ups from the menu stay ordinary cards: ok')
   // Light and Dark keep the plain white (or dark) top bar
   for (const theme of ['light', 'dark']) {
     const { browser, page } = await open('/', { theme })

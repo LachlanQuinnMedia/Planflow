@@ -57,7 +57,7 @@ function ThemeSwitch() {
           <button key={id} type="button" role="radio" aria-checked={choice === id}
             title={id === 'seasonal' ? 'A new look every month. It changes by itself.' : `${label} theme`}
             onClick={() => { setChoice(id); setThemeChoice(id) }}
-            className={`flex-auto flex items-center justify-center gap-1 px-1 py-1 rounded-md text-[11px] whitespace-nowrap transition-colors ${choice === id ? 'bg-white text-gray-800 font-medium shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+            className={`flex-auto flex items-center justify-center gap-1 px-1 py-1 rounded-md text-[11px] whitespace-nowrap transition-colors ${choice === id ? 'qp-seg-on bg-white text-gray-800 font-medium shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
             {icon}
             <span>{label}</span>
           </button>
@@ -351,7 +351,7 @@ function GlobalTimer({ jobs, currentUser, activeJob, onRunningChange }) {
     <div data-tour="timer" className={`px-3 border-t border-gray-100 ${collapsed ? 'py-2' : 'py-3'}`}>
       {/* Rendered on the page body: the sidebar slides with a transform, which would trap a fixed dialog inside it */}
       {switchPrompt && isRunning && createPortal(
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
+        <div className="qp-plain fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
           <div className="bg-white rounded-xl border border-gray-200 p-5 w-full max-w-sm">
             <div className="text-sm font-semibold mb-2">Switch the timer to this job?</div>
             <div className="text-xs text-gray-600 leading-relaxed mb-3">
@@ -429,7 +429,7 @@ function NotificationPanel({ notifications, lastSeenAt, onClose, onApprove, onRe
   const lastSeenDate = new Date(lastSeenAt)
 
   return (
-    <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-80 overflow-y-auto">
+    <div className="qp-plain absolute bottom-full left-0 right-0 mb-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-80 overflow-y-auto">
       <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
         <div className="text-xs font-semibold text-gray-600">Notifications</div>
         <button onClick={onClose} className="text-xs text-gray-500 hover:text-gray-600 px-2 py-0.5 rounded hover:bg-gray-100">✕ Close</button>
@@ -1074,7 +1074,7 @@ export default function App() {
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         lg:translate-x-0
       `}>
-        <div className="flex items-center px-3 py-2 border-b border-gray-200 gap-2">
+        <div className="qp-sidebar-head flex items-center h-12 px-3 border-b border-gray-200 gap-2 flex-shrink-0">
           <Logo className="h-6 w-auto" />
           <SeasonSticker />
           <div className="flex items-center gap-0.5 ml-auto">
@@ -1093,7 +1093,7 @@ export default function App() {
               <div className="text-xs text-gray-500 uppercase tracking-wider px-2 py-1">{section}</div>
               {visibleNavItems.filter(i => i.section === section).map(item => (
                 <button key={item.id} data-tour={`nav-${item.id}`} onClick={() => handleNavigate(item.id)}
-                  className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-sm mb-0.5 transition-colors ${activePage === item.id ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-800'}`}>
+                  className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-sm mb-0.5 transition-colors ${activePage === item.id ? 'qp-nav-on bg-emerald-50 text-emerald-700 font-medium' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-800'}`}>
                   {item.label}
                   {item.id === 'jobs' && jobCount > 0 && (
                     <span className="bg-emerald-600 text-white text-xs px-1.5 py-0.5 rounded-full">{jobCount}</span>

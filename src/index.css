@@ -223,15 +223,58 @@ html[data-theme="dark"] body {
 /* ------------------------------------------------------------------
    Seasonal frame
    In the Seasonal theme the app's frame takes the season's colours, so each month is
-   plainly its own: the page behind the cards, the menu, and the top bar with its trim.
+   plainly its own: the page behind the cards, and the top bar and the menu down the left.
+   The top bar and the menu are the SAME colour, so the frame reads as one piece.
    The colours come from src/seasons-palette.css (written by scripts/seasons-css.mjs,
    which checks the text is readable). Cards stay white so nothing on them changes.
    These only apply when a season is on. Light and Dark are untouched.
    ------------------------------------------------------------------ */
-:root[data-season] .qp-app { background-color: var(--qp-s-page); }
+:root[data-season] .qp-app {
+  background-color: var(--qp-s-page);
+  /* The ordinary greys, kept under another name so a pop-up that opens from the menu
+     (Notifications, the timer's questions) can have them back. See .qp-plain below. */
+  --qp-o-gray-50: var(--color-gray-50); --qp-o-gray-100: var(--color-gray-100); --qp-o-gray-200: var(--color-gray-200); --qp-o-gray-300: var(--color-gray-300); --qp-o-gray-400: var(--color-gray-400); --qp-o-gray-500: var(--color-gray-500); --qp-o-gray-600: var(--color-gray-600); --qp-o-gray-700: var(--color-gray-700); --qp-o-gray-800: var(--color-gray-800); --qp-o-gray-900: var(--color-gray-900); --qp-o-gray-950: var(--color-gray-950); --qp-o-emerald-400: var(--color-emerald-400);
+}
 html[data-season] body { background-color: var(--qp-s-page); }
-:root[data-season] .qp-sidebar { background-color: var(--qp-s-side); border-right-color: var(--qp-s-side-line); }
-:root[data-season] .qp-sidebar > .border-b, :root[data-season] .qp-sidebar > .border-t { border-color: var(--qp-s-side-line); }
+
+/* The menu. It is written with the same grey classes as every other screen, so the greys
+   themselves are swapped here, the way the dark theme does it:
+     900 to 700  the text colour        600  menu items        500  small labels
+     400, 300    dimmer still (icons, switched-off arrows)     200  lines and box edges
+     100         under the pointer      50   a well (text boxes, the timer read-out) */
+:root[data-season] .qp-sidebar {
+  background-color: var(--qp-s-bar);
+  color: var(--qp-s-bar-text);
+  border-right-color: color-mix(in oklab, var(--qp-s-bar-text) 18%, var(--qp-s-bar));
+  --color-gray-950: var(--qp-s-bar-text); --color-gray-900: var(--qp-s-bar-text); --color-gray-800: var(--qp-s-bar-text); --color-gray-700: var(--qp-s-bar-text);
+  --color-gray-600: var(--qp-s-side-soft);
+  --color-gray-500: var(--qp-s-side-muted);
+  --color-gray-400: color-mix(in oklab, var(--qp-s-bar-text) 55%, var(--qp-s-bar));
+  --color-gray-300: color-mix(in oklab, var(--qp-s-bar-text) 34%, var(--qp-s-bar));
+  --color-gray-200: color-mix(in oklab, var(--qp-s-bar-text) 22%, var(--qp-s-bar));
+  --color-gray-100: var(--qp-s-side-hover);
+  --color-gray-50: var(--qp-s-side-well);
+  --color-emerald-400: var(--qp-s-bar-text);
+  --logo-pin: var(--qp-s-bar-text); --logo-text: var(--qp-s-bar-text); --logo-dot: var(--qp-s-side-dot);
+}
+/* The season's trim runs under the logo too, level with the trim under the top bar */
+:root[data-season] .qp-sidebar > .qp-sidebar-head { border-bottom: 3px solid var(--qp-s-line); }
+:root[data-season] .qp-sidebar .qp-sticker { background-color: var(--qp-s-side-chip); border-radius: 999px; padding: 3px; box-sizing: content-box; }
+/* Boxes on the menu are wells: text boxes, drop-downs, the timer read-out, the theme switch */
+:root[data-season] .qp-sidebar :is(.bg-white, .bg-emerald-50, .bg-emerald-100, select, input):not(.qp-plain, .qp-plain *) { background-color: var(--qp-s-side-well); color: var(--qp-s-bar-text); }
+:root[data-season] .qp-sidebar :is(input, select):not(.qp-plain, .qp-plain *)::placeholder { color: var(--qp-s-side-muted); opacity: 1; }
+:root[data-season] .qp-sidebar :is(.hover\:bg-gray-100, .hover\:bg-gray-50):not(.qp-plain, .qp-plain *):hover { background-color: var(--qp-s-side-hover); }
+:root[data-season] .qp-sidebar :is(.text-emerald-500, .text-emerald-600, .text-emerald-700):not(.qp-plain, .qp-plain *) { color: var(--qp-s-bar-text); }
+/* What is switched on, and the buttons, are the bar turned inside out, like New Job in the top bar */
+:root[data-season] .qp-sidebar :is(.qp-nav-on, .qp-seg-on, .bg-emerald-600, [data-testid="notifications-badge"]):not(.qp-plain, .qp-plain *) { background-color: var(--qp-s-bar-text); color: var(--qp-s-bar); box-shadow: none; }
+:root[data-season] .qp-sidebar .qp-nav-on .bg-emerald-600 { background-color: var(--qp-s-bar); color: var(--qp-s-bar-text); }
+:root[data-season] .qp-sidebar .hover\:bg-emerald-700:not(.qp-plain, .qp-plain *):hover { background-color: color-mix(in oklab, var(--qp-s-bar-text) 86%, var(--qp-s-bar)); }
+/* Red would vanish on a red bar, so Stop and Log out are outlined in the text colour */
+:root[data-season] .qp-sidebar .bg-red-500:not([data-testid="notifications-badge"]):not(.qp-plain, .qp-plain *) { background-color: transparent; color: var(--qp-s-bar-text); box-shadow: inset 0 0 0 1.5px color-mix(in oklab, var(--qp-s-bar-text) 60%, var(--qp-s-bar)); }
+:root[data-season] .qp-sidebar .hover\:bg-red-600:not([data-testid="notifications-badge"]):not(.qp-plain, .qp-plain *):hover { background-color: var(--qp-s-side-hover); }
+/* A pop-up that opens from the menu is an ordinary white card again */
+:root[data-season] .qp-sidebar .qp-plain { --color-gray-50: var(--qp-o-gray-50); --color-gray-100: var(--qp-o-gray-100); --color-gray-200: var(--qp-o-gray-200); --color-gray-300: var(--qp-o-gray-300); --color-gray-400: var(--qp-o-gray-400); --color-gray-500: var(--qp-o-gray-500); --color-gray-600: var(--qp-o-gray-600); --color-gray-700: var(--qp-o-gray-700); --color-gray-800: var(--qp-o-gray-800); --color-gray-900: var(--qp-o-gray-900); --color-gray-950: var(--qp-o-gray-950); --color-emerald-400: var(--qp-o-emerald-400); color: var(--color-gray-900); }
+
 :root[data-season] .qp-topbar {
   background-color: var(--qp-s-bar);
   color: var(--qp-s-bar-text);
