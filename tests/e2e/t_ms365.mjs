@@ -120,4 +120,25 @@ const goMs = async (page) => { await page.getByRole('button', { name: 'Microsoft
   console.log('ERRORS 5:', errors)
   await browser.close()
 }
+// 6. Connected with an admin account that has no OneDrive of its own: the Documents page
+//    opens the firm's SharePoint library instead of showing Microsoft's error
+{
+  calState.me = { connected: true, email: 'quinn@hpc.example', needs_reconnect: false }
+  msState.email = 'admin@hpc.example'
+  msState.noOneDrive = true
+  const before = calls.length
+  const { browser, page, errors } = await open('/')
+  await page.getByRole('button', { name: 'Documents', exact: true }).click()
+  await page.getByRole('button', { name: 'OneDrive · Microsoft 365' }).click()
+  await page.waitForSelector('text=Fee schedule.xlsx')
+  assert.equal(await page.locator('text=mysite not found').count(), 0, 'no Microsoft error on screen')
+  const lists = calls.slice(before).filter(c => c.path.includes('/ms-graph') && c.path.includes('action=list'))
+  assert.ok(lists.length >= 1, 'the file list was asked for')
+  assert.ok(lists.every(c => c.body?.drive_id === 'd2'), 'only the SharePoint library was asked for, never the missing OneDrive')
+  await page.waitForSelector('text=HPC / Documents')
+  await shot(page, 'ms365-no-onedrive')
+  msState.noOneDrive = false
+  console.log('ERRORS 6:', errors)
+  await browser.close()
+}
 console.log('microsoft 365 scenarios passed')

@@ -186,17 +186,28 @@ export default function OneDriveBrowser({ currentUser, mode = 'browse', onPick, 
     setConnected(!!data.connected)
     setConnectedEmail(data.email || '')
     if (!data.connected) return
+    let startDrive = root?.driveId || null
+    let startCrumb = { id: null, name: 'OneDrive', path: '', webUrl: null }
+    let nowhere = false
     if (!root) {
       const cache = await loadDrives(companyId)
-      setDrives(cache.drives || [])
+      const found = cache.drives || []
+      setDrives(found)
       setSharepointError(cache.sharepointError || null)
+      nowhere = found.length === 0
+      // An admin-only Microsoft account often has no OneDrive of its own. Asking Microsoft
+      // for it fails, so start in the first SharePoint library instead of showing an error.
+      const first = found[0]
+      if (first && !found.some(d => d.kind === 'onedrive')) {
+        startDrive = first.id
+        startCrumb = { id: null, name: first.name, path: '', webUrl: first.webUrl || null }
+      }
     }
-    const startDrive = root?.driveId || null
     const startFolder = root?.folderId || null
     setDriveId(startDrive)
     loadFolder(startFolder, [root
       ? { id: startFolder, name: root.name || 'Job folder', path: root.path || '', webUrl: root.webUrl || null }
-      : { id: null, name: 'OneDrive', path: '', webUrl: null }], startDrive)
+      : startCrumb], startDrive, nowhere)
   }
 
   const handleDisconnect = async () => {
@@ -207,7 +218,7 @@ export default function OneDriveBrowser({ currentUser, mode = 'browse', onPick, 
     setItems([])
   }
 
-  const loadFolder = async (folderId, newBreadcrumb, overrideDriveId) => {
+  const loadFolder = async (folderId, newBreadcrumb, overrideDriveId, nowhere = false) => {
     setLoading(true)
     setError('')
     setSearching(false)
@@ -217,6 +228,9 @@ export default function OneDriveBrowser({ currentUser, mode = 'browse', onPick, 
     if (data.success) {
       setItems(data.items)
       if (newBreadcrumb) setBreadcrumb(newBreadcrumb)
+    } else if (nowhere) {
+      // No OneDrive and no SharePoint library to fall back on: say what to do, not just Microsoft's wording
+      setError(`This Microsoft account has no files QPlan can open${data.error ? ` (${data.error})` : ''}. Disconnect, then connect with an account that has a OneDrive or can see your SharePoint libraries.`)
     } else {
       setError(data.error || 'Could not load files.')
     }

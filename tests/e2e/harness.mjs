@@ -220,6 +220,9 @@ export async function installMocks(page) {
       }
       if (action === 'upload_file') { msState.uploads = msState.uploads || []; if (msState.uploadFails) return send({ success: false, error: 'Access denied' }, 400); msState.uploads.push(body); return send({ success: true, item: { id: 'file-' + msState.uploads.length, name: body.name, webUrl: 'https://example.sharepoint.com/f/' + body.name } }) }
       if (action === 'set_jobs_folder') { msState.jobsFolder = { driveId: body.drive_id, folderId: body.folder_id, name: body.name, path: body.path, webUrl: body.web_url }; return send({ success: true, jobsFolder: msState.jobsFolder }) }
+      // An admin-only account: no OneDrive of its own, only the firm's SharePoint libraries
+      if (action === 'drives' && msState.noOneDrive) return send({ success: true, drives: [{ id: 'd2', name: 'HPC / Documents', kind: 'sharepoint', webUrl: 'https://example.sharepoint.com/docs' }], sharepointError: null })
+      if (action === 'list' && msState.noOneDrive && !body.drive_id) return send({ success: false, error: "User's mysite not found." }, 400)
       if (action === 'drives') return send({ success: true, drives: [{ id: 'd1', name: 'OneDrive', kind: 'onedrive' }, { id: 'd2', name: 'HPC / Documents', kind: 'sharepoint' }], sharepointError: null })
       if (action === 'list') return send({ success: true, items: [{ id: 'f-jobs', name: 'Jobs', isFolder: true, childCount: 12, path: 'Jobs', webUrl: 'https://x', driveId: 'd1' }, { id: 'f-a', name: 'Admin', isFolder: true, childCount: 3, path: 'Admin', webUrl: 'https://x', driveId: 'd1' }, { id: 'file1', name: 'Fee schedule.xlsx', isFolder: false, size: 20000, webUrl: 'https://x', driveId: 'd1', path: 'Fee schedule.xlsx' }] })
       return send({ success: true })
